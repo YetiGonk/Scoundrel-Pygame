@@ -38,6 +38,10 @@ class GameOverState(GameState):
                 self.game_manager.game_data["max_life"] = 20
                 self.game_manager.game_data["victory"] = False
                 
+                # Completely reset the playing state
+                from states.playing_state import PlayingState
+                self.game_manager.states["playing"] = PlayingState(self.game_manager)
+                
                 # Start a new game
                 self.game_manager.change_state("menu")
     
