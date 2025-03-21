@@ -140,8 +140,20 @@ class PlayingState(GameState):
         surface.blit(self.background, (0, 0))
         surface.blit(self.floor, ((SCREEN_WIDTH - self.floor.get_width())/2, (SCREEN_HEIGHT - self.floor.get_height())/2))
         
+        # Draw deck first
+        self.deck.draw(surface)
+        
         # Draw discard pile
         self.discard_pile.draw(surface)
+        
+        # Draw equipped weapon and defeated monsters
+        if "node" in self.equipped_weapon:
+            self.equipped_weapon["node"].draw(surface)
+            for monster in self.defeated_monsters:
+                monster.draw(surface)
+        
+        # Draw room cards LAST always
+        self.room.draw(surface)
         
         # Draw health
         health_text = self.header_font.render(str(self.life_points), True, WHITE)
@@ -159,42 +171,6 @@ class PlayingState(GameState):
             button_text = self.body_font.render("RUN", True, (150, 150, 150))  # Grayed out text
             button_text_rect = button_text.get_rect(center=button_rect.center)
             surface.blit(button_text, button_text_rect)
-        
-        # Draw weapon and defeated monsters
-        if "node" in self.equipped_weapon:
-            self.equipped_weapon["node"].draw(surface)
-            for monster in self.defeated_monsters:
-                monster.draw(surface)
-        
-        # Draw order matters!
-        # When running animation, draw cards first then deck
-        # When drawing cards, draw deck first then cards
-        if self.is_running:
-            self.room.draw(surface)
-            self.deck.draw(surface)
-        else:
-            self.deck.draw(surface)
-            self.room.draw(surface)
-        
-        # Debug visuals if enabled
-        if self.show_debug:
-            # Draw center reference point
-            pygame.draw.circle(surface, (255, 0, 0), (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2), 3)
-            
-            # Draw expected card positions
-            if self.room.cards:
-                num_cards = 4
-                total_cards_width = num_cards * CARD_WIDTH
-                total_gaps_width = (num_cards - 1) * self.room.card_spacing
-                total_width = total_cards_width + total_gaps_width
-                
-                start_x = (SCREEN_WIDTH - total_width) // 2
-                start_y = (SCREEN_HEIGHT - CARD_HEIGHT) // 2 - 30
-                
-                for i in range(4):
-                    expected_pos = (start_x + i * (CARD_WIDTH + self.room.card_spacing), start_y)
-                    pygame.draw.rect(surface, (0, 255, 0), 
-                                    (expected_pos[0], expected_pos[1], CARD_WIDTH, CARD_HEIGHT), 1)
 
     def start_new_room(self, last_card=None):
         if len(self.deck.cards) < 4:
@@ -295,6 +271,12 @@ class PlayingState(GameState):
         # Reset the ran_last_turn flag
         self.ran_last_turn = False
         
+        # Create a copy of the card for animation purposes
+        card_copy = None
+        if card.type == "monster" and self.equipped_weapon:
+            # Only for monsters that will be stacked
+            card_copy = card
+        
         # Process card effects based on type
         if card.type == "monster":
             self.attack_monster(card)
@@ -303,17 +285,16 @@ class PlayingState(GameState):
         elif card.type == "potion":
             self.use_potion(card)
         
-        # Remove the card from the room but don't discard it yet
-        # The animation callbacks will handle adding to discard or other locations
-        self.room.remove_card(card)
+        # Only remove the card from the room if we're not animating it
+        if card != card_copy:
+            self.room.remove_card(card)
         
-        # Only animate remaining cards to new positions after current animations complete
-        if len(self.room.cards) > 0:
-            self.room.position_cards(animate=True, animation_manager=self.animation_manager)
-    
+        # Animate remaining cards to new positions
+        self.room.position_cards(animate=True, animation_manager=self.animation_manager)
+
     def attack_monster(self, monster):
         if self.equipped_weapon:
-            weapon_card = self.equipped_weapon["node"]
+            # Monster will be added to stack or discard
             if self.defeated_monsters:
                 if self.defeated_monsters[-1].value > monster.value:
                     damage = monster.value - self.equipped_weapon["value"]
@@ -322,10 +303,13 @@ class PlayingState(GameState):
                     if damage > self.life_points:
                         damage = self.life_points
                     self.life_points -= damage
+                    monster.z_index = self.z_index_counter
+                    self.z_index_counter += 1
                     
-                    # Animate monster being defeated by weapon
-                    self.animate_monster_defeat(monster, weapon_card)
-                    
+                    # Add to defeated monsters AFTER removing from room
+                    self.room.remove_card(monster)
+                    self.defeated_monsters.append(monster)
+                    self.position_monster_stack()
                     self.check_game_over()
                 else:
                     if monster.value > self.life_points:
@@ -333,13 +317,17 @@ class PlayingState(GameState):
                     else:
                         self.life_points -= monster.value
                     self.check_game_over()
-                    
-                    # Animate monster moving to discard pile
-                    self.animate_card_to_discard(monster)
+                    # Add to discard AFTER removing from room
+                    self.room.remove_card(monster)
+                    self.discard_pile.add_card(monster)
             else:
                 if monster.value <= self.equipped_weapon["value"]:
-                    # Animate monster being defeated by weapon
-                    self.animate_monster_defeat(monster, weapon_card)
+                    monster.z_index = self.z_index_counter
+                    self.z_index_counter += 1
+                    # Add to defeated monsters AFTER removing from room
+                    self.room.remove_card(monster)
+                    self.defeated_monsters.append(monster)
+                    self.position_monster_stack()
                 else:
                     damage = monster.value - self.equipped_weapon["value"]
                     if damage < 0:
@@ -347,20 +335,21 @@ class PlayingState(GameState):
                     if damage > self.life_points:
                         damage = self.life_points
                     self.life_points -= damage
-                    
-                    # Animate monster being defeated by weapon
-                    self.animate_monster_defeat(monster, weapon_card)
-                    
+                    monster.z_index = self.z_index_counter
+                    self.z_index_counter += 1
+                    # Add to defeated monsters AFTER removing from room
+                    self.room.remove_card(monster)
+                    self.defeated_monsters.append(monster)
+                    self.position_monster_stack()
                     self.check_game_over()
         else:
             if monster.value > self.life_points:
                 self.life_points = 0
             else:
                 self.life_points -= monster.value
-                
-            # Animate monster moving to discard pile (no weapon)
-            self.animate_monster_defeat(monster, None)
-            
+            # Add to discard AFTER removing from room
+            self.room.remove_card(monster)
+            self.discard_pile.add_card(monster)
             self.check_game_over()
 
     def add_to_defeated_monsters(self, monster):
@@ -560,7 +549,7 @@ class PlayingState(GameState):
         float_up_pos = (start_pos[0], start_pos[1] - 50)  # 50 pixels up
         
         from utils.animation import Animation
-        
+
         # Define the sequence of animations
         def start_rotation_animation():
             # 2. Now animate rotation
@@ -698,11 +687,7 @@ class PlayingState(GameState):
             target_pos,
             duration,
             easing,
-            on_complete,
-            rotation_start,
-            rotation_end,
-            scale_start,
-            scale_end
+            on_complete
         )
         
         self.animation_manager.add_animation(animation)
