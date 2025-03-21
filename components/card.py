@@ -1,10 +1,11 @@
-""" Card component for the Scoundrel game. """
+""" Card component for the Scoundrel game with enhanced animation support. """
 import pygame
+import math
 from constants import CARD_WIDTH, CARD_HEIGHT
 from utils.resource_loader import ResourceLoader
 
 class Card:
-    """ Represents a card in the game. """
+    """ Represents a card in the game with support for rotation and scaling. """
     
     def __init__(self, suit, value):
         self.suit = suit
@@ -19,6 +20,10 @@ class Card:
         self.halfway_point = (0, 0)
         self.z_index = 0
         
+        # New animation properties
+        self.rotation = 0  # Degrees
+        self.scale = 1.0
+        
         # Load the card texture
         if self.suit and self.value:
             texture = ResourceLoader.load_image(f"cards/{self.suit}_{self.value}.png")
@@ -32,6 +37,7 @@ class Card:
             ResourceLoader.load_image("cards/card_blue.png"), 
             (self.width, self.height)
         )
+        self.original_face_down_texture = self.face_down_texture
         
         # Flip animation properties
         self.flip_progress = 0.0  # 0.0 to 1.0
@@ -83,8 +89,53 @@ class Card:
                 # Update y position for lift effect
                 self.rect.y = self.original_y - lift_amount
     
+    def rotate(self, angle):
+        """Rotate the card textures"""
+        self.rotation = angle
+        
+        # Only rotate if angle is not close to 0
+        if abs(angle) > 0.1:
+            # Rotate both textures
+            self.texture = pygame.transform.rotate(self.original_texture, angle)
+            self.face_down_texture = pygame.transform.rotate(self.original_face_down_texture, angle)
+            
+            # Update rect size for rotated texture
+            self.rect.width = self.texture.get_width()
+            self.rect.height = self.texture.get_height()
+        else:
+            # Reset to original textures
+            self.texture = self.original_texture.copy()
+            self.face_down_texture = self.original_face_down_texture.copy()
+            self.rect.width = self.width
+            self.rect.height = self.height
+    
+    def update_scale(self, scale):
+        """Update the card scale"""
+        if abs(scale - 1.0) < 0.01:
+            # Reset to original size
+            self.texture = self.original_texture.copy()
+            self.face_down_texture = self.original_face_down_texture.copy()
+            self.rect.width = self.width  
+            self.rect.height = self.height
+        else:
+            # Scale the textures
+            new_width = int(self.width * scale)
+            new_height = int(self.height * scale)
+            
+            if new_width > 0 and new_height > 0:
+                self.texture = pygame.transform.scale(self.original_texture, (new_width, new_height))
+                self.face_down_texture = pygame.transform.scale(self.original_face_down_texture, (new_width, new_height))
+                
+                # Update rect size
+                self.rect.width = new_width
+                self.rect.height = new_height
+        
+        self.scale = scale
+    
     def draw(self, surface):
         if self.is_flipping:
+            # Existing flip animation code
+            # ... (keep the existing implementation)
             # Draw shadow as a greyed card behind the main card
             shadow_offset_x = 15  # Horizontal offset
             shadow_offset_y = 15  # Vertical offset
@@ -171,13 +222,42 @@ class Card:
                 x_offset = (self.width - scaled_width) / 2
                 surface.blit(scaled_card, (self.rect.x + x_offset, self.rect.y))
         else:
-            # Normal drawing (either face up or face down)
-            if self.face_up:
-                surface.blit(self.texture, self.rect.topleft)
-            else:
-                surface.blit(self.face_down_texture, self.rect.topleft)
+            # Normal drawing (either face up or face down) with rotation support
+            current_texture = self.texture if self.face_up else self.face_down_texture
+            
+            # Calculate the center position for rotated or scaled cards
+            # This ensures the card rotates around its center
+            center_x = self.rect.x + self.rect.width / 2
+            center_y = self.rect.y + self.rect.height / 2
+            
+            # Calculate the top-left position for drawing
+            pos_x = center_x - current_texture.get_width() / 2
+            pos_y = center_y - current_texture.get_height() / 2
+            
+            # Draw the card at the calculated position
+            surface.blit(current_texture, (pos_x, pos_y))
 
     def check_hover(self, mouse_pos):
         previous_hover = self.is_hovered
-        self.is_hovered = self.rect.collidepoint(mouse_pos)
+        
+        # Adjust for rotation if needed
+        if abs(self.rotation) > 0.1 or abs(self.scale - 1.0) > 0.01:
+            # For rotated/scaled cards, use distance-based collision detection
+            center_x = self.rect.x + self.rect.width / 2
+            center_y = self.rect.y + self.rect.height / 2
+            
+            # Calculate distance from mouse to card center
+            dx = mouse_pos[0] - center_x
+            dy = mouse_pos[1] - center_y
+            
+            # Get effective radius (half of diagonal)
+            radius = math.sqrt((self.width * self.scale / 2) ** 2 + (self.height * self.scale / 2) ** 2)
+            
+            # Check if mouse is within the radius
+            distance = math.sqrt(dx * dx + dy * dy)
+            self.is_hovered = distance <= radius
+        else:
+            # For normal cards, use rect collision
+            self.is_hovered = self.rect.collidepoint(mouse_pos)
+            
         return previous_hover != self.is_hovered

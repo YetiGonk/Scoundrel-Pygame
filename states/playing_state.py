@@ -10,7 +10,7 @@ from components.room import Room
 from states.game_state import GameState
 from ui.button import Button
 from utils.resource_loader import ResourceLoader
-from utils.animation import AnimationManager, MoveAnimation, EasingFunctions
+from utils.animation import Animation, AnimationManager, MoveAnimation, EasingFunctions
 
 class PlayingState(GameState):
     """The main gameplay state of the game."""
@@ -218,6 +218,19 @@ class PlayingState(GameState):
         # Calculate how many cards to draw
         cards_to_draw = 4 - len(self.room.cards)
         
+        # Calculate final target positions first
+        num_cards = 4  # Always 4 cards in a full room
+        total_width = (CARD_WIDTH * num_cards) + (self.room.card_spacing * (num_cards - 1))
+        start_x = (SCREEN_WIDTH - total_width) // 2
+        start_y = (SCREEN_HEIGHT - CARD_HEIGHT) // 2 - 40
+        
+        target_positions = []
+        for i in range(num_cards):
+            target_positions.append((
+                int(start_x + i * (CARD_WIDTH + self.room.card_spacing)),
+                int(start_y)
+            ))
+        
         # Draw cards one by one with animations
         for i in range(cards_to_draw):
             if self.deck.cards:
@@ -233,36 +246,28 @@ class PlayingState(GameState):
                 else:
                     card.update_position(self.deck.position)
                 
-                # Add card to room (this will NOT position cards anymore)
+                # Add card to room (this won't position cards yet)
                 self.room.add_card(card)
-        
-        # Position all cards at once after adding them all
-        self.room.position_cards()
-        
-        # Now create animations to move cards to their positions
-        for i, card in enumerate(self.room.cards):
-            # Store the target position
-            target_pos = card.rect.topleft
-            
-            # Reset to deck position for animation
-            if self.deck.card_stack and i >= (len(self.room.cards) - cards_to_draw):
-                card.update_position(self.deck.card_stack[-1])
-            elif i >= (len(self.room.cards) - cards_to_draw):
-                card.update_position(self.deck.position)
-            
-            # Only animate newly added cards
-            if i >= (len(self.room.cards) - cards_to_draw):
-                # Create animation to move card to position
-                animation = MoveAnimation(
-                    card, 
-                    card.rect.topleft, 
-                    target_pos, 
-                    0.3 + 0.1 * (i - (len(self.room.cards) - cards_to_draw)),  # Stagger animations
-                    EasingFunctions.ease_out_quad,
-                    on_complete=lambda c=card: self.start_card_flip(c)
-                )
                 
-                self.animation_manager.add_animation(animation)
+                # Calculate which target position to use
+                if last_card:
+                    target_pos = target_positions[i + 1]  # Skip position 0 for last_card
+                else:
+                    target_pos = target_positions[i]
+                
+                # Create animation to move card to position with staggered timing
+                delay = 0.1 * i  # Stagger the dealing animations
+                
+                # Create a delayed animation
+                self.schedule_delayed_animation(
+                    delay,
+                    lambda card=card, pos=target_pos: self.animate_card_movement(
+                        card, 
+                        pos, 
+                        duration=0.3,
+                        on_complete=lambda c=card: self.start_card_flip(c)
+                    )
+                )
         
         # Update deck display
         if self.deck.card_stack:
@@ -270,10 +275,18 @@ class PlayingState(GameState):
                 if self.deck.card_stack:
                     self.deck.card_stack.pop()
         self.deck.initialise_visuals()
-    
+
+    def schedule_delayed_animation(self, delay, callback):
+        """Schedule an animation to start after a delay"""
+        # Add a "timer" animation that does nothing except wait
+        # When it completes, it will run the callback to create the real animation
+        from utils.animation import Animation
+        timer = Animation(delay, on_complete=callback)
+        self.animation_manager.add_animation(timer)
+
     def start_card_flip(self, card):
         card.start_flip()
-    
+        
     def resolve_card(self, card):
         # Can only resolve cards that are face up and not flipping
         if not card.face_up or card.is_flipping or self.animation_manager.is_animating():
@@ -290,24 +303,17 @@ class PlayingState(GameState):
         elif card.type == "potion":
             self.use_potion(card)
         
-        # Remove the card from the room
+        # Remove the card from the room but don't discard it yet
+        # The animation callbacks will handle adding to discard or other locations
         self.room.remove_card(card)
         
-        # Debug print to check if we have cards left to animate
-        print(f"Cards left after removal: {len(self.room.cards)}")
-        
-        # Animate remaining cards to new positions
+        # Only animate remaining cards to new positions after current animations complete
         if len(self.room.cards) > 0:
-            print("Animating card repositioning")
             self.room.position_cards(animate=True, animation_manager=self.animation_manager)
-            print(f"Animation manager has {len(self.animation_manager.animations)} animations")
-        
-        # Wait to start a new room until animations complete
-        if len(self.room.cards) == 1 and not self.animation_manager.is_animating():
-            self.start_new_room(self.room.cards[0])
     
     def attack_monster(self, monster):
         if self.equipped_weapon:
+            weapon_card = self.equipped_weapon["node"]
             if self.defeated_monsters:
                 if self.defeated_monsters[-1].value > monster.value:
                     damage = monster.value - self.equipped_weapon["value"]
@@ -316,10 +322,10 @@ class PlayingState(GameState):
                     if damage > self.life_points:
                         damage = self.life_points
                     self.life_points -= damage
-                    monster.z_index = self.z_index_counter
-                    self.z_index_counter += 1
-                    self.defeated_monsters.append(monster)
-                    self.position_monster_stack()
+                    
+                    # Animate monster being defeated by weapon
+                    self.animate_monster_defeat(monster, weapon_card)
+                    
                     self.check_game_over()
                 else:
                     if monster.value > self.life_points:
@@ -327,13 +333,13 @@ class PlayingState(GameState):
                     else:
                         self.life_points -= monster.value
                     self.check_game_over()
-                    self.discard_pile.add_card(monster)
+                    
+                    # Animate monster moving to discard pile
+                    self.animate_card_to_discard(monster)
             else:
                 if monster.value <= self.equipped_weapon["value"]:
-                    monster.z_index = self.z_index_counter
-                    self.z_index_counter += 1
-                    self.defeated_monsters.append(monster)
-                    self.position_monster_stack()
+                    # Animate monster being defeated by weapon
+                    self.animate_monster_defeat(monster, weapon_card)
                 else:
                     damage = monster.value - self.equipped_weapon["value"]
                     if damage < 0:
@@ -341,19 +347,45 @@ class PlayingState(GameState):
                     if damage > self.life_points:
                         damage = self.life_points
                     self.life_points -= damage
-                    monster.z_index = self.z_index_counter
-                    self.z_index_counter += 1
-                    self.defeated_monsters.append(monster)
-                    self.position_monster_stack()
+                    
+                    # Animate monster being defeated by weapon
+                    self.animate_monster_defeat(monster, weapon_card)
+                    
                     self.check_game_over()
         else:
             if monster.value > self.life_points:
                 self.life_points = 0
             else:
                 self.life_points -= monster.value
-            self.discard_pile.add_card(monster)
+                
+            # Animate monster moving to discard pile (no weapon)
+            self.animate_monster_defeat(monster, None)
+            
             self.check_game_over()
-    
+
+    def add_to_defeated_monsters(self, monster):
+        """Callback after animation to actually add monster to defeated stack"""
+        monster.z_index = self.z_index_counter
+        self.z_index_counter += 1
+        self.defeated_monsters.append(monster)
+
+    def calculate_monster_stack_position(self, index):
+        """Calculate position for a monster in the defeated monster stack"""
+        if not self.equipped_weapon or "node" not in self.equipped_weapon:
+            # Default position if no weapon equipped
+            from constants import WEAPON_POSITION
+            weapon_pos = WEAPON_POSITION
+        else:
+            weapon_pos = self.equipped_weapon["node"].rect.topleft
+        
+        monster_start_offset = (150, 0)
+        monster_stack_offset = (30, 10)
+        
+        return (
+            weapon_pos[0] + monster_start_offset[0] + index * monster_stack_offset[0],
+            weapon_pos[1] + index * monster_stack_offset[1]
+        )
+
     def position_monster_stack(self):
         if not self.defeated_monsters or "node" not in self.equipped_weapon:
             return
@@ -388,26 +420,293 @@ class PlayingState(GameState):
         weapon.z_index = self.z_index_counter
         self.z_index_counter += 1
         
-        # Set weapon position
+        # Animate weapon equipping with a flourish
         from constants import WEAPON_POSITION
-        weapon.update_position(WEAPON_POSITION)
+        self.animate_card_movement(weapon, WEAPON_POSITION)
     
     def clear_weapon_and_monsters(self):
+        """Discard the equipped weapon and all defeated monsters"""
+        # Animate all monsters moving to the discard pile
         for monster in self.defeated_monsters:
-            self.discard_pile.add_card(monster)
+            self.animate_card_to_discard(monster)
+        
+        # Clear the defeated_monsters list
         self.defeated_monsters.clear()
         
+        # Animate the weapon moving to the discard pile
         if "node" in self.equipped_weapon:
-            self.discard_pile.add_card(self.equipped_weapon["node"])
+            self.animate_card_to_discard(self.equipped_weapon["node"])
             self.equipped_weapon = {}
     
     def use_potion(self, potion):
         # Update health points
         self.life_points = min(self.life_points + potion.value, self.max_life)
         
-        # Add to discard pile
-        self.discard_pile.add_card(potion)
-    
+        # Animate potion moving to discard pile
+        self.animate_card_to_discard(potion)
+        
+    def animate_card_to_discard(self, card):
+        """Animate a card moving to the discard pile with a spin effect"""
+        # Get discard pile position
+        discard_pos = self.discard_pile.position
+        
+        # Calculate a slightly elevated position for the arc
+        mid_height = -100  # Higher than both start and end
+        
+        # Create an arc animation with rotation
+        self.animate_card_arc(
+            card, 
+            discard_pos, 
+            mid_height,
+            duration=0.6,
+            rotation_end=360,  # Full spin
+            on_complete=lambda: self.discard_pile.add_card(card)
+        )
+
+    def animate_card_arc(self, card, target_pos, arc_height, duration=0.5, 
+                        rotation_start=0, rotation_end=0, scale_start=1.0, scale_end=1.0,
+                        on_complete=None):
+        """Animate a card in an arc trajectory with rotation and scaling"""
+        start_pos = card.rect.topleft
+        
+        # Custom animation class for arc movement
+        class ArcAnimation(Animation):
+            def __init__(self, card, start_pos, target_pos, arc_height, duration, 
+                        rotation_start, rotation_end, scale_start, scale_end, on_complete=None):
+                super().__init__(duration, on_complete)
+                self.card = card
+                self.start_pos = start_pos
+                self.target_pos = target_pos
+                self.arc_height = arc_height
+                self.rotation_start = rotation_start
+                self.rotation_end = rotation_end
+                self.scale_start = scale_start
+                self.scale_end = scale_end
+                
+                # Initialize rotation and scale
+                if hasattr(card, 'rotation'):
+                    self.card.rotation = rotation_start
+                if hasattr(card, 'scale'):
+                    self.card.scale = scale_start
+                    self.card.update_scale(scale_start)
+            
+            def update(self, delta_time):
+                completed = super().update(delta_time)
+                
+                # Get normalized progress (0.0 to 1.0)
+                progress = self.get_progress()
+                
+                # Calculate horizontal position (linear)
+                x = self.start_pos[0] + (self.target_pos[0] - self.start_pos[0]) * progress
+                
+                # Calculate vertical position (parabolic arc)
+                # Use a parabola that peaks at the middle of the animation
+                y_start = self.start_pos[1]
+                y_end = self.target_pos[1]
+                
+                # Quadratic function: y = a*t^2 + b*t + c where t is progress (0 to 1)
+                # When t=0, y=start_y
+                # When t=1, y=end_y
+                # When t=0.5, y=peak_y (which is min_y plus arc_height)
+                
+                # Solve for a, b, c
+                # Simplified parabola for arc trajectory: y = 4*h*t*(1-t) + start*(1-t) + end*t
+                # Where h is the height difference from the straight line
+                
+                # Calculate linear interpolation between start and end
+                linear_y = y_start * (1 - progress) + y_end * progress
+                
+                # Calculate parabolic arc component (maximum at progress = 0.5)
+                arc_component = 4 * self.arc_height * progress * (1 - progress)
+                
+                # Combine to get final y position
+                y = linear_y - arc_component  # Subtract because negative is up in PyGame
+                
+                # Update card position
+                self.card.update_position((int(x), int(y)))
+                
+                # Update rotation
+                if hasattr(self.card, 'rotation') and self.rotation_start != self.rotation_end:
+                    current_rotation = self.rotation_start + (self.rotation_end - self.rotation_start) * progress
+                    self.card.rotation = current_rotation
+                    
+                    # Apply rotation if the card has a rotate method
+                    if hasattr(self.card, 'rotate'):
+                        self.card.rotate(current_rotation)
+                
+                # Update scale
+                if hasattr(self.card, 'scale') and self.scale_start != self.scale_end:
+                    current_scale = self.scale_start + (self.scale_end - self.scale_start) * progress
+                    
+                    # Apply scaling
+                    if hasattr(self.card, 'update_scale'):
+                        self.card.update_scale(current_scale)
+                
+                return completed
+        
+        # Create and add the animation
+        animation = ArcAnimation(
+            card, start_pos, target_pos, arc_height, duration,
+            rotation_start, rotation_end, scale_start, scale_end, on_complete
+        )
+        self.animation_manager.add_animation(animation)
+
+    def animate_card_flourish(self, card, target_pos, duration=0.8, on_complete=None):
+        """Animated card flourish with scaling and rotation effects"""
+        # We'll create a multi-part sequence of animations
+        
+        # 1. First animate the card floating up slightly with rotation
+        start_pos = card.rect.topleft
+        float_up_pos = (start_pos[0], start_pos[1] - 50)  # 50 pixels up
+        
+        from utils.animation import Animation
+        
+        # Define the sequence of animations
+        def start_rotation_animation():
+            # 2. Now animate rotation
+            # Create a special animation that just handles rotation
+            class RotationAnimation(Animation):
+                def __init__(self, card, start_angle, end_angle, duration, on_complete=None):
+                    super().__init__(duration, on_complete)
+                    self.card = card
+                    self.start_angle = start_angle
+                    self.end_angle = end_angle
+                
+                def update(self, delta_time):
+                    completed = super().update(delta_time)
+                    progress = self.get_progress()
+                    
+                    # Ease in-out for rotation
+                    if progress < 0.5:
+                        eased_progress = 2 * progress * progress  # Ease in
+                    else:
+                        eased_progress = 1 - pow(-2 * progress + 2, 2) / 2  # Ease out
+                    
+                    # Apply rotation
+                    current_angle = self.start_angle + (self.end_angle - self.start_angle) * eased_progress
+                    if hasattr(self.card, 'rotate'):
+                        self.card.rotate(current_angle)
+                    
+                    return completed
+            
+            # Add the rotation animation (two full spins)
+            rotation_anim = RotationAnimation(card, 0, 720, duration / 2, on_complete=start_final_move)
+            self.animation_manager.add_animation(rotation_anim)
+        
+        def start_final_move():
+            # 3. Finally move to target position with scale effect
+            self.animate_card_arc(
+                card, target_pos, 20, duration=duration / 2,
+                scale_start=1.2, scale_end=1.0,
+                on_complete=on_complete
+            )
+        
+        # Start the sequence with the first animation
+        self.animate_card_movement(
+            card, float_up_pos, duration=duration / 4,
+            scale_start=1.0, scale_end=1.2,
+            on_complete=start_rotation_animation
+        )
+
+    def animate_monster_defeat(self, monster, weapon):
+        """Animate a monster being defeated by a weapon"""
+        # Calculate a position above the weapon for the monster to move to first
+        weapon_pos = weapon.rect.topleft if weapon else (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+        above_weapon_pos = (weapon_pos[0], weapon_pos[1] - 80)
+        
+        # Create a sequence of animations:
+        # 1. Monster moves up above weapon
+        # 2. Monster shakes (damage effect)
+        # 3. Monster moves to final position
+        
+        from utils.animation import Animation
+        
+        def start_shake_animation():
+            # Create a shake animation
+            class ShakeAnimation(Animation):
+                def __init__(self, card, center_pos, intensity, duration, on_complete=None):
+                    super().__init__(duration, on_complete)
+                    self.card = card
+                    self.center_pos = center_pos
+                    self.intensity = intensity
+                    self.last_offset = (0, 0)
+                
+                def update(self, delta_time):
+                    import random
+                    completed = super().update(delta_time)
+                    
+                    # Get the current intensity based on progress
+                    # Start strong, then fade out
+                    progress = self.get_progress()
+                    current_intensity = self.intensity * (1 - progress)
+                    
+                    # Calculate random offset
+                    offset_x = random.uniform(-current_intensity, current_intensity)
+                    offset_y = random.uniform(-current_intensity, current_intensity)
+                    
+                    # Apply the new position
+                    new_pos = (self.center_pos[0] + offset_x, self.center_pos[1] + offset_y)
+                    self.card.update_position((int(new_pos[0]), int(new_pos[1])))
+                    
+                    # Reset to center position when done
+                    if completed:
+                        self.card.update_position((int(self.center_pos[0]), int(self.center_pos[1])))
+                    
+                    return completed
+            
+            # Create and add the shake animation
+            shake_anim = ShakeAnimation(monster, above_weapon_pos, 10, 0.5, on_complete=start_final_move)
+            self.animation_manager.add_animation(shake_anim)
+        
+        def start_final_move():
+            # Calculate the final position for the monster
+            if weapon:
+                # Position next to other defeated monsters
+                target_pos = self.calculate_monster_stack_position(len(self.defeated_monsters))
+            else:
+                # No weapon, move to discard pile
+                target_pos = self.discard_pile.position
+            
+            # For weapon defeats, use arc animation
+            if weapon:
+                self.animate_card_arc(
+                    monster, target_pos, 20, duration=0.4,
+                    on_complete=lambda: self.add_to_defeated_monsters(monster)
+                )
+            else:
+                # For bare-handed defeats, go to discard with spin
+                self.animate_card_to_discard(monster)
+        
+        # Start with the first animation in sequence
+        self.animate_card_movement(
+            monster, above_weapon_pos, duration=0.3,
+            on_complete=start_shake_animation
+        )
+
+    def animate_card_movement(self, card, target_pos, duration=0.3, easing=None, 
+            on_complete=None, rotation_start=0, rotation_end=0,
+            scale_start=1.0, scale_end=1.0):
+        """Create an animation for card movement with optional callback"""
+        if easing is None:
+            from utils.animation import EasingFunctions
+            easing = EasingFunctions.ease_out_quad
+        
+        from utils.animation import MoveAnimation
+        animation = MoveAnimation(
+            card,
+            card.rect.topleft,
+            target_pos,
+            duration,
+            easing,
+            on_complete,
+            rotation_start,
+            rotation_end,
+            scale_start,
+            scale_end
+        )
+        
+        self.animation_manager.add_animation(animation)
+
     def run_from_room(self):
         if len(self.room.cards) != 4 or self.animation_manager.is_animating():
             return

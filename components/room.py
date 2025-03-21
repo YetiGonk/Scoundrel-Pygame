@@ -36,7 +36,7 @@ class Room:
     def position_cards(self, animate=False, animation_manager=None):
         if not self.cards:
             return
-        
+
         # Calculate positions with proper centering
         num_cards = len(self.cards)
         total_width = (CARD_WIDTH * num_cards) + (self.card_spacing * (num_cards - 1))
@@ -45,31 +45,30 @@ class Room:
         start_x = (SCREEN_WIDTH - total_width) // 2
         start_y = (SCREEN_HEIGHT - CARD_HEIGHT) // 2 - 40
 
+        # Sort cards by z-index for consistent positioning
+        sorted_cards = sorted(self.cards, key=lambda c: c.z_index)
+        
         # Get target positions for all cards
-        target_positions = []
-        for i in range(num_cards):
+        for i, card in enumerate(sorted_cards):
             card_position = (
                 int(start_x + i * (CARD_WIDTH + self.card_spacing)), 
                 int(start_y)
             )
-            target_positions.append(card_position)
-        
-        # Update card positions (with animation if requested)
-        for i, card in enumerate(self.cards):
+            
             if animate and animation_manager is not None:
-                # Don't update position here - let the animation do it
+                # Create animation with easing
                 from utils.animation import MoveAnimation, EasingFunctions
                 animation = MoveAnimation(
                     card,
                     card.rect.topleft,
-                    target_positions[i],
-                    0.15,
+                    card_position,
+                    0.2,  # Slightly faster for repositioning
                     EasingFunctions.ease_out_quad
                 )
                 animation_manager.add_animation(animation)
             else:
                 # Immediate positioning without animation
-                card.update_position(target_positions[i])
+                card.update_position(card_position)
     
     def get_card_at_position(self, position):
         for card in reversed(sorted(self.cards, key=lambda c: c.z_index)):
