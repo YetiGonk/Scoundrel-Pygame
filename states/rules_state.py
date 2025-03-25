@@ -34,7 +34,7 @@ class RulesState(GameState):
         self.floor = pygame.transform.scale(self.floor, (FLOOR_WIDTH, FLOOR_HEIGHT))
     
     def handle_event(self, event):
-        if event.type == KEYDOWN:
+        if event.type == MOUSEBUTTONDOWN and event.button == 1: # left click
             self.game_manager.change_state("playing")
     
     def update(self, delta_time):
@@ -84,6 +84,6 @@ class RulesState(GameState):
             y_offset += 25
         
         # Continue text
-        continue_text = self.body_font.render("Press any key to continue...", True, GRAY)
+        continue_text = self.body_font.render("Left-click to continue...", True, GRAY)
         continue_rect = continue_text.get_rect(center=(SCREEN_WIDTH//2, panel_rect.bottom - 30))
         surface.blit(continue_text, continue_rect)

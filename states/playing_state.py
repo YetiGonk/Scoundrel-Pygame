@@ -22,6 +22,7 @@ class PlayingState(GameState):
         self.deck = None
         self.discard_pile = None
         self.room = None
+        self.current_floor = None
         
         # Player stats
         self.life_points = 20
@@ -49,6 +50,7 @@ class PlayingState(GameState):
 
     def enter(self):
         # Load fonts
+        self.title_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 60)
         self.header_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 36)
         self.body_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 28)
 
@@ -63,7 +65,8 @@ class PlayingState(GameState):
         self.floor = pygame.transform.scale(self.floor, (FLOOR_WIDTH, FLOOR_HEIGHT))
 
         # Initialize game components
-        self.deck = Deck()
+        self.current_floor = "easy"
+        self.deck = Deck(self.current_floor)
         self.discard_pile = DiscardPile()
         self.room = Room(self.animation_manager)
 
@@ -132,8 +135,12 @@ class PlayingState(GameState):
             self.on_run_completed()
         
         # If we have only one card left and animations just finished, start a new room
-        elif len(self.room.cards) == 1 and animations_just_finished:
+        elif len(self.room.cards) == 1 and animations_just_finished and len(self.deck.cards) > 0:
             self.start_new_room(self.room.cards[0])
+        
+        # If both room and deck are empty and animations just finished, then trigger victory
+        elif len(self.room.cards) == 0 and animations_just_finished and len(self.deck.cards) == 0:
+            self.check_game_over()
     
     def draw(self, surface):
         # Draw background
@@ -156,8 +163,8 @@ class PlayingState(GameState):
         self.room.draw(surface)
         
         # Draw health
-        health_text = self.header_font.render(str(self.life_points), True, WHITE)
-        health_rect = health_text.get_rect(topleft=(75, 527))
+        health_text = self.title_font.render(str(self.life_points), True, WHITE)
+        health_rect = health_text.get_rect(bottomleft=(self.deck.rect.x, SCREEN_HEIGHT-self.deck.rect.y))
         surface.blit(health_text, health_rect)
         
         # Draw run button
@@ -168,15 +175,11 @@ class PlayingState(GameState):
             button_rect = self.run_button.rect
             pygame.draw.rect(surface, LIGHT_GRAY, button_rect)
             pygame.draw.rect(surface, BLACK, button_rect, 2)
-            button_text = self.body_font.render("RUN", True, (150, 150, 150))  # Grayed out text
+            button_text = self.body_font.render("RUN", True, (150, 150, 150))  # Greyed out text
             button_text_rect = button_text.get_rect(center=button_rect.center)
             surface.blit(button_text, button_text_rect)
 
-    def start_new_room(self, last_card=None):
-        if len(self.deck.cards) < 4:
-            self.end_game(True)
-            return
-        
+    def start_new_room(self, last_card=None):        
         if self.life_points <= 0:
             return
         
@@ -192,10 +195,10 @@ class PlayingState(GameState):
             last_card.face_up = True
         
         # Calculate how many cards to draw
-        cards_to_draw = 4 - len(self.room.cards)
+        cards_to_draw = min(4 - len(self.room.cards), len(self.deck.cards))
         
         # Calculate final target positions first
-        num_cards = 4  # Always 4 cards in a full room
+        num_cards = min(4, len(self.deck.cards)+len(self.room.cards))  # Always 4 cards in a full room
         total_width = (CARD_WIDTH * num_cards) + (self.room.card_spacing * (num_cards - 1))
         start_x = (SCREEN_WIDTH - total_width) // 2
         start_y = (SCREEN_HEIGHT - CARD_HEIGHT) // 2 - 40
@@ -206,7 +209,7 @@ class PlayingState(GameState):
                 int(start_x + i * (CARD_WIDTH + self.room.card_spacing)),
                 int(start_y)
             ))
-        
+
         # Draw cards one by one with animations
         for i in range(cards_to_draw):
             if self.deck.cards:
@@ -222,12 +225,15 @@ class PlayingState(GameState):
                 else:
                     card.update_position(self.deck.position)
                 
-                # Add card to room (this won't position cards yet)
+                # Add card to room
                 self.room.add_card(card)
                 
                 # Calculate which target position to use
                 if last_card:
-                    target_pos = target_positions[i + 1]  # Skip position 0 for last_card
+                    if num_cards < 4:
+                        target_pos = target_positions[i]
+                    else:
+                        target_pos = target_positions[i + 1]  # Skip position 0 for last_card
                 else:
                     target_pos = target_positions[i]
                 
@@ -310,16 +316,14 @@ class PlayingState(GameState):
                     self.room.remove_card(monster)
                     self.defeated_monsters.append(monster)
                     self.position_monster_stack()
-                    self.check_game_over()
                 else:
                     if monster.value > self.life_points:
                         self.life_points = 0
                     else:
                         self.life_points -= monster.value
-                    self.check_game_over()
+                        self.animate_card_movement(monster, self.discard_pile.position, on_complete=lambda: self.discard_pile.add_card(monster))
                     # Add to discard AFTER removing from room
                     self.room.remove_card(monster)
-                    self.discard_pile.add_card(monster)
             else:
                 if monster.value <= self.equipped_weapon["value"]:
                     monster.z_index = self.z_index_counter
@@ -341,16 +345,14 @@ class PlayingState(GameState):
                     self.room.remove_card(monster)
                     self.defeated_monsters.append(monster)
                     self.position_monster_stack()
-                    self.check_game_over()
         else:
             if monster.value > self.life_points:
                 self.life_points = 0
             else:
                 self.life_points -= monster.value
+                self.animate_card_movement(monster, self.discard_pile.position, on_complete=lambda: self.discard_pile.add_card(monster))
             # Add to discard AFTER removing from room
             self.room.remove_card(monster)
-            self.discard_pile.add_card(monster)
-            self.check_game_over()
 
     def add_to_defeated_monsters(self, monster):
         """Callback after animation to actually add monster to defeated stack"""
@@ -379,24 +381,23 @@ class PlayingState(GameState):
         if not self.defeated_monsters or "node" not in self.equipped_weapon:
             return
             
-        monster_start_offset = (150, 0)
-        monster_stack_offset = (30, 10)
-        total_width = monster_stack_offset[0] * (len(self.defeated_monsters) - 1)
-        start_x = self.equipped_weapon["node"].rect.x + monster_start_offset[0] - total_width / 2
-        
-        weapon_adjustment = (-total_width / 2, 0)
-        weapon_pos = (self.equipped_weapon["node"].rect.x + weapon_adjustment[0], 
-            self.equipped_weapon["node"].rect.y + weapon_adjustment[1]
-        )
-        self.equipped_weapon["node"].update_position(weapon_pos)
+        from constants import MONSTER_STACK_OFFSET, MONSTER_START_OFFSET
+        total_width = MONSTER_STACK_OFFSET[0] * (len(self.defeated_monsters) - 1)
+        start_x = self.equipped_weapon["node"].rect.x + MONSTER_START_OFFSET[0]
         
         for i, monster in enumerate(self.defeated_monsters):
-            stack_position = (
-                start_x + i * monster_stack_offset[0],
-                self.equipped_weapon["node"].rect.y + monster_stack_offset[1] * i
+            new_stack_position = (
+                start_x + i * MONSTER_STACK_OFFSET[0],
+                self.equipped_weapon["node"].rect.y + MONSTER_STACK_OFFSET[1] * i
             )
-            monster.update_position(stack_position)
-    
+            self.animate_card_movement(monster, new_stack_position)
+
+        new_weapon_position = (
+            self.equipped_weapon["node"].rect.x - MONSTER_STACK_OFFSET[1]*2,
+            self.equipped_weapon["node"].rect.y
+        )
+        self.animate_card_movement(self.equipped_weapon["node"], new_weapon_position)
+
     def equip_weapon(self, weapon):
         self.clear_weapon_and_monsters()
         
@@ -695,14 +696,14 @@ class PlayingState(GameState):
     def run_from_room(self):
         if len(self.room.cards) != 4 or self.animation_manager.is_animating():
             return
-        
+
         # Only allow running if all cards are face up
         for card in self.room.cards:
             if not card.face_up or card.is_flipping:
                 return
-        
+
         self.is_running = True
-        
+
         # Animate cards moving to the bottom of the deck
         for card in list(self.room.cards):
             # Calculate target position (bottom of deck)
@@ -716,12 +717,13 @@ class PlayingState(GameState):
             card.original_width = 1.0
             card.halfway_point = ((target_pos[0] + card.rect.x) // 2, 
                                 (target_pos[1] + card.rect.y) // 2)
-            
+            card.z_index = -100
+
             # Create animation
             animation = MoveAnimation(
-                card, 
-                card.rect.topleft, 
-                target_pos, 
+                card,
+                card.rect.topleft,
+                target_pos,
                 0.5,
                 EasingFunctions.ease_in_out_quad
             )
@@ -752,7 +754,7 @@ class PlayingState(GameState):
     def check_game_over(self):
         if self.life_points <= 0:
             self.end_game(False)
-        elif not self.deck.cards:
+        elif not self.deck.cards and not self.room.cards:
             self.end_game(True)
     
     def end_game(self, victory):

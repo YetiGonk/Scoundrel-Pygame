@@ -50,10 +50,18 @@ class Room:
         
         # Get target positions for all cards
         for i, card in enumerate(sorted_cards):
-            card_position = (
-                int(start_x + i * (CARD_WIDTH + self.card_spacing)), 
-                int(start_y)
-            )
+            card_position = (0, 0)
+            if num_cards == 1:
+                # position final card as if left most side of 4 cards
+                card_position = (
+                    int(start_x - (CARD_WIDTH + self.card_spacing) * 1.5),
+                    int(start_y)
+                )
+            else:
+                card_position = (
+                    int(start_x + i * (CARD_WIDTH + self.card_spacing)), 
+                    int(start_y)
+                )
             
             if animate and animation_manager is not None:
                 # Create animation with easing

@@ -4,6 +4,7 @@ from pygame.locals import *
 
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, WHITE, BLACK, LIGHT_GRAY
 from states.game_state import GameState
+from ui.panel import Panel
 from utils.resource_loader import ResourceLoader
 
 class MenuState(GameState):
@@ -48,15 +49,13 @@ class MenuState(GameState):
         surface.blit(self.floor, ((SCREEN_WIDTH - self.floor.get_width())/2, (SCREEN_HEIGHT - self.floor.get_height())/2))
         
         # Create a semi-transparent panel
-        panel = pygame.Surface((500, 400))
-        panel.fill(WHITE)
-        panel.set_alpha(220)
-        panel_rect = panel.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2))
-        surface.blit(panel, panel_rect)
+        from constants import MENU_WIDTH, MENU_HEIGHT, MENU_POSITION
+        panel = Panel((MENU_WIDTH, MENU_HEIGHT), MENU_POSITION)
+        panel.draw(surface)
         
         # Draw title
         title_text = self.title_font.render("SCOUNDREL", True, BLACK)
-        title_rect = title_text.get_rect(center=(SCREEN_WIDTH//2, panel_rect.top + 50))
+        title_rect = title_text.get_rect(center=(SCREEN_WIDTH//2, panel.rect.top + 50))
         surface.blit(title_text, title_rect)
         
         # Draw subtitle
@@ -65,8 +64,8 @@ class MenuState(GameState):
         surface.blit(subtitle_text, subtitle_rect)
         
         # Draw start button
-        self.start_button_rect = pygame.Rect(0, 0, 200, 50)
-        self.start_button_rect.center = (SCREEN_WIDTH//2, panel_rect.bottom - 70)
+        self.start_button_rect = pygame.Rect(0, 0, 225, 50)
+        self.start_button_rect.center = (SCREEN_WIDTH//2, panel.rect.bottom + 150)
         pygame.draw.rect(surface, LIGHT_GRAY, self.start_button_rect)
         pygame.draw.rect(surface, BLACK, self.start_button_rect, 2)
         

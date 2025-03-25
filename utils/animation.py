@@ -19,8 +19,9 @@ class Animation:
             self.is_completed = True
             if self.on_complete:
                 self.on_complete()
+            return True
         
-        return self.is_completed
+        return False
     
     def reset(self):
         self.elapsed_time = 0
@@ -65,9 +66,6 @@ class MoveAnimation(Animation):
     
     def update(self, delta_time):
         completed = super().update(delta_time)
-        
-        # Remove problematic debug print
-        # print("Updating MoveAnimation for object:", self.target_object)
         
         # Calculate the current position
         progress = self.easing_function(self.get_progress())

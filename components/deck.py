@@ -3,13 +3,14 @@ Deck component for the Scoundrel game.
 """
 import random
 import pygame
-from constants import CARD_WIDTH, CARD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, FLOOR_WIDTH, FLOOR_HEIGHT, GRAY
+from constants import CARD_WIDTH, CARD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, FLOOR_WIDTH, FLOOR_HEIGHT, GRAY, DECK_NAMES, DECK_DESC_DICT, DECK_DICT, SUITS
 from utils.resource_loader import ResourceLoader
 
 class Deck:
     """ Represents a deck of cards in the game. """
     
-    def __init__(self, position=(SCREEN_WIDTH//2 - FLOOR_WIDTH//2 - CARD_WIDTH - 50, SCREEN_HEIGHT//2 - FLOOR_HEIGHT//2)):
+    def __init__(self, floor, position=(SCREEN_WIDTH//2 - FLOOR_WIDTH//2 - CARD_WIDTH - 50, SCREEN_HEIGHT//2 - FLOOR_HEIGHT//2)):
+        self.floor = floor if floor in DECK_NAMES else None
         self.position = position
         self.cards = []
         self.card_stack = []
@@ -20,11 +21,8 @@ class Deck:
     
     def initialise_deck(self):
         self.cards = []
-        suits = ["spades", "clubs", "diamonds", "hearts"]
-        for suit in suits:
-            for value in range(2, 15):  # 2-14 (Ace is 14)
-                if (suit in ["hearts", "diamonds"]) and value >= 11:
-                    continue
+        for suit in SUITS:
+            for value in range(DECK_DICT[self.floor][suit]["lower"], DECK_DICT[self.floor][suit]["upper"]+1):
                 self.cards.append({"suit": suit, "value": value})
         random.shuffle(self.cards)
         self.initialise_visuals()
