@@ -1,4 +1,4 @@
-""" Playing state for the Scoundrel game. """
+""" Modified Playing state for the Roguelike Scoundrel game. """
 import pygame
 from pygame.locals import *
 
@@ -9,11 +9,12 @@ from components.discard_pile import DiscardPile
 from components.room import Room
 from states.game_state import GameState
 from ui.button import Button
+from ui.panel import Panel
 from utils.resource_loader import ResourceLoader
 from utils.animation import Animation, AnimationManager, MoveAnimation, EasingFunctions
 
 class PlayingState(GameState):
-    """The main gameplay state of the game."""
+    """The main gameplay state of the game with roguelike elements."""
     
     def __init__(self, game_manager):
         super().__init__(game_manager)
@@ -35,10 +36,18 @@ class PlayingState(GameState):
         self.is_running = False
         self.ran_last_turn = False
         
+        # Roguelike components
+        self.current_room_number = 0
+        self.is_boss_room = False
+        self.damage_shield = 0
+        
         # UI elements
         self.header_font = None
         self.body_font = None
+        self.normal_font = None
         self.run_button = None
+        self.item_buttons = []
+        self.spell_buttons = []
         self.background = None
         self.floor = None
 
@@ -53,6 +62,7 @@ class PlayingState(GameState):
         self.title_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 60)
         self.header_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 36)
         self.body_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 28)
+        self.normal_font = pygame.font.SysFont(None, 20)
 
         # Load background
         self.background = ResourceLoader.load_image("bg.png")
@@ -65,7 +75,12 @@ class PlayingState(GameState):
         self.floor = pygame.transform.scale(self.floor, (FLOOR_WIDTH, FLOOR_HEIGHT))
 
         # Initialize game components
-        self.current_floor = "easy"
+        floor_manager = self.game_manager.floor_manager
+        self.current_floor = floor_manager.get_current_floor() or "standard"
+        self.current_room_number = floor_manager.current_room
+        self.is_boss_room = floor_manager.is_boss_room()
+        
+        # If this is a new floor, setup the appropriate deck
         self.deck = Deck(self.current_floor)
         self.discard_pile = DiscardPile()
         self.room = Room(self.animation_manager)
@@ -75,15 +90,72 @@ class PlayingState(GameState):
         run_button_rect = pygame.Rect(RUN_POSITION[0], RUN_POSITION[1], RUN_WIDTH, RUN_HEIGHT)
         self.run_button = Button(run_button_rect, "RUN", self.body_font)
 
+        # Create item and spell buttons
+        self.create_item_buttons()
+        self.create_spell_buttons()
+
         # Reset player stats
         self.life_points = self.game_manager.game_data["life_points"]
         self.max_life = self.game_manager.game_data["max_life"]
         self.equipped_weapon = {}
         self.defeated_monsters = []
+        self.damage_shield = 0
 
         # Initialize the deck and start the first room
         self.deck.initialise_deck()
+        
+        # If this is a boss room, add the boss card to the deck
+        if self.is_boss_room:
+            boss_card = self.game_manager.floor_manager.get_boss_card()
+            if boss_card:
+                # Add the boss card to the bottom of the deck
+                self.deck.add_to_bottom(boss_card)
+        
         self.start_new_room()
+    
+    def create_item_buttons(self):
+        """Create buttons for player items."""
+        self.item_buttons = []
+        
+        # Create a panel for items
+        item_panel_rect = pygame.Rect(20, 20, 160, 200)
+        
+        # Create buttons for each item
+        for i, item in enumerate(self.game_manager.item_manager.player_items):
+            button_rect = pygame.Rect(
+                item_panel_rect.left + 10,
+                item_panel_rect.top + 40 + (i * 50),
+                140,
+                40
+            )
+            
+            self.item_buttons.append({
+                "item": item,
+                "index": i,
+                "button": Button(button_rect, item.name, self.normal_font)
+            })
+    
+    def create_spell_buttons(self):
+        """Create buttons for player spells."""
+        self.spell_buttons = []
+        
+        # Create a panel for spells
+        spell_panel_rect = pygame.Rect(SCREEN_WIDTH - 180, 20, 160, 200)
+        
+        # Create buttons for each spell
+        for i, spell in enumerate(self.game_manager.spell_manager.player_spells):
+            button_rect = pygame.Rect(
+                spell_panel_rect.left + 10,
+                spell_panel_rect.top + 40 + (i * 50),
+                140,
+                40
+            )
+            
+            self.spell_buttons.append({
+                "spell": spell,
+                "index": i,
+                "button": Button(button_rect, spell.name, self.normal_font)
+            })
     
     def exit(self):
         # Save player stats to game_data
@@ -101,6 +173,14 @@ class PlayingState(GameState):
             
             # Check hover for run button
             self.run_button.check_hover(event.pos)
+            
+            # Check hover for item buttons
+            for item_data in self.item_buttons:
+                item_data["button"].check_hover(event.pos)
+            
+            # Check hover for spell buttons
+            for spell_data in self.spell_buttons:
+                spell_data["button"].check_hover(event.pos)
         
         elif event.type == MOUSEBUTTONDOWN and event.button == 1:  # Left click
             if self.life_points <= 0:
@@ -108,13 +188,39 @@ class PlayingState(GameState):
             
             # Check if run button was clicked
             if self.run_button.is_clicked(event.pos) and not self.ran_last_turn and len(self.room.cards) == 4:
-                self.run_from_room()
+                # Cannot run from boss rooms
+                if not self.is_boss_room:
+                    self.run_from_room()
                 return
+            
+            # Check if an item button was clicked
+            for item_data in self.item_buttons:
+                if item_data["button"].is_clicked(event.pos):
+                    self.use_item(item_data["index"])
+                    return
+            
+            # Check if a spell button was clicked
+            for spell_data in self.spell_buttons:
+                if spell_data["button"].is_clicked(event.pos):
+                    self.cast_spell(spell_data["index"])
+                    return
             
             # Check if a card was clicked
             card = self.room.get_card_at_position(event.pos)
             if card:
                 self.resolve_card(card)
+    
+    def use_item(self, item_index):
+        """Use an item from the player's inventory."""
+        self.game_manager.item_manager.use_item(item_index)
+        # Refresh the UI
+        self.create_item_buttons()
+    
+    def cast_spell(self, spell_index):
+        """Cast a spell from the player's spellbook."""
+        self.game_manager.spell_manager.cast_spell(spell_index)
+        # Refresh the UI
+        self.create_spell_buttons()
     
     def update(self, delta_time):
         # Update animations

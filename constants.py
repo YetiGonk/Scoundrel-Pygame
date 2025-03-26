@@ -139,4 +139,3 @@ DECK_DESC_DICT = {
     "cursed": "",
     "trapped": ""
 }
-
