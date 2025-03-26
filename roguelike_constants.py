@@ -1,4 +1,5 @@
 """ Constants for the roguelike elements of Scoundrel. """
+import random
 
 # Floor definitions
 FLOOR_TYPES = ["dungeon", "forest", "library", "crypt", "volcano"]

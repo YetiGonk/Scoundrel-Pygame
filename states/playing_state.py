@@ -212,15 +212,31 @@ class PlayingState(GameState):
     
     def use_item(self, item_index):
         """Use an item from the player's inventory."""
-        self.game_manager.item_manager.use_item(item_index)
-        # Refresh the UI
-        self.create_item_buttons()
+        if self.game_manager.item_manager.use_item(item_index):
+            # Apply shield effect if it's a protection item
+            if item_index < len(self.game_manager.item_manager.player_items):
+                item = self.game_manager.item_manager.player_items[item_index]
+                if item.effect == "protect_from_damage":
+                    self.set_damage_shield(10)  # Set a default shield value
+            
+            # Refresh the UI
+            self.create_item_buttons()
+            return True
+        return False
     
     def cast_spell(self, spell_index):
         """Cast a spell from the player's spellbook."""
-        self.game_manager.spell_manager.cast_spell(spell_index)
-        # Refresh the UI
-        self.create_spell_buttons()
+        if self.game_manager.spell_manager.cast_spell(spell_index):
+            # Apply shield effect if it's a protection spell
+            if spell_index < len(self.game_manager.spell_manager.player_spells):
+                spell = self.game_manager.spell_manager.player_spells[spell_index]
+                if spell.effect == "protect_from_damage":
+                    self.set_damage_shield(5)  # Set a default shield value
+            
+            # Refresh the UI
+            self.create_spell_buttons()
+            return True
+        return False
     
     def update(self, delta_time):
         # Update animations
