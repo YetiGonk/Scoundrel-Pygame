@@ -296,7 +296,7 @@ class PlayingState(GameState):
         return False
     
     def update(self, delta_time):
-        # Update animations
+        # First, update animations
         previous_animating = self.animation_manager.is_animating()
         self.animation_manager.update(delta_time)
         current_animating = self.animation_manager.is_animating()
@@ -309,58 +309,52 @@ class PlayingState(GameState):
             if card.is_flipping:
                 card.update_flip(delta_time)
         
-        # If we were running and animations finished, complete the run
-        if self.is_running and animations_just_finished:
-            self.on_run_completed()
-        
-        # If we have only one card left and animations just finished, start a new room
-        elif len(self.room.cards) == 1 and animations_just_finished and len(self.deck.cards) > 0:
-            self.start_new_room(self.room.cards[0])
-        
-        # If both room and deck are empty and animations just finished, then trigger victory
-        elif len(self.room.cards) == 0 and animations_just_finished and len(self.deck.cards) == 0:
-            self.check_game_over()
-
-        # Additional floor progression logic
-        if not self.animation_manager.is_animating() and len(self.room.cards) == 0:
-            # Room is cleared, advance to next room
-            if len(self.deck.cards) > 0:
-                # More cards in deck, start a new room
-                self.completed_rooms += 1
-                
-                # Check if we're at a special room (merchant)
-                if self.completed_rooms in self.FLOOR_STRUCTURE["merchant_rooms"]:
-                    # Update the floor manager's current room
-                    self.game_manager.floor_manager.current_room = self.completed_rooms
-                    # Transition to merchant state
-                    self.game_manager.change_state("merchant")
-                    return
-                
-                # Check if we're at the boss room
-                if self.completed_rooms == self.FLOOR_STRUCTURE["boss_room"] - 1:
-                    # The next room will be the boss, prepare it
-                    self.is_boss_room = True
+        # Only process game state changes if we're not animating or animations just finished
+        if not current_animating:
+            # If we were running and animations finished, complete the run
+            if self.is_running:
+                self.on_run_completed()
+                return
+            
+            # Process room state only when no animations are running
+            if len(self.room.cards) == 0:
+                # Room is cleared
+                if len(self.deck.cards) > 0:
+                    # More cards in deck - advance to next room
+                    self.game_manager.advance_to_next_room()
                     
-                # Start a new room
-                self.start_new_room()
-            else:
-                # No more cards in the deck - floor completed
-                if not self.floor_completed:
-                    self.floor_completed = True
-                    
-                    # Update floor manager
-                    self.game_manager.floor_manager.current_room = self.total_rooms_on_floor
-                    
-                    # Advance to next floor
-                    next_floor_info = self.game_manager.floor_manager.advance_floor()
-                    
-                    if "run_complete" in next_floor_info and next_floor_info["run_complete"]:
-                        # Game completed - victory!
-                        self.game_manager.game_data["victory"] = True
-                        self.game_manager.change_state("game_over")
-                    else:
-                        # Proceed to next floor's start screen
-                        self.game_manager.change_state("floor_start")
+                    # Check if we're still in the playing state (not moved to merchant or other state)
+                    if self.game_manager.current_state == self:
+                        # Check if we're at the boss room
+                        floor_manager = self.game_manager.floor_manager
+                        if floor_manager.current_room == self.FLOOR_STRUCTURE["boss_room"] - 1:
+                            # The next room will be the boss, prepare it
+                            self.is_boss_room = True
+                        
+                        # Start a new room
+                        self.start_new_room()
+                else:
+                    # No more cards in the deck - floor completed
+                    if not self.floor_completed:
+                        self.floor_completed = True
+                        
+                        # Update floor manager
+                        self.game_manager.floor_manager.current_room = self.total_rooms_on_floor
+                        
+                        # Check if this is the last floor
+                        if self.game_manager.floor_manager.current_floor_index >= len(self.game_manager.floor_manager.floors) - 1:
+                            # Last floor completed - victory!
+                            self.game_manager.game_data["victory"] = True
+                            self.game_manager.game_data["run_complete"] = True
+                            self.game_manager.change_state("game_over")
+                        else:
+                            # Not the last floor, advance to next floor
+                            self.game_manager.floor_manager.advance_floor()
+                            self.game_manager.change_state("floor_start")
+            
+            # If we have only one card left and animations just finished, start a new room 
+            elif len(self.room.cards) == 1 and animations_just_finished and len(self.deck.cards) > 0:
+                self.start_new_room(self.room.cards[0])
         
         self.check_game_over()
 
@@ -1031,7 +1025,7 @@ class PlayingState(GameState):
     def check_game_over(self):
         if self.life_points <= 0:
             self.end_game(False)
-        elif not self.deck.cards and not self.room.cards:
+        elif not self.deck.cards and not self.room.cards and self.floor_completed and self.total_rooms_on_floor == self.completed_rooms:
             self.end_game(True)
     
     def end_game(self, victory):
