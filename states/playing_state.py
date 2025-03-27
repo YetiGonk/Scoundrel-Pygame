@@ -317,9 +317,16 @@ class PlayingState(GameState):
                 return
             
             # Process room state only when no animations are running
-            if len(self.room.cards) == 0:
-                # Room is cleared
-                if len(self.deck.cards) > 0:
+            if len(self.room.cards) == 0:               
+                # Check if the next room should be a merchant room
+                is_merchant_next = current_room_number + 1 in self.FLOOR_STRUCTURE["merchant_rooms"]
+                
+                if is_merchant_next:
+                    # Set the floor manager's current room for the merchant
+                    self.game_manager.floor_manager.current_room = current_room_number
+                    # Advance to merchant room
+                    self.game_manager.advance_to_next_room()
+                elif len(self.deck.cards) > 0:
                     # More cards in deck - advance to next room
                     self.game_manager.advance_to_next_room()
                     
@@ -354,7 +361,23 @@ class PlayingState(GameState):
             
             # If we have only one card left and animations just finished, start a new room 
             elif len(self.room.cards) == 1 and animations_just_finished and len(self.deck.cards) > 0:
-                self.start_new_room(self.room.cards[0])
+                # Increment completed rooms because we're moving to the next room with a card
+                self.completed_rooms += 1
+                
+                # Record current room number for tracking merchant rooms
+                current_room_number = self.completed_rooms
+                
+                # Check if the next room should be a merchant room
+                is_merchant_next = current_room_number + 1 in self.FLOOR_STRUCTURE["merchant_rooms"]
+                
+                if is_merchant_next:
+                    # Set the floor manager's current room for the merchant
+                    self.game_manager.floor_manager.current_room = current_room_number
+                    # Advance to merchant room
+                    self.game_manager.advance_to_next_room()
+                else:
+                    # Start a new room with the remaining card
+                    self.start_new_room(self.room.cards[0])
         
         self.check_game_over()
 

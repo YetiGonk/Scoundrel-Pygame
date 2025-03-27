@@ -31,7 +31,14 @@ class StatusUI:
         floor_manager = self.game_manager.floor_manager
         current_floor = floor_manager.get_current_floor() or "unknown"
         current_floor_index = floor_manager.current_floor_index + 1
-        current_room = floor_manager.current_room
+        
+        # For room count, use the completed_rooms from playing state if available
+        playing_state = self.game_manager.states["playing"]
+        if hasattr(playing_state, 'completed_rooms'):
+            current_room = playing_state.completed_rooms
+        else:
+            current_room = floor_manager.current_room
+            
         total_rooms = floor_manager.FLOOR_STRUCTURE["rooms_per_floor"]
         
         # Draw semi-transparent background
@@ -47,7 +54,7 @@ class StatusUI:
         floor_text = self.header_font.render(f"Floor {current_floor_index}: {current_floor.capitalize()}", True, BLACK)
         floor_rect = floor_text.get_rect(left=self.panel_rect.left + 10, top=self.panel_rect.top + 10)
         surface.blit(floor_text, floor_rect)
-        
+    
         room_text = self.normal_font.render(f"Room {current_room}/{total_rooms}", True, BLACK)
         room_rect = room_text.get_rect(left=self.panel_rect.left + 10, top=floor_rect.bottom + 5)
         surface.blit(room_text, room_rect)

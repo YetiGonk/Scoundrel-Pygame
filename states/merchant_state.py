@@ -55,32 +55,32 @@ class MerchantState(GameState):
         # Create UI elements
         self.create_ui()
     
-def generate_inventory(self):
-    """Generate the merchant's inventory."""
-    # Get current floor info
-    floor_manager = self.game_manager.floor_manager
-    current_floor = floor_manager.get_current_floor()
-    
-    # Get items, spells, and cards for sale
-    from roguelike_constants import MERCHANT_INVENTORY
-    
-    # Get items for sale
-    item_manager = self.game_manager.item_manager
-    rarity_weights = self.get_rarity_weights_for_floor(floor_manager.current_floor_index)
-    self.items_for_sale = item_manager.get_random_items(
-        MERCHANT_INVENTORY["items"], 
-        rarity_weights
-    )
-    
-    # Get spells for sale
-    spell_manager = self.game_manager.spell_manager
-    self.spells_for_sale = spell_manager.get_random_spells(
-        MERCHANT_INVENTORY["spells"],
-        rarity_weights
-    )
-    
-    # TODO: Implement special cards for sale
-    self.cards_for_sale = []
+    def generate_inventory(self):
+        """Generate the merchant's inventory."""
+        # Get current floor info
+        floor_manager = self.game_manager.floor_manager
+        current_floor = floor_manager.get_current_floor()
+        
+        # Get items, spells, and cards for sale
+        from roguelike_constants import MERCHANT_INVENTORY
+        
+        # Get items for sale
+        item_manager = self.game_manager.item_manager
+        rarity_weights = self.get_rarity_weights_for_floor(floor_manager.current_floor_index)
+        self.items_for_sale = item_manager.get_random_items(
+            MERCHANT_INVENTORY["items"], 
+            rarity_weights
+        )
+        
+        # Get spells for sale
+        spell_manager = self.game_manager.spell_manager
+        self.spells_for_sale = spell_manager.get_random_spells(
+            MERCHANT_INVENTORY["spells"],
+            rarity_weights
+        )
+        
+        # TODO: Implement special cards for sale
+        self.cards_for_sale = []
     
     def get_rarity_weights_for_floor(self, floor_index):
         """Get adjusted rarity weights based on floor progress."""
