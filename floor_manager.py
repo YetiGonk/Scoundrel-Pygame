@@ -7,6 +7,7 @@ class FloorManager:
     
     def __init__(self, game_manager):
         self.game_manager = game_manager
+        self.FLOOR_STRUCTURE = FLOOR_STRUCTURE
         self.floors = []
         self.current_floor_index = 0
         self.current_room = 0
@@ -21,9 +22,7 @@ class FloorManager:
     
     def get_current_floor(self):
         """Get the current floor type."""
-        if 0 <= self.current_floor_index < len(self.floors):
-            return self.floors[self.current_floor_index]
-        return None
+        return self.floors[self.current_floor_index]
     
     def advance_room(self):
         """Move to the next room in the current floor."""

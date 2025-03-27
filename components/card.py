@@ -26,7 +26,12 @@ class Card:
         
         # Load the card texture
         if self.suit and self.value:
-            texture = ResourceLoader.load_image(f"cards/{self.suit}_{self.value}.png")
+            if self.value > 14:
+                texture = ResourceLoader.load_image(
+                    f"cards/joker_{"black" if self.suit in ("clubs", "spades") else "red"}_{self.value}.png"
+                )
+            else:
+                texture = ResourceLoader.load_image(f"cards/{self.suit}_{self.value}.png")
         else:
             texture = ResourceLoader.load_image("cards/card_red.png")
         self.texture = pygame.transform.scale(texture, (self.width, self.height))

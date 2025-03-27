@@ -38,7 +38,17 @@ class MenuState(GameState):
     def handle_event(self, event):
         if event.type == MOUSEBUTTONDOWN and event.button == 1:  # Left click
             if self.start_button_rect and self.start_button_rect.collidepoint(event.pos):
-                self.game_manager.change_state("rules")
+                # Initialize a new roguelike run
+                self.game_manager.start_new_run()
+                
+                # This will now go to floor_start state instead of directly to rules
+                # The rules screen will be shown first time only
+                if not hasattr(self.game_manager, 'has_shown_rules') or not self.game_manager.has_shown_rules:
+                    self.game_manager.has_shown_rules = True
+                    self.game_manager.change_state("rules")
+                else:
+                    # Skip rules screen on subsequent runs
+                    self.game_manager.change_state("floor_start")
     
     def update(self, delta_time):
         pass

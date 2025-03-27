@@ -55,7 +55,7 @@ class FloorStartState(GameState):
     
     def generate_selections(self):
         """Generate the available items and spells to choose from."""
-        from constants import FLOOR_START_SELECTION
+        from roguelike_constants import FLOOR_START_SELECTION
         
         # Get items
         item_manager = self.game_manager.item_manager

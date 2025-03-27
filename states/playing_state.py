@@ -3,6 +3,7 @@ import pygame
 from pygame.locals import *
 
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT, WHITE, BLACK, LIGHT_GRAY
+from roguelike_constants import FLOOR_STRUCTURE
 from components.card import Card
 from components.deck import Deck
 from components.discard_pile import DiscardPile
@@ -10,6 +11,8 @@ from components.room import Room
 from states.game_state import GameState
 from ui.button import Button
 from ui.panel import Panel
+from ui.status_ui import StatusUI
+from ui.hud import HUD
 from utils.resource_loader import ResourceLoader
 from utils.animation import Animation, AnimationManager, MoveAnimation, EasingFunctions
 
@@ -40,6 +43,7 @@ class PlayingState(GameState):
         self.current_room_number = 0
         self.is_boss_room = False
         self.damage_shield = 0
+        self.FLOOR_STRUCTURE = FLOOR_STRUCTURE
         
         # UI elements
         self.header_font = None
@@ -56,6 +60,21 @@ class PlayingState(GameState):
 
         # Layer management
         self.z_index_counter = 0
+
+        # Status UI & HUD
+        self.status_ui = StatusUI(game_manager)
+        self.hud = HUD(game_manager)
+
+        # Add item/spell UI elements
+        self.item_panel = None
+        self.spell_panel = None
+        
+        # Add completed room counter
+        self.completed_rooms = 0
+        self.total_rooms_on_floor = 0
+        
+        # Add flag for completed floor
+        self.floor_completed = False
 
     def enter(self):
         # Load fonts
@@ -76,7 +95,7 @@ class PlayingState(GameState):
 
         # Initialize game components
         floor_manager = self.game_manager.floor_manager
-        self.current_floor = floor_manager.get_current_floor() or "standard"
+        self.current_floor = floor_manager.get_current_floor()
         self.current_room_number = floor_manager.current_room
         self.is_boss_room = floor_manager.is_boss_room()
         
@@ -112,7 +131,45 @@ class PlayingState(GameState):
                 self.deck.add_to_bottom(boss_card)
         
         self.start_new_room()
+        
+        # Update status UI fonts
+        self.status_ui.update_fonts(self.header_font, self.normal_font)
+
+        # Update HUD fonts
+        self.hud.update_fonts(self.normal_font, self.normal_font)
+
+        # Create item and spell panels
+        self.create_item_spell_panels()
+        
+        # Reset floor completion tracking
+        self.floor_completed = False
+        self.completed_rooms = self.game_manager.floor_manager.current_room
+        self.total_rooms_on_floor = self.game_manager.floor_manager.FLOOR_STRUCTURE["rooms_per_floor"]
     
+    def create_item_spell_panels(self):
+        """Create panels for displaying items and spells."""
+        # Item panel (left side)
+        item_panel_rect = pygame.Rect(20, 20, 160, 200)
+        self.item_panel = Panel(
+            (item_panel_rect.width, item_panel_rect.height),
+            (item_panel_rect.left, item_panel_rect.top),
+            WHITE,
+            180  # Semi-transparent
+        )
+        
+        # Spell panel (right side)
+        spell_panel_rect = pygame.Rect(SCREEN_WIDTH - 180, 20, 160, 200)
+        self.spell_panel = Panel(
+            (spell_panel_rect.width, spell_panel_rect.height),
+            (spell_panel_rect.left, spell_panel_rect.top),
+            WHITE,
+            180  # Semi-transparent
+        )
+        
+        # Create item and spell buttons
+        self.create_item_buttons()
+        self.create_spell_buttons()
+
     def create_item_buttons(self):
         """Create buttons for player items."""
         self.item_buttons = []
@@ -263,7 +320,50 @@ class PlayingState(GameState):
         # If both room and deck are empty and animations just finished, then trigger victory
         elif len(self.room.cards) == 0 and animations_just_finished and len(self.deck.cards) == 0:
             self.check_game_over()
-    
+
+        # Additional floor progression logic
+        if not self.animation_manager.is_animating() and len(self.room.cards) == 0:
+            # Room is cleared, advance to next room
+            if len(self.deck.cards) > 0:
+                # More cards in deck, start a new room
+                self.completed_rooms += 1
+                
+                # Check if we're at a special room (merchant)
+                if self.completed_rooms in self.FLOOR_STRUCTURE["merchant_rooms"]:
+                    # Update the floor manager's current room
+                    self.game_manager.floor_manager.current_room = self.completed_rooms
+                    # Transition to merchant state
+                    self.game_manager.change_state("merchant")
+                    return
+                
+                # Check if we're at the boss room
+                if self.completed_rooms == self.FLOOR_STRUCTURE["boss_room"] - 1:
+                    # The next room will be the boss, prepare it
+                    self.is_boss_room = True
+                    
+                # Start a new room
+                self.start_new_room()
+            else:
+                # No more cards in the deck - floor completed
+                if not self.floor_completed:
+                    self.floor_completed = True
+                    
+                    # Update floor manager
+                    self.game_manager.floor_manager.current_room = self.total_rooms_on_floor
+                    
+                    # Advance to next floor
+                    next_floor_info = self.game_manager.floor_manager.advance_floor()
+                    
+                    if "run_complete" in next_floor_info and next_floor_info["run_complete"]:
+                        # Game completed - victory!
+                        self.game_manager.game_data["victory"] = True
+                        self.game_manager.change_state("game_over")
+                    else:
+                        # Proceed to next floor's start screen
+                        self.game_manager.change_state("floor_start")
+        
+        self.check_game_over()
+
     def draw(self, surface):
         # Draw background
         surface.blit(self.background, (0, 0))
@@ -300,6 +400,47 @@ class PlayingState(GameState):
             button_text = self.body_font.render("RUN", True, (150, 150, 150))  # Greyed out text
             button_text_rect = button_text.get_rect(center=button_rect.center)
             surface.blit(button_text, button_text_rect)
+
+        # Draw item and spell panels
+        self.item_panel.draw(surface)
+        self.spell_panel.draw(surface)
+        
+        # Draw item panel title
+        item_title = self.body_font.render("Items", True, BLACK)
+        item_title_rect = item_title.get_rect(centerx=self.item_panel.rect.centerx, top=self.item_panel.rect.top + 10)
+        surface.blit(item_title, item_title_rect)
+        
+        # Draw spell panel title
+        spell_title = self.body_font.render("Spells", True, BLACK)
+        spell_title_rect = spell_title.get_rect(centerx=self.spell_panel.rect.centerx, top=self.spell_panel.rect.top + 10)
+        surface.blit(spell_title, spell_title_rect)
+        
+        # Draw item buttons
+        for item_data in self.item_buttons:
+            item_data["button"].draw(surface)
+        
+        # Draw spell buttons
+        for spell_data in self.spell_buttons:
+            spell_data["button"].draw(surface)
+        
+        # Draw status UI
+        self.status_ui.draw(surface)
+        
+        # Draw boss indicator if in boss room
+        if self.is_boss_room:
+            boss_text = self.header_font.render("BOSS ROOM", True, (255, 0, 0))
+            boss_rect = boss_text.get_rect(center=(SCREEN_WIDTH//2, 30))
+            surface.blit(boss_text, boss_rect)
+
+    def set_damage_shield(self, amount):
+        """Set a damage shield for the player."""
+        self.damage_shield = amount
+        
+        # Create a visual indicator for the shield
+        shield_effect = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        pygame.draw.circle(shield_effect, (0, 100, 255, 100), (SCREEN_WIDTH//2, SCREEN_HEIGHT//2), 150, 5)
+        
+        # TODO: Add shield animation
 
     def start_new_room(self, last_card=None):        
         if self.life_points <= 0:
@@ -421,11 +562,21 @@ class PlayingState(GameState):
         self.room.position_cards(animate=True, animation_manager=self.animation_manager)
 
     def attack_monster(self, monster):
+        # Calculate monster value - apply any effect from items or spells
+        monster_value = monster.value
+        
+        # Use damage shield if available
+        damage_reduction = 0
+        if self.damage_shield > 0:
+            damage_reduction = min(self.damage_shield, monster_value)
+            monster_value -= damage_reduction
+            self.damage_shield -= damage_reduction
+
         if self.equipped_weapon:
             # Monster will be added to stack or discard
             if self.defeated_monsters:
-                if self.defeated_monsters[-1].value > monster.value:
-                    damage = monster.value - self.equipped_weapon["value"]
+                if self.defeated_monsters[-1].value > monster_value:
+                    damage = monster_value - self.equipped_weapon["value"]
                     if damage < 0:
                         damage = 0
                     if damage > self.life_points:
@@ -439,15 +590,15 @@ class PlayingState(GameState):
                     self.defeated_monsters.append(monster)
                     self.position_monster_stack()
                 else:
-                    if monster.value > self.life_points:
+                    if monster_value > self.life_points:
                         self.life_points = 0
                     else:
-                        self.life_points -= monster.value
+                        self.life_points -= monster_value
                         self.animate_card_movement(monster, self.discard_pile.position, on_complete=lambda: self.discard_pile.add_card(monster))
                     # Add to discard AFTER removing from room
                     self.room.remove_card(monster)
             else:
-                if monster.value <= self.equipped_weapon["value"]:
+                if monster_value <= self.equipped_weapon["value"]:
                     monster.z_index = self.z_index_counter
                     self.z_index_counter += 1
                     # Add to defeated monsters AFTER removing from room
@@ -455,7 +606,7 @@ class PlayingState(GameState):
                     self.defeated_monsters.append(monster)
                     self.position_monster_stack()
                 else:
-                    damage = monster.value - self.equipped_weapon["value"]
+                    damage = monster_value - self.equipped_weapon["value"]
                     if damage < 0:
                         damage = 0
                     if damage > self.life_points:
@@ -468,13 +619,17 @@ class PlayingState(GameState):
                     self.defeated_monsters.append(monster)
                     self.position_monster_stack()
         else:
-            if monster.value > self.life_points:
+            if monster_value > self.life_points:
                 self.life_points = 0
             else:
-                self.life_points -= monster.value
+                self.life_points -= monster_value
                 self.animate_card_movement(monster, self.discard_pile.position, on_complete=lambda: self.discard_pile.add_card(monster))
             # Add to discard AFTER removing from room
             self.room.remove_card(monster)
+        
+        # After attack is complete, update interface
+        self.create_item_buttons()
+        self.create_spell_buttons()
 
     def add_to_defeated_monsters(self, monster):
         """Callback after animation to actually add monster to defeated stack"""

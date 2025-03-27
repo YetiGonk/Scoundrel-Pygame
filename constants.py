@@ -57,7 +57,6 @@ FONT_FILE = f"{FONTS_PATH}/Pixel Times.ttf"
 
 # Decks
 SUITS = ["diamonds", "hearts", "spades", "clubs"]
-DECK_NAMES = ["standard", "easy", "hard", "blessed", "wild", "hell", "trapped", "cursed"]
 
 STANDARD_DECK = {
     "diamonds": {
@@ -116,26 +115,120 @@ HARD_DECK = {
     },
 }
 
+DUNGEON_DECK = {
+    "diamonds": {
+        "upper": 12,
+        "lower": 2
+    },
+    "hearts": {
+        "upper": 12,
+        "lower": 2
+    },
+    "spades": {
+        "upper": 12,
+        "lower": 2
+    },
+    "clubs": {
+        "upper": 12,
+        "lower": 2
+    },
+}
+
+FOREST_DECK = {
+    "diamonds": {
+        "upper": 11,
+        "lower": 3
+    },
+    "hearts": {
+        "upper": 14,  # More healing in forest
+        "lower": 4
+    },
+    "spades": {
+        "upper": 11,
+        "lower": 2
+    },
+    "clubs": {
+        "upper": 11,
+        "lower": 2
+    },
+}
+
+LIBRARY_DECK = {
+    "diamonds": {
+        "upper": 14,  # More powerful weapons
+        "lower": 2
+    },
+    "hearts": {
+        "upper": 10,
+        "lower": 2
+    },
+    "spades": {
+        "upper": 12,
+        "lower": 3
+    },
+    "clubs": {
+        "upper": 12,
+        "lower": 3
+    },
+}
+
+CRYPT_DECK = {
+    "diamonds": {
+        "upper": 14,
+        "lower": 3
+    },
+    "hearts": {
+        "upper": 10,  # Less healing
+        "lower": 2
+    },
+    "spades": {
+        "upper": 14,  # Stronger monsters
+        "lower": 3
+    },
+    "clubs": {
+        "upper": 14,  # Stronger monsters
+        "lower": 3
+    },
+}
+
+VOLCANO_DECK = {
+    "diamonds": {
+        "upper": 14,  # Strong weapons
+        "lower": 4
+    },
+    "hearts": {
+        "upper": 10,  # Less healing
+        "lower": 2
+    },
+    "spades": {
+        "upper": 15,  # Very strong monsters
+        "lower": 4
+    },
+    "clubs": {
+        "upper": 13,
+        "lower": 4
+    },
+}
+
+# Update DECK_DICT to include floor-specific decks
 DECK_DICT = {
     "standard": STANDARD_DECK,
     "easy": EASY_DECK,
     "hard": HARD_DECK,
-    # "blessed": BLESSED_DECK,
-    # "treasury": TREASURY_DECK,
-    # "wild": WILD_DECK,
-    # "hell": HELL_DECK,
-    # "cursed": CURSED_DECK,
-    # "trapped": TRAPPED_DECK
+    "dungeon": DUNGEON_DECK,
+    "forest": FOREST_DECK,
+    "library": LIBRARY_DECK,
+    "crypt": CRYPT_DECK,
+    "volcano": VOLCANO_DECK,
 }
 
 DECK_DESC_DICT = {
     "standard": "The standard deck. The original game.",
     "easy": "For the shmucks with no 'cojones'. No face or ace monster cards, all weapons and potions.",
     "hard": "For the crazies with too many 'cojones'. All monsters, no face or ace weapons or potions.",
-    "blessed": "",
-    "treasury": "",
-    "wild": "",
-    "hell": "",
-    "cursed": "",
-    "trapped": ""
+    "dungeon": "Standard dungeon cards with balanced challenges.",
+    "forest": "Nature-themed cards with enhanced healing potions.",
+    "library": "Magical tomes and scrolls with powerful weapons.",
+    "crypt": "Undead monsters and cursed treasures with fewer healing options.",
+    "volcano": "Fire monsters and molten weapons with extreme challenges.",
 }

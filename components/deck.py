@@ -3,14 +3,14 @@ Deck component for the Scoundrel game.
 """
 import random
 import pygame
-from constants import CARD_WIDTH, CARD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, FLOOR_WIDTH, FLOOR_HEIGHT, GRAY, DECK_NAMES, DECK_DESC_DICT, DECK_DICT, SUITS
+from constants import CARD_WIDTH, CARD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, FLOOR_WIDTH, FLOOR_HEIGHT, GRAY, DECK_DESC_DICT, DECK_DICT, SUITS
 from utils.resource_loader import ResourceLoader
 
 class Deck:
     """ Represents a deck of cards in the game. """
     
     def __init__(self, floor, position=(SCREEN_WIDTH//2 - FLOOR_WIDTH//2 - CARD_WIDTH - 50, SCREEN_HEIGHT//2 - FLOOR_HEIGHT//2)):
-        self.floor = floor if floor in DECK_NAMES else None
+        self.floor = floor if floor in list(DECK_DICT.keys()) else None
         self.position = position
         self.cards = []
         self.card_stack = []

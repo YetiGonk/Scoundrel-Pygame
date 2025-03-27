@@ -261,6 +261,17 @@ class MerchantState(GameState):
     
     def draw(self, surface):
         # Draw background
+        surface.blit(self.background, (0, 0))
+        surface.blit(self.floor, ((SCREEN_WIDTH - self.floor.get_width())/2, (SCREEN_HEIGHT - self.floor.get_height())/2))
+        
+        # Draw panels
+        for panel in self.panels.values():
+            panel.draw(surface)
+        
+        # Draw merchant title
+        floor_type = self.game_manager.floor_manager.get_current_floor() or "unknown"
+        title_text = self.header_font.render(f"{floor_type.capitalize()} Merchant", True, BLACK)
+        title_rect = title_text.get_rect(centerx=self.panels["main"].rect.centerx, top=self.panels["main"].rect.top + 20)
         surface.blit(title_text, title_rect)
         
         # Draw section headings
@@ -281,7 +292,7 @@ class MerchantState(GameState):
         gold_rect = gold_text.get_rect(left=self.panels["main"].rect.left + 20, bottom=self.panels["main"].rect.bottom - 20)
         surface.blit(gold_text, gold_rect)
         
-        # Draw buttons
+        # Draw continue button
         self.continue_button.draw(surface)
         
         # Draw item buttons and prices
@@ -331,15 +342,3 @@ class MerchantState(GameState):
             price_text = self.normal_font.render(f"Price: {card.get('price', 0)}", True, BLACK)
             price_rect = price_text.get_rect(left=button.rect.left + 10, top=button.rect.top + 25)
             surface.blit(price_text, price_rect)
-            surface.blit(self.background, (0, 0))
-            surface.blit(self.floor, ((SCREEN_WIDTH - self.floor.get_width())/2, (SCREEN_HEIGHT - self.floor.get_height())/2))
-        
-        # Draw panels
-        for panel in self.panels.values():
-            panel.draw(surface)
-        
-        # Draw merchant title
-        floor_type = self.game_manager.floor_manager.get_current_floor() or "unknown"
-        title_text = self.header_font.render(f"{floor_type.capitalize()} Merchant", True, BLACK)
-        title_rect = title_text.get_rect(centerx=self.panels["main"].rect.centerx, top=self.panels["main"].rect.top + 20)
-        surface.blit(title_text, title_rect)
