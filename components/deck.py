@@ -15,7 +15,7 @@ class Deck:
         self.cards = []
         self.card_stack = []
         self.card_spacing = (0, 3)
-        self.texture = ResourceLoader.load_image("cards/card_blue.png")
+        self.texture = ResourceLoader.load_image("cards/card_back.png")
         self.texture = pygame.transform.scale(self.texture, (CARD_WIDTH, CARD_HEIGHT))
         self.rect = pygame.Rect(self.position[0], self.position[1], CARD_WIDTH, CARD_HEIGHT)
     

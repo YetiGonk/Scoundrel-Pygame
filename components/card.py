@@ -26,21 +26,18 @@ class Card:
         self.scale = 1.0
         
         # Load the card texture
-        if self.suit and self.value:
-            if self.value > 14:
-                texture = ResourceLoader.load_image(
-                    f"cards/joker_{"black" if self.suit in ("clubs", "spades") else "red"}_{self.value}.png"
-                )
-            else:
-                texture = ResourceLoader.load_image(f"cards/{self.suit}_{self.value}.png")
+        if self.value > 14:
+            texture = ResourceLoader.load_image(
+                f"cards/joker_{"black" if self.suit in ("clubs", "spades") else "red"}_{self.value}.png"
+            )
         else:
-            texture = ResourceLoader.load_image("cards/card_red.png")
+            texture = ResourceLoader.load_image(f"cards/{self.suit}_{self.value}.png")
         self.texture = pygame.transform.scale(texture, (self.width, self.height))
         self.original_texture = self.texture
         
         # Load face down texture
         self.face_down_texture = pygame.transform.scale(
-            ResourceLoader.load_image("cards/card_blue.png"), 
+            ResourceLoader.load_image("cards/card_back.png"), 
             (self.width, self.height)
         )
         self.original_face_down_texture = self.face_down_texture

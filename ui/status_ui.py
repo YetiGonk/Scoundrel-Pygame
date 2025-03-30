@@ -2,7 +2,8 @@
 Status UI component for displaying game progression information
 """
 import pygame
-from constants import WHITE, BLACK, GRAY, SCREEN_WIDTH, SCREEN_HEIGHT
+from constants import WHITE, BLACK, GRAY, SCREEN_WIDTH, SCREEN_HEIGHT, \
+    FLOOR_ROOM_TITLE_POSITION, FLOOR_ROOM_TITLE_WIDTH, FLOOR_ROOM_TITLE_HEIGHT
 
 class StatusUI:
     """Displays current floor, room, and player stats during gameplay."""
@@ -12,12 +13,9 @@ class StatusUI:
         self.header_font = pygame.font.SysFont(None, 28)
         self.normal_font = pygame.font.SysFont(None, 20)
         
-        # Status panel position and size
         self.panel_rect = pygame.Rect(
-            SCREEN_WIDTH - 240, 
-            SCREEN_HEIGHT - 80,
-            220, 
-            70
+            FLOOR_ROOM_TITLE_POSITION,
+            (FLOOR_ROOM_TITLE_WIDTH, FLOOR_ROOM_TITLE_HEIGHT)
         )
     
     def update_fonts(self, header_font, normal_font):
@@ -52,11 +50,11 @@ class StatusUI:
         
         # Draw floor and room info
         floor_text = self.header_font.render(f"Floor {current_floor_index}: {current_floor.capitalize()}", True, BLACK)
-        floor_rect = floor_text.get_rect(left=self.panel_rect.left + 10, top=self.panel_rect.top + 10)
+        floor_rect = floor_text.get_rect(centerx=self.panel_rect.centerx, top=self.panel_rect.top + 10)
         surface.blit(floor_text, floor_rect)
     
         room_text = self.normal_font.render(f"Room {current_room}/{total_rooms}", True, BLACK)
-        room_rect = room_text.get_rect(left=self.panel_rect.left + 10, top=floor_rect.bottom + 5)
+        room_rect = room_text.get_rect(centerx=self.panel_rect.centerx, top=self.panel_rect.top + floor_rect.height + 10)
         surface.blit(room_text, room_rect)
         
         # Draw player gold

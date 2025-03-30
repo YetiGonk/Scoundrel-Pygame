@@ -15,7 +15,7 @@ from ui.panel import Panel
 from ui.status_ui import StatusUI
 from ui.hud import HUD
 from utils.resource_loader import ResourceLoader
-from utils.animation import Animation, AnimationManager, MoveAnimation, DestructionAnimation, MaterializeAnimation, EasingFunctions
+from utils.animation import Animation, AnimationManager, MoveAnimation, DestructionAnimation, MaterializeAnimation, HealthChangeAnimation, EasingFunctions
 
 class PlayingState(GameState):
     """The main gameplay state of the game with roguelike elements."""
@@ -32,6 +32,7 @@ class PlayingState(GameState):
         # Player stats
         self.life_points = 20
         self.max_life = 20
+        self.gold = 0  # Add gold counter
         self.equipped_weapon = {}
         self.defeated_monsters = []
         
@@ -117,6 +118,7 @@ class PlayingState(GameState):
         # Reset player stats
         self.life_points = self.game_manager.game_data["life_points"]
         self.max_life = self.game_manager.game_data["max_life"]
+        self.gold = self.game_manager.game_data.get("gold", 0)  # Get gold from game data
         self.equipped_weapon = {}
         self.defeated_monsters = []
         self.damage_shield = 0
@@ -151,13 +153,15 @@ class PlayingState(GameState):
         # Save player stats to game_data
         self.game_manager.game_data["life_points"] = self.life_points
         self.game_manager.game_data["max_life"] = self.max_life
+        self.game_manager.game_data["gold"] = self.gold
     
     # ===== UI MANAGEMENT =====
     
     def create_item_spell_panels(self):
         """Create panels for displaying items and spells."""
+        from constants import ITEM_PANEL_POSITION, SPELL_PANEL_POSITION, ITEM_PANEL_WIDTH, ITEM_PANEL_HEIGHT, SPELL_PANEL_WIDTH, SPELL_PANEL_HEIGHT
         # Item panel (left side)
-        item_panel_rect = pygame.Rect(20, 20, 160, 200)
+        item_panel_rect = pygame.Rect(ITEM_PANEL_POSITION, (ITEM_PANEL_WIDTH, ITEM_PANEL_HEIGHT))
         self.item_panel = Panel(
             (item_panel_rect.width, item_panel_rect.height),
             (item_panel_rect.left, item_panel_rect.top),
@@ -166,7 +170,7 @@ class PlayingState(GameState):
         )
         
         # Spell panel (right side)
-        spell_panel_rect = pygame.Rect(SCREEN_WIDTH - 180, 20, 160, 200)
+        spell_panel_rect = pygame.Rect(SPELL_PANEL_POSITION, (SPELL_PANEL_WIDTH, SPELL_PANEL_HEIGHT))
         self.spell_panel = Panel(
             (spell_panel_rect.width, spell_panel_rect.height),
             (spell_panel_rect.left, spell_panel_rect.top),
@@ -378,10 +382,11 @@ class PlayingState(GameState):
         # Draw any visual effects (destruction/materialize animations)
         self.animation_manager.draw_effects(surface)
         
-        # Draw health
-        health_text = self.title_font.render(str(self.life_points), True, WHITE)
-        health_rect = health_text.get_rect(bottomleft=(self.deck.rect.x, SCREEN_HEIGHT-self.deck.rect.y))
-        surface.blit(health_text, health_rect)
+        # Draw health display
+        self.draw_health_display(surface)
+        
+        # Draw UI animations (health changes, etc.)
+        self.animation_manager.draw_ui_effects(surface)
         
         # Draw run button
         if not self.ran_last_turn and len(self.room.cards) == 4 and not self.animation_manager.is_animating():
@@ -524,9 +529,11 @@ class PlayingState(GameState):
                     damage = monster_value - self.equipped_weapon["value"]
                     if damage < 0:
                         damage = 0
-                    if damage > self.life_points:
-                        damage = self.life_points
-                    self.life_points -= damage
+                    
+                    # Apply damage with animation
+                    if damage > 0:
+                        self.change_health(-damage)
+                    
                     monster.z_index = self.z_index_counter
                     self.z_index_counter += 1
                     
@@ -534,12 +541,12 @@ class PlayingState(GameState):
                     self.defeated_monsters.append(monster)
                     self.position_monster_stack()
                 else:
-                    if monster_value > self.life_points:
-                        self.life_points = 0
-                    else:
-                        self.life_points -= monster_value
-                        # Animate to discard pile
-                        self.animate_card_to_discard(monster)
+                    # Apply damage with animation
+                    if monster_value > 0:
+                        self.change_health(-monster_value)
+                    
+                    # Animate to discard pile
+                    self.animate_card_to_discard(monster)
             else:
                 if monster_value <= self.equipped_weapon["value"]:
                     monster.z_index = self.z_index_counter
@@ -551,21 +558,23 @@ class PlayingState(GameState):
                     damage = monster_value - self.equipped_weapon["value"]
                     if damage < 0:
                         damage = 0
-                    if damage > self.life_points:
-                        damage = self.life_points
-                    self.life_points -= damage
+                    
+                    # Apply damage with animation
+                    if damage > 0:
+                        self.change_health(-damage)
+                    
                     monster.z_index = self.z_index_counter
                     self.z_index_counter += 1
                     # Add to defeated monster stack
                     self.defeated_monsters.append(monster)
                     self.position_monster_stack()
         else:
-            if monster_value > self.life_points:
-                self.life_points = 0
-            else:
-                self.life_points -= monster_value
-                # Animate to discard pile
-                self.animate_card_to_discard(monster)
+            # Apply damage with animation
+            if monster_value > 0:
+                self.change_health(-monster_value)
+            
+            # Animate to discard pile
+            self.animate_card_to_discard(monster)
                 
         # After processing the monster, reposition remaining room cards
         if len(self.room.cards) > 0:
@@ -641,8 +650,8 @@ class PlayingState(GameState):
     
     def use_potion(self, potion):
         """Use a potion card to heal the player."""
-        # Update health points
-        self.life_points = min(self.life_points + potion.value, self.max_life)
+        # Apply healing with animation
+        self.change_health(potion.value)
         
         # First ensure the potion is removed from the room
         self.room.remove_card(potion)
@@ -835,6 +844,129 @@ class PlayingState(GameState):
     def start_card_flip(self, card):
         """Start the flip animation for a card."""
         card.start_flip()
+        
+    # ===== HEALTH MANAGEMENT =====
+        
+    def draw_health_display(self, surface):
+        """Draw health display with current and max life points."""
+        # Health display parameters
+        health_display_x = 40
+        health_display_y = SCREEN_HEIGHT - self.deck.rect.y
+        health_bar_width = 160
+        health_bar_height = 40
+        
+        # Draw background panel
+        panel_rect = pygame.Rect(
+            health_display_x - 10, 
+            health_display_y - health_bar_height - 20,
+            health_bar_width + 20,
+            health_bar_height + 20
+        )
+        panel_surface = pygame.Surface((panel_rect.width, panel_rect.height), pygame.SRCALPHA)
+        panel_surface.fill((0, 0, 0, 180))
+        pygame.draw.rect(panel_surface, WHITE, pygame.Rect(0, 0, panel_rect.width, panel_rect.height), 2, border_radius=10)
+        surface.blit(panel_surface, panel_rect)
+        
+        # Draw health bar background
+        bar_bg_rect = pygame.Rect(
+            health_display_x,
+            health_display_y - health_bar_height - 10,
+            health_bar_width,
+            health_bar_height
+        )
+        pygame.draw.rect(surface, (60, 60, 60), bar_bg_rect, border_radius=5)
+        
+        # Calculate health percentage
+        health_percent = self.life_points / self.max_life
+        health_width = int(health_bar_width * health_percent)
+        
+        # Choose color based on health percentage
+        if health_percent > 0.7:
+            health_color = (0, 200, 0)  # Green
+        elif health_percent > 0.3:
+            health_color = (255, 165, 0)  # Orange
+        else:
+            health_color = (255, 40, 40)  # Red
+        
+        # Draw health bar
+        if health_width > 0:
+            health_rect = pygame.Rect(
+                health_display_x,
+                health_display_y - health_bar_height - 10,
+                health_width,
+                health_bar_height
+            )
+            pygame.draw.rect(surface, health_color, health_rect, border_radius=5)
+        
+        # Add a subtle inner shadow at the top
+        shadow_rect = pygame.Rect(
+            health_display_x,
+            health_display_y - health_bar_height - 10,
+            health_bar_width,
+            5
+        )
+        shadow_surface = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+        shadow_surface.fill((0, 0, 0, 80))
+        surface.blit(shadow_surface, shadow_rect)
+        
+        # Add highlights at the bottom
+        if health_width > 0:
+            highlight_rect = pygame.Rect(
+                health_display_x,
+                health_display_y - 15,
+                health_width,
+                5
+            )
+            highlight_surface = pygame.Surface((highlight_rect.width, highlight_rect.height), pygame.SRCALPHA)
+            highlight_surface.fill((255, 255, 255, 80))
+            surface.blit(highlight_surface, highlight_rect)
+        
+        # Draw health text (current/max)
+        health_text = self.body_font.render(f"{self.life_points}/{self.max_life}", True, WHITE)
+        health_text_rect = health_text.get_rect(center=bar_bg_rect.center)
+        surface.blit(health_text, health_text_rect)
+        
+        # Draw health label
+        label_text = self.body_font.render("HEALTH", True, WHITE)
+        label_rect = label_text.get_rect(bottom=bar_bg_rect.top - 13, centerx=bar_bg_rect.centerx)
+        surface.blit(label_text, label_rect)
+    
+    def change_health(self, amount):
+        """Change player health with animation."""
+        old_health = self.life_points
+        
+        # Calculate new health value with limits
+        if amount > 0:  # Healing
+            # Can't heal beyond max_life
+            self.life_points = min(self.life_points + amount, self.max_life)
+            actual_change = self.life_points - old_health
+            # Only animate if there was an actual change
+            if actual_change > 0:
+                self.animate_health_change(False, actual_change)  # False = healing
+        else:  # Damage
+            # Can't go below 0
+            self.life_points = max(0, self.life_points + amount)  # amount is negative for damage
+            actual_change = old_health - self.life_points
+            # Only animate if there was an actual change
+            if actual_change > 0:
+                self.animate_health_change(True, actual_change)  # True = damage
+    
+    def animate_health_change(self, is_damage, amount):
+        """Create animation for health change."""
+        # Position for the animation
+        health_display_x = self.deck.rect.x + 100  # Center of health bar
+        health_display_y = SCREEN_HEIGHT - self.deck.rect.y - 30  # Middle of health bar
+        
+        # Create animation
+        health_anim = HealthChangeAnimation(
+            is_damage,
+            amount,
+            (health_display_x, health_display_y),
+            self.body_font
+        )
+        
+        # Add to animation manager
+        self.animation_manager.add_animation(health_anim)
     
     def run_from_room(self):
         """Run from the current room, moving all cards to the bottom of the deck."""

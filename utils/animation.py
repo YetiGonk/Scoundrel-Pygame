@@ -491,35 +491,138 @@ class MaterializeAnimation(Animation):
         return completed
 
 
+class HealthChangeAnimation(Animation):
+    """Animation for displaying health changes with effects."""
+    
+    def __init__(self, is_damage, amount, position, font, duration=0.8, on_complete=None):
+        super().__init__(duration, on_complete)
+        self.is_damage = is_damage  # True for damage, False for healing
+        self.amount = amount
+        self.position = position
+        self.font = font
+        self.particles = []
+        
+        # Create particles
+        num_particles = min(20, max(5, abs(amount) * 2))
+        for _ in range(num_particles):
+            self.particles.append({
+                'x': random.randint(-10, 10),
+                'y': random.randint(-5, 5),
+                'speed_x': (random.random() - 0.5) * 5,
+                'speed_y': -random.random() * 8 - 2,  # Upward bias
+                'size': random.randint(3, 7),
+                'fade_speed': random.random() * 0.3 + 0.7
+            })
+    
+    def draw(self, surface):
+        progress = self.get_progress()
+        
+        # Early animation: text grows and brightens
+        if progress < 0.4:
+            scale = 1.0 + progress * 0.5  # Text grows a bit
+            alpha = int(255 * min(1.0, progress * 3))
+        # Middle animation: text stays steady
+        elif progress < 0.7:
+            scale = 1.2
+            alpha = 255
+        # End animation: text fades out
+        else:
+            fade_progress = (progress - 0.7) / 0.3
+            scale = 1.2 - fade_progress * 0.2
+            alpha = int(255 * (1 - fade_progress))
+        
+        # Choose color based on damage/healing
+        if self.is_damage:
+            color = (255, 80, 80)  # Red for damage
+            text_prefix = "-"
+        else:
+            color = (80, 255, 80)  # Green for healing
+            text_prefix = "+"
+            
+        # Render text with proper prefix
+        text = self.font.render(f"{text_prefix}{abs(self.amount)}", True, color)
+        
+        # Scale text
+        if scale != 1.0:
+            orig_size = text.get_size()
+            text = pygame.transform.scale(
+                text, 
+                (int(orig_size[0] * scale), int(orig_size[1] * scale))
+            )
+        
+        # Set alpha if needed
+        if alpha < 255:
+            text.set_alpha(alpha)
+        
+        # Draw text
+        text_rect = text.get_rect(center=(
+            self.position[0],
+            self.position[1] - 40 * progress  # Text rises upward
+        ))
+        surface.blit(text, text_rect)
+        
+        # Draw particles
+        for particle in self.particles:
+            # Update particle position based on progress
+            particle_x = self.position[0] + particle['x'] + particle['speed_x'] * progress * 60
+            particle_y = self.position[1] + particle['y'] + particle['speed_y'] * progress * 60
+            
+            # Calculate alpha (particles fade out)
+            particle_alpha = int(255 * (1 - progress * particle['fade_speed']))
+            
+            # Calculate size (particles slightly shrink)
+            particle_size = max(1, int(particle['size'] * (1 - progress * 0.5)))
+            
+            # Skip completely faded particles
+            if particle_alpha <= 10 or particle_size <= 0:
+                continue
+                
+            # Draw particle
+            particle_color = color + (particle_alpha,)  # Add alpha as 4th component
+            particle_surface = pygame.Surface((particle_size*2, particle_size*2), pygame.SRCALPHA)
+            pygame.draw.circle(particle_surface, particle_color, (particle_size, particle_size), particle_size)
+            surface.blit(particle_surface, (particle_x - particle_size, particle_y - particle_size))
+
+
 class AnimationManager:
     """Manager for handling multiple animations."""
     
     def __init__(self):
         self.animations = []
         self.effect_animations = []  # Separate list for visual effects that need to be drawn
+        self.ui_animations = []  # Animations for UI effects (health changes, etc.)
     
     def add_animation(self, animation):
         self.animations.append(animation)
         
-        # Check if this is a visual effect animation that needs to be drawn
+        # Check what type of animation this is
         if isinstance(animation, (DestructionAnimation, MaterializeAnimation)):
             self.effect_animations.append(animation)
+        elif isinstance(animation, HealthChangeAnimation):
+            self.ui_animations.append(animation)
     
     def update(self, delta_time):
         # Update all animations and remove completed ones
         self.animations = [anim for anim in self.animations if not anim.update(delta_time)]
         
-        # Also update effect animations list
+        # Also update specialized animation lists
         self.effect_animations = [anim for anim in self.effect_animations if not anim.is_completed]
+        self.ui_animations = [anim for anim in self.ui_animations if not anim.is_completed]
     
     def draw_effects(self, surface):
-        # Draw all effect animations
+        # Draw all visual effect animations
         for animation in self.effect_animations:
+            animation.draw(surface)
+    
+    def draw_ui_effects(self, surface):
+        # Draw all UI animations
+        for animation in self.ui_animations:
             animation.draw(surface)
     
     def clear(self):
         self.animations.clear()
         self.effect_animations.clear()
+        self.ui_animations.clear()
     
     def is_animating(self):
         return len(self.animations) > 0

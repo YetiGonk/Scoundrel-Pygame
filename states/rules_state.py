@@ -20,8 +20,8 @@ class RulesState(GameState):
     def enter(self):
         # Load fonts
         self.header_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 36)
-        self.body_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 28)
-        self.normal_font = pygame.font.SysFont(None, 20)
+        self.body_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 23)
+        self.normal_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 20)
         
         # Load background
         self.background = ResourceLoader.load_image("bg.png")
@@ -46,7 +46,7 @@ class RulesState(GameState):
         surface.blit(self.floor, ((SCREEN_WIDTH - self.floor.get_width())/2, (SCREEN_HEIGHT - self.floor.get_height())/2))
         
         # Create a semi-transparent panel
-        panel = pygame.Surface((600, 500))
+        panel = pygame.Surface((600, 600))
         panel.fill(WHITE)
         panel.set_alpha(220)
         panel_rect = panel.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2))
@@ -59,21 +59,26 @@ class RulesState(GameState):
         
         # Rules text
         rules = [
-            "SCOUNDREL is a card-based dungeon crawler:",
+            "Welcome to SCOUNDREL, the card-base roguelike dungeon-crawler:",
             "",
-            "• Each 'dungeon room' consists of 4 cards from the deck",
-            "• Cards represent:",
+            "- Each dungeon floor is a deck of cards",
+            "- Each set of 4 cards represents a floor room",
+            "- Cards represent:",
             "  - Monsters (Clubs & Spades)",
             "  - Weapons (Diamonds)",
             "  - Potions (Hearts)",
-            "• You start with 20 life points",
-            "• Defeat monsters with your bare hands (take full damage)",
-            "• Or defeat them with weapons (take partial damage)",
-            "• Weapons lose durability and can only battle weaker monsters each time",
-            "• Heal with potions",
-            "• You can RUN from dangerous rooms (but not twice in a row)",
-            "• Win by surviving until the deck is empty",
-            "• Lose if your health reaches zero"
+            "- You start with 20 life points",
+            "- Equip weapons and defeat monsters",
+            "- Defeat them with weapons and block some damage",
+            "- Or defeat them bare-handed and take full damage",
+            "- Weapons lose durability and can only battle",
+            "weaker monsters each time",
+            "- Heal health with potions",
+            "- You can run from dangerous rooms before you",
+            "choose",
+            "- But you cannot run twice in a row",
+            "- Win by surviving until the deck is empty",
+            "- Lose if your health reaches zero"
         ]
         
         y_offset = title_rect.bottom + 10
