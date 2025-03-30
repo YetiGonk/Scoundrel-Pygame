@@ -94,11 +94,11 @@ class DestructionAnimation(Animation):
         
         # Based on effect type, setup initial animation state
         if effect_type == "slash":
-            # Create slash line data
-            self.slash_angle = random.randint(15, 75)
+            # Create slash line data - more diagonal angle
+            self.slash_angle = random.randint(25, 65)
             self.slash_direction = 1 if random.random() > 0.5 else -1
-            self.slash_width = 5
-            self.slash_color = (255, 0, 0)  # Red color for slash
+            self.slash_width = 4
+            self.slash_color = (200, 200, 200)  # Silver/grey color for sword
             
         elif effect_type == "burn":
             # Create particles for burning effect
@@ -132,23 +132,36 @@ class DestructionAnimation(Animation):
         progress = self.get_progress()
         
         if self.effect_type == "slash":
-            if progress < 0.5:  # First half: slash appears
+            if progress < 0.4:  # First phase: show card with moving slash line
                 # Draw the card
                 self.target_object.draw(surface)
                 
-                # Draw slash line
-                slash_progress = progress * 2  # Scale to 0-1 range in first half
+                # Draw moving slash line
+                slash_progress = progress / 0.4  # Scale to 0-1 range
                 center_x = self.target_object.rect.centerx
                 center_y = self.target_object.rect.centery
-                slash_length = self.target_object.rect.width * 1.2
+                slash_length = self.target_object.rect.width * 1.4  # Longer slash
+                
+                # Calculate slash position based on progress
+                # Moving from top-left to bottom-right (or opposite depending on direction)
+                offset = (slash_progress - 0.5) * self.target_object.rect.width * 1.5
                 
                 # Start position
-                start_x = center_x - slash_length/2 * math.cos(math.radians(self.slash_angle))
-                start_y = center_y - slash_length/2 * math.sin(math.radians(self.slash_angle))
+                start_x = center_x - slash_length/2 * math.cos(math.radians(self.slash_angle)) + offset * self.slash_direction
+                start_y = center_y - slash_length/2 * math.sin(math.radians(self.slash_angle)) + offset * self.slash_direction * 0.3
                 
                 # End position
-                end_x = center_x + slash_length/2 * math.cos(math.radians(self.slash_angle))
-                end_y = center_y + slash_length/2 * math.sin(math.radians(self.slash_angle))
+                end_x = center_x + slash_length/2 * math.cos(math.radians(self.slash_angle)) + offset * self.slash_direction
+                end_y = center_y + slash_length/2 * math.sin(math.radians(self.slash_angle)) + offset * self.slash_direction * 0.3
+                
+                # Draw slash glow (slightly larger white line behind)
+                pygame.draw.line(
+                    surface, 
+                    (255, 255, 255),
+                    (start_x, start_y),
+                    (end_x, end_y),
+                    self.slash_width + 2
+                )
                 
                 # Draw the slash line
                 pygame.draw.line(
@@ -158,14 +171,64 @@ class DestructionAnimation(Animation):
                     (end_x, end_y),
                     self.slash_width
                 )
-            else:  # Second half: card splits
-                # Calculate split distance
-                split_distance = (progress - 0.5) * 2 * 100  # Scale to 0-100px in second half
+                
+                # Draw small sparkles along the slash
+                for i in range(5):
+                    spark_pos_x = start_x + (end_x - start_x) * (i / 4)
+                    spark_pos_y = start_y + (end_y - start_y) * (i / 4)
+                    spark_size = random.randint(1, 3)
+                    pygame.draw.circle(
+                        surface,
+                        (255, 255, 255),
+                        (int(spark_pos_x), int(spark_pos_y)),
+                        spark_size
+                    )
+                
+            elif progress < 0.55:  # Second phase: slight pause with visible cut
+                # Draw the card
+                self.target_object.draw(surface)
+                
+                # Draw cut line
+                center_x = self.target_object.rect.centerx
+                center_y = self.target_object.rect.centery
+                cut_length = self.target_object.rect.width * 1.2
+                
+                # Start position
+                start_x = center_x - cut_length/2 * math.cos(math.radians(self.slash_angle))
+                start_y = center_y - cut_length/2 * math.sin(math.radians(self.slash_angle))
+                
+                # End position
+                end_x = center_x + cut_length/2 * math.cos(math.radians(self.slash_angle))
+                end_y = center_y + cut_length/2 * math.sin(math.radians(self.slash_angle))
+                
+                # Draw the cut line - thin white line
+                pygame.draw.line(
+                    surface, 
+                    (255, 255, 255),
+                    (start_x, start_y),
+                    (end_x, end_y),
+                    2
+                )
+                
+            else:  # Third phase: card splits apart
+                # Calculate split distance - non-linear for more dramatic effect
+                split_progress = (progress - 0.55) / 0.45  # Scale to 0-1 range
+                split_distance = 120 * math.pow(split_progress, 1.5)  # Accelerating movement
+                
+                # Calculate split line angle and cut position
+                cut_height = self.target_object.rect.height * 0.5  # Default to middle
+                
+                # Add slight rotation to each half
+                rotation = 5 * split_progress * self.slash_direction
                 
                 # Draw top half
                 top_half = self.target_object.texture.subsurface(
-                    (0, 0, self.target_object.rect.width, self.target_object.rect.height // 2)
+                    (0, 0, self.target_object.rect.width, int(cut_height))
                 )
+                # Rotate top half if needed
+                if rotation != 0:
+                    top_half = pygame.transform.rotate(top_half, -rotation)
+                    
                 surface.blit(
                     top_half, 
                     (
@@ -176,16 +239,38 @@ class DestructionAnimation(Animation):
                 
                 # Draw bottom half
                 bottom_half = self.target_object.texture.subsurface(
-                    (0, self.target_object.rect.height // 2, 
-                     self.target_object.rect.width, self.target_object.rect.height // 2)
+                    (0, int(cut_height), 
+                     self.target_object.rect.width, self.target_object.rect.height - int(cut_height))
                 )
+                
+                # Rotate bottom half if needed
+                if rotation != 0:
+                    bottom_half = pygame.transform.rotate(bottom_half, rotation)
+                    
                 surface.blit(
                     bottom_half, 
                     (
                         self.target_object.rect.x + split_distance * math.sin(math.radians(self.slash_angle)) * self.slash_direction,
-                        self.target_object.rect.y + self.target_object.rect.height // 2 + split_distance * math.cos(math.radians(self.slash_angle)) * self.slash_direction
+                        self.target_object.rect.y + cut_height + split_distance * math.cos(math.radians(self.slash_angle)) * self.slash_direction
                     )
                 )
+                
+                # Add some small particles/sparkles at the cut point
+                if split_progress < 0.7:
+                    center_x = self.target_object.rect.centerx
+                    center_y = self.target_object.rect.centery
+                    
+                    for _ in range(3):
+                        particle_x = center_x + (random.random() - 0.5) * 30
+                        particle_y = center_y + (random.random() - 0.5) * 10
+                        particle_size = random.randint(1, 3)
+                        
+                        pygame.draw.circle(
+                            surface,
+                            (220, 220, 220),
+                            (int(particle_x), int(particle_y)),
+                            particle_size
+                        )
         
         elif self.effect_type == "burn":
             if progress < 0.4:  # First phase: show card
