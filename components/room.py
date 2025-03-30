@@ -25,7 +25,10 @@ class Room:
     def remove_card(self, card):
         if card in self.cards:
             self.cards.remove(card)
-            self.position_cards(animate=True, animation_manager=self.animation_manager)
+            # Do not immediately animate - let the calling code handle animation timing
+            # This prevents cards from disappearing during animations
+            if len(self.cards) > 0:
+                self.position_cards(animate=True, animation_manager=self.animation_manager)
     
     def clear(self):
         self.cards.clear()
@@ -70,7 +73,7 @@ class Room:
                     card,
                     card.rect.topleft,
                     card_position,
-                    0.2,  # Slightly faster for repositioning
+                    0.3,  # Smooth animation duration
                     EasingFunctions.ease_out_quad
                 )
                 animation_manager.add_animation(animation)

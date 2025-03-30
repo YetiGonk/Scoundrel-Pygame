@@ -15,12 +15,13 @@ class Card:
         self.height = CARD_HEIGHT
         self.rect = pygame.Rect(0, 0, self.width, self.height)
         self.is_hovered = False
-        self.animation_phase = ""
-        self.original_width = 1.0
-        self.halfway_point = (0, 0)
+        # Basic properties
+        self.is_flipping = False
+        self.face_up = False
         self.z_index = 0
+        self.is_visible = True  # Controls card visibility for effects
         
-        # New animation properties
+        # Animation properties
         self.rotation = 0  # Degrees
         self.scale = 1.0
         
@@ -138,9 +139,12 @@ class Card:
         self.scale = scale
     
     def draw(self, surface):
+        # Skip drawing if card isn't visible (for destruction animations)
+        if not self.is_visible:
+            return
+            
         if self.is_flipping:
             # Existing flip animation code
-            # ... (keep the existing implementation)
             # Draw shadow as a greyed card behind the main card
             shadow_offset_x = 15  # Horizontal offset
             shadow_offset_y = 15  # Vertical offset
