@@ -130,6 +130,8 @@ class PlayingState(GameState):
         if self.is_boss_room:
             boss_card = self.game_manager.floor_manager.get_boss_card()
             if boss_card:
+                # Add the current floor type to the boss card data
+                boss_card["floor_type"] = self.current_floor
                 # Add the boss card to the bottom of the deck
                 self.deck.add_to_bottom(boss_card)
         
@@ -789,7 +791,9 @@ class PlayingState(GameState):
         for i in range(cards_to_draw):
             if self.deck.cards:
                 card_data = self.deck.draw_card()
-                card = Card(card_data["suit"], card_data["value"])
+                # Check if floor_type is included in card_data, otherwise use self.current_floor
+                floor_type = card_data.get("floor_type", self.current_floor)
+                card = Card(card_data["suit"], card_data["value"], floor_type)
                 
                 # Cards start face down
                 card.face_up = False

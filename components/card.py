@@ -1,13 +1,14 @@
 """ Card component for the Scoundrel game with enhanced animation support. """
 import pygame
 import math
-from constants import CARD_WIDTH, CARD_HEIGHT
+from constants import CARD_WIDTH, CARD_HEIGHT, CARD_RED, BLACK, FONTS_PATH
 from utils.resource_loader import ResourceLoader
+from roguelike_constants import FLOOR_MONSTERS
 
 class Card:
     """ Represents a card in the game with support for rotation and scaling. """
     
-    def __init__(self, suit, value):
+    def __init__(self, suit, value, floor_type="dungeon"):
         self.suit = suit
         self.value = value
         self.type = self.determine_type()
@@ -20,6 +21,7 @@ class Card:
         self.face_up = False
         self.z_index = 0
         self.is_visible = True  # Controls card visibility for effects
+        self.floor_type = floor_type
         
         # Animation properties
         self.rotation = 0  # Degrees
@@ -32,6 +34,11 @@ class Card:
             )
         else:
             texture = ResourceLoader.load_image(f"cards/{self.suit}_{self.value}.png")
+            
+        # If this is a monster card (spades or clubs), add monster image and name
+        if self.type == "monster" and self.value >= 2 and self.value <= 17:
+            texture = self.add_monster_to_card(texture)
+            
         self.texture = pygame.transform.scale(texture, (self.width, self.height))
         self.original_texture = self.texture
         
@@ -48,6 +55,72 @@ class Card:
         self.face_up = False
         self.lift_height = 20  # How high the card lifts during flip
         self.original_y = 0  # Original y position for reference
+    
+    def add_monster_to_card(self, card_surface):
+        """Add monster image and name to card surface based on suit, value and floor type"""
+        # Get monster data from roguelike_constants
+        try:
+            monster_data = FLOOR_MONSTERS[self.floor_type][self.suit][self.value]
+        except KeyError:
+            # No monster defined for this card
+            return card_surface
+            
+        monster_name = monster_data["name"].upper()
+        monster_image_path = monster_data["image"]
+        
+        # Create a new surface based on the card surface
+        card_width, card_height = card_surface.get_width(), card_surface.get_height()
+        new_surface = pygame.Surface((card_width, card_height), pygame.SRCALPHA)
+        new_surface.blit(card_surface, (0, 0))
+                
+        # Load, resize, and recolor monster image
+        monster_img = ResourceLoader.load_image(monster_image_path, cache=False)
+        
+        # Scale monster from 32x32 to 96x96
+        monster_size = 96
+        monster_img = pygame.transform.scale(monster_img, (monster_size, monster_size))
+        
+        # Recolor the monster using pygame surfaces
+        monster_surface = pygame.Surface((monster_size, monster_size), pygame.SRCALPHA)
+        for y in range(monster_size):
+            for x in range(monster_size):
+                color = monster_img.get_at((x, y))
+                # If not transparent (alpha > 0) and not white, apply the suit color
+                if color.r == 255 and color.g == 255 and color.b == 255 and color.a > 0:
+                    monster_surface.set_at((x, y), pygame.Color(0, 0, 0, 255))
+
+        # Calculate center position to place the monster
+        monster_pos = ((card_width - monster_size) // 2, (card_height - monster_size) // 2)
+        
+        # Blit monster onto the card
+        new_surface.blit(monster_surface, monster_pos)
+        
+        # Load font for monster name
+        font_size = 16
+        try:
+            font = pygame.font.Font(FONTS_PATH + "/Pixel Times.ttf", font_size)
+        except:
+            # Fallback to default font if custom font not found
+            font = pygame.font.SysFont(None, font_size)
+        
+        text_surface = None
+        text_rect = None
+        
+        # Render monster name
+        if len(monster_name) > 10 and " " in monster_name:
+            # Split monster name to fit within the card width
+            monster_name = monster_name.split(" ")
+            for i, word in enumerate(monster_name):
+                text_surface = font.render(word, True, BLACK)
+                text_rect = text_surface.get_rect(center=(card_width // 2, monster_pos[1] + monster_size + 10 + i * 20))
+        else:
+            text_surface = font.render(monster_name, True, BLACK)
+            text_rect = text_surface.get_rect(center=(card_width // 2, monster_pos[1] + monster_size + 10))
+        
+        # Blit name onto the card
+        new_surface.blit(text_surface, text_rect)
+        
+        return new_surface
     
     def determine_type(self):
         if self.suit in ["spades", "clubs"]:
