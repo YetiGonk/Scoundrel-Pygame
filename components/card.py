@@ -96,29 +96,24 @@ class Card:
         new_surface.blit(monster_surface, monster_pos)
         
         # Load font for monster name
-        font_size = 16
-        try:
-            font = pygame.font.Font(FONTS_PATH + "/Pixel Times.ttf", font_size)
-        except:
-            # Fallback to default font if custom font not found
-            font = pygame.font.SysFont(None, font_size)
+        font_size = 14
+        font = pygame.font.Font(FONTS_PATH + "/Pixel Times.ttf", font_size)
         
         text_surface = None
         text_rect = None
         
         # Render monster name
-        if len(monster_name) > 10 and " " in monster_name:
+        if " " in monster_name:
             # Split monster name to fit within the card width
             monster_name = monster_name.split(" ")
             for i, word in enumerate(monster_name):
                 text_surface = font.render(word, True, BLACK)
-                text_rect = text_surface.get_rect(center=(card_width // 2, monster_pos[1] + monster_size + 10 + i * 20))
+                text_rect = text_surface.get_rect(center=(card_width // 2, monster_pos[1] + (-10 if i == 0 else monster_size + 10)))
+                new_surface.blit(text_surface, text_rect)
         else:
             text_surface = font.render(monster_name, True, BLACK)
-            text_rect = text_surface.get_rect(center=(card_width // 2, monster_pos[1] + monster_size + 10))
-        
-        # Blit name onto the card
-        new_surface.blit(text_surface, text_rect)
+            text_rect = text_surface.get_rect(center=(card_width // 2, monster_pos[1] - 10))
+            new_surface.blit(text_surface, text_rect)
         
         return new_surface
     

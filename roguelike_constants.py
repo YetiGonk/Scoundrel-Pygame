@@ -191,7 +191,7 @@ FLOOR_MONSTERS = {
         "spades": {
             # Lower values (2-5): Easy monsters
             3: {"name": "Sentient Totem", "image": "monsters/sentient_totem.png", "ability": "knowledge_drain"},
-            4: {"name": "Star Man", "image": "monsters/star_man.png", "ability": "astral_projection"},
+            4: {"name": "Celestial", "image": "monsters/star_man.png", "ability": "astral_projection"},
             5: {"name": "Evil Moon", "image": "monsters/evil_moon.png", "ability": "lunar_magic"},
             # Mid values (6-10): Medium difficulty
             6: {"name": "Evil Sun", "image": "monsters/evil_sun.png", "ability": "solar_flare"},
@@ -211,7 +211,7 @@ FLOOR_MONSTERS = {
         "clubs": {
             # Lower values (3-5): Easy monsters
             3: {"name": "Floating Eyes", "image": "monsters/floating_eyes.png", "ability": "confusion"},
-            4: {"name": "Dave the Gun Thing", "image": "monsters/dave_the_gun_thing.png", "ability": "ranged_attack"},
+            4: {"name": "Mr Gun", "image": "monsters/dave_the_gun_thing.png", "ability": "ranged_attack"},
             5: {"name": "Wraith", "image": "monsters/wraith.png", "ability": "life_drain"},
             # Mid values (6-10): Medium difficulty
             6: {"name": "Genie", "image": "monsters/genie.png", "ability": "wish_twist"},
