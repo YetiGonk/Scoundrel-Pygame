@@ -43,6 +43,12 @@ class GameManager:
             "run_complete": False
         }
         
+        # Storage for equipment and defeated monsters when transitioning between states
+        self.equipped_weapon = {}
+        self.defeated_monsters = []
+        # Flag to track if coming from merchant room
+        self.coming_from_merchant = False
+        
         # Start with the menu state
         self.change_state("menu")
     
@@ -50,6 +56,10 @@ class GameManager:
         if self.current_state:
             self.current_state.exit()
         
+        # Reset coming_from_merchant flag when we're not going to playing state
+        if state_name != "playing":
+            self.coming_from_merchant = False
+            
         self.current_state = self.states[state_name]
         self.current_state.enter()
     

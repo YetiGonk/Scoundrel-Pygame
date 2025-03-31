@@ -48,11 +48,18 @@ class FloorManager:
     def advance_floor(self):
         """Move to the next floor."""
         self.current_floor_index += 1
+        # Reset room counter when moving to a new floor
         self.current_room = 0
         
         # Check if run is complete
         if self.current_floor_index >= len(self.floors):
             return {"run_complete": True}
+        
+        # Reset completion tracking in the playing state if it exists
+        if hasattr(self.game_manager, 'states') and 'playing' in self.game_manager.states:
+            playing_state = self.game_manager.states["playing"]
+            if hasattr(playing_state, 'completed_rooms'):
+                playing_state.completed_rooms = 0
         
         return {
             "floor": self.get_current_floor(),

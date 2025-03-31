@@ -102,9 +102,10 @@ class PlayingState(GameState):
         self.is_boss_room = floor_manager.is_boss_room()
         
         # If this is a new floor, setup the appropriate deck
-        self.deck = Deck(self.current_floor)
-        self.discard_pile = DiscardPile()
-        self.room = Room(self.animation_manager)
+        if not hasattr(self, 'deck') or not self.deck:
+            self.deck = Deck(self.current_floor)
+            self.discard_pile = DiscardPile()
+            self.room = Room(self.animation_manager)
 
         # Create run button
         from constants import RUN_POSITION, RUN_WIDTH, RUN_HEIGHT
@@ -119,23 +120,34 @@ class PlayingState(GameState):
         self.life_points = self.game_manager.game_data["life_points"]
         self.max_life = self.game_manager.game_data["max_life"]
         self.gold = self.game_manager.game_data.get("gold", 0)  # Get gold from game data
-        self.equipped_weapon = {}
-        self.defeated_monsters = []
+        
+        # Check if coming back from merchant - restore equipped weapon and defeated monsters
+        if hasattr(self.game_manager, 'equipped_weapon') and self.game_manager.equipped_weapon:
+            self.equipped_weapon = self.game_manager.equipped_weapon
+            self.defeated_monsters = self.game_manager.defeated_monsters
+            # Clear the stored data
+            self.game_manager.equipped_weapon = {}
+            self.game_manager.defeated_monsters = []
+        else:
+            self.equipped_weapon = {}
+            self.defeated_monsters = []
+            
         self.damage_shield = 0
 
-        # Initialize the deck and start the first room
-        self.deck.initialise_deck()
-        
-        # If this is a boss room, add the boss card to the deck
-        if self.is_boss_room:
-            boss_card = self.game_manager.floor_manager.get_boss_card()
-            if boss_card:
-                # Add the current floor type to the boss card data
-                boss_card["floor_type"] = self.current_floor
-                # Add the boss card to the bottom of the deck
-                self.deck.add_to_bottom(boss_card)
-        
-        self.start_new_room()
+        # Initialize the deck and start the first room if not coming from merchant
+        if not hasattr(self.game_manager, 'coming_from_merchant') or not self.game_manager.coming_from_merchant:
+            self.deck.initialise_deck()
+            
+            # If this is a boss room, add the boss card to the deck
+            if self.is_boss_room:
+                boss_card = self.game_manager.floor_manager.get_boss_card()
+                if boss_card:
+                    # Add the current floor type to the boss card data
+                    boss_card["floor_type"] = self.current_floor
+                    # Add the boss card to the bottom of the deck
+                    self.deck.add_to_bottom(boss_card)
+            
+            self.start_new_room()
         
         # Update status UI fonts
         self.status_ui.update_fonts(self.header_font, self.normal_font)
@@ -148,8 +160,15 @@ class PlayingState(GameState):
         
         # Reset floor completion tracking
         self.floor_completed = False
-        self.completed_rooms = self.game_manager.floor_manager.current_room
-        self.total_rooms_on_floor = self.game_manager.floor_manager.FLOOR_STRUCTURE["rooms_per_floor"]
+        
+        # Reset room counter if starting a new floor
+        if self.current_room_number == 0:
+            self.completed_rooms = 0
+        # Initialize completed_rooms if not already set
+        elif not hasattr(self, 'completed_rooms'):
+            self.completed_rooms = self.current_room_number
+        
+        # We'll track room completion based on cards processed, not based on a fixed total
     
     def exit(self):
         # Save player stats to game_data
@@ -300,13 +319,18 @@ class PlayingState(GameState):
                 return
             
             # Process room state only when no animations are running
-            if len(self.room.cards) == 0:               
+            if len(self.room.cards) == 0:
+                # Increment room count when completing a room
+                self.completed_rooms += 1
+                           
                 # Check if the next room should be a merchant room
-                is_merchant_next = self.completed_rooms + 1 in self.FLOOR_STRUCTURE["merchant_rooms"]
+                is_merchant_next = self.completed_rooms in self.FLOOR_STRUCTURE["merchant_rooms"]
                 
                 if is_merchant_next:
-                    # Set the floor manager's current room for the merchant
-                    self.game_manager.floor_manager.current_room = self.completed_rooms
+                    # Set the floor manager's current room for the merchant (don't increment)
+                    self.game_manager.floor_manager.current_room = self.completed_rooms - 1
+                    # Flag that we're coming from merchant so we preserve state
+                    self.game_manager.coming_from_merchant = True
                     # Advance to merchant room
                     self.game_manager.advance_to_next_room()
                 elif len(self.deck.cards) > 0:
@@ -328,8 +352,8 @@ class PlayingState(GameState):
                     if not self.floor_completed:
                         self.floor_completed = True
                         
-                        # Update floor manager
-                        self.game_manager.floor_manager.current_room = self.total_rooms_on_floor
+                        # Mark this floor as completed by moving to the boss room
+                        self.game_manager.floor_manager.current_room = self.game_manager.floor_manager.FLOOR_STRUCTURE["boss_room"]
                         
                         # Check if this is the last floor
                         if self.game_manager.floor_manager.current_floor_index >= len(self.game_manager.floor_manager.floors) - 1:
@@ -348,11 +372,13 @@ class PlayingState(GameState):
                 self.completed_rooms += 1
                 
                 # Check if the next room should be a merchant room
-                is_merchant_next = self.completed_rooms + 1 in self.FLOOR_STRUCTURE["merchant_rooms"]
+                is_merchant_next = self.completed_rooms in self.FLOOR_STRUCTURE["merchant_rooms"]
                 
                 if is_merchant_next:
-                    # Set the floor manager's current room for the merchant
-                    self.game_manager.floor_manager.current_room = self.completed_rooms
+                    # Set the floor manager's current room for the merchant (don't increment)
+                    self.game_manager.floor_manager.current_room = self.completed_rooms - 1
+                    # Flag that we're coming from merchant so we preserve state
+                    self.game_manager.coming_from_merchant = True
                     # Advance to merchant room
                     self.game_manager.advance_to_next_room()
                 else:

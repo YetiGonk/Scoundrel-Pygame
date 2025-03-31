@@ -53,7 +53,8 @@ class StatusUI:
         floor_rect = floor_text.get_rect(centerx=self.panel_rect.centerx, top=self.panel_rect.top + 10)
         surface.blit(floor_text, floor_rect)
     
-        room_text = self.normal_font.render(f"Room {current_room}/{total_rooms}", True, BLACK)
+        # Just display the current room number without the total
+        room_text = self.normal_font.render(f"Room {current_room}", True, BLACK)
         room_rect = room_text.get_rect(centerx=self.panel_rect.centerx, top=self.panel_rect.top + floor_rect.height + 10)
         surface.blit(room_text, room_rect)
         

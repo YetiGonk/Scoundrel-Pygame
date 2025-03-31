@@ -54,6 +54,12 @@ class MerchantState(GameState):
         
         # Create UI elements
         self.create_ui()
+        
+        # Preserve the playing state's equipped weapon and defeated monsters
+        playing_state = self.game_manager.states["playing"]
+        # Store them in the game_manager to be restored when returning to playing state
+        self.game_manager.equipped_weapon = playing_state.equipped_weapon
+        self.game_manager.defeated_monsters = playing_state.defeated_monsters.copy()
     
     def generate_inventory(self):
         """Generate the merchant's inventory."""
@@ -208,6 +214,8 @@ class MerchantState(GameState):
         elif event.type == MOUSEBUTTONDOWN and event.button == 1:  # Left click
             # Check if continue button was clicked
             if self.continue_button.is_clicked(event.pos):
+                # Don't increment the room counter for merchant rooms
+                # The current_room still points to the room before the merchant
                 self.game_manager.change_state("playing")
                 return
             

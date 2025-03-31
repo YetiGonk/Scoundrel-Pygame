@@ -6,9 +6,9 @@ FLOOR_TYPES = ["dungeon", "forest", "library", "crypt", "volcano"]
 
 # Floor structure
 FLOOR_STRUCTURE = {
-    "rooms_per_floor": 12,
-    "merchant_rooms": [4, 8],  # Room numbers where merchants appear
-    "boss_room": 12,  # Last room is always the boss
+    "rooms_per_floor": 12,  # Maximum potential rooms (flexible)
+    "merchant_rooms": [3, 7],  # Room numbers where merchants appear
+    "boss_room": 12,  # Boss appears when deck is exhausted or at this room number
 }
 
 # Item and spell rarity

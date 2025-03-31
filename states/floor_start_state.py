@@ -79,14 +79,14 @@ class FloorStartState(GameState):
         
         # Items panel
         self.panels["items"] = Panel(
-            (350, 400),
-            (self.panels["main"].rect.left + 25, self.panels["main"].rect.top + 75)
+            (350, 300),
+            (self.panels["main"].rect.left + 25, self.panels["main"].rect.top + 75 + 40)
         )
         
         # Spells panel
         self.panels["spells"] = Panel(
-            (350, 400),
-            (self.panels["main"].rect.right - 375, self.panels["main"].rect.top + 75)
+            (350, 300),
+            (self.panels["main"].rect.right - 375, self.panels["main"].rect.top + 75 + 40)
         )
         
         # Continue button
