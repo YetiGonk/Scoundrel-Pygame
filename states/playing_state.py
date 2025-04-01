@@ -1,6 +1,7 @@
 """ Playing state for the Roguelike Scoundrel game. """
 import pygame
 import random
+import math
 from pygame.locals import *
 
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT, WHITE, BLACK, LIGHT_GRAY
@@ -15,7 +16,7 @@ from ui.panel import Panel
 from ui.status_ui import StatusUI
 from ui.hud import HUD
 from utils.resource_loader import ResourceLoader
-from utils.animation import Animation, AnimationManager, MoveAnimation, DestructionAnimation, MaterializeAnimation, HealthChangeAnimation, EasingFunctions
+from utils.animation import Animation, AnimationManager, MoveAnimation, DestructionAnimation, MaterializeAnimation, HealthChangeAnimation, GoldChangeAnimation, EasingFunctions
 
 class PlayingState(GameState):
     """The main gameplay state of the game with roguelike elements."""
@@ -77,6 +78,10 @@ class PlayingState(GameState):
         
         # Add flag for completed floor
         self.floor_completed = False
+        
+        # Add flags for room state tracking
+        self.gold_reward_given = False
+        self.room_completion_in_progress = False
 
     def enter(self):
         # Load fonts
@@ -320,9 +325,20 @@ class PlayingState(GameState):
             
             # Process room state only when no animations are running
             if len(self.room.cards) == 0:
-                # Increment room count when completing a room
-                self.completed_rooms += 1
-                           
+                # Only trigger room completion once
+                if not self.room_completion_in_progress:
+                    # Set flag to prevent multiple room completions
+                    self.room_completion_in_progress = True
+                    
+                    # Increment room count when completing a room
+                    self.completed_rooms += 1
+                    
+                    # Award gold for completing the room (2-5 gold)
+                    # More difficult floors could give more gold
+                    floor_bonus = min(2, self.game_manager.floor_manager.current_floor_index)  # 0-2 bonus based on floor
+                    gold_reward = random.randint(2, 5) + floor_bonus
+                    self.change_gold(gold_reward)
+
                 # Check if the next room should be a merchant room
                 is_merchant_next = self.completed_rooms in self.FLOOR_STRUCTURE["merchant_rooms"]
                 
@@ -344,7 +360,6 @@ class PlayingState(GameState):
                         if floor_manager.current_room == self.FLOOR_STRUCTURE["boss_room"] - 1:
                             # The next room will be the boss, prepare it
                             self.is_boss_room = True
-                        
                         # Start a new room
                         self.start_new_room()
                 else:
@@ -368,8 +383,19 @@ class PlayingState(GameState):
             
             # If we have only one card left and animations just finished, start a new room 
             elif len(self.room.cards) == 1 and animations_just_finished and len(self.deck.cards) > 0:
-                # Increment completed rooms because we're moving to the next room with a card
-                self.completed_rooms += 1
+                # Only trigger room completion once
+                if not self.room_completion_in_progress:
+                    # Set flag to prevent multiple room completions
+                    self.room_completion_in_progress = True
+                    
+                    # Increment completed rooms because we're moving to the next room with a card
+                    self.completed_rooms += 1
+                    
+                    # Award gold for completing the room (2-5 gold)
+                    # More difficult floors could give more gold
+                    floor_bonus = min(2, self.game_manager.floor_manager.current_floor_index)  # 0-2 bonus based on floor
+                    gold_reward = random.randint(2, 5) + floor_bonus
+                    self.change_gold(gold_reward)
                 
                 # Check if the next room should be a merchant room
                 is_merchant_next = self.completed_rooms in self.FLOOR_STRUCTURE["merchant_rooms"]
@@ -412,6 +438,9 @@ class PlayingState(GameState):
         
         # Draw health display
         self.draw_health_display(surface)
+        
+        # Draw gold display
+        self.draw_gold_display(surface)
         
         # Draw UI animations (health changes, etc.)
         self.animation_manager.draw_ui_effects(surface)
@@ -789,6 +818,10 @@ class PlayingState(GameState):
         if self.animation_manager.is_animating():
             return  # Don't start a new room if animations are running
         
+        # Reset the room state tracking flags when starting a new room
+        self.gold_reward_given = False
+        self.room_completion_in_progress = False
+        
         # Clear the room
         self.room.clear()
         
@@ -956,10 +989,39 @@ class PlayingState(GameState):
         health_text_rect = health_text.get_rect(center=bar_bg_rect.center)
         surface.blit(health_text, health_text_rect)
         
-        # Draw health label
-        label_text = self.body_font.render("HEALTH", True, WHITE)
-        label_rect = label_text.get_rect(bottom=bar_bg_rect.top - 13, centerx=bar_bg_rect.centerx)
-        surface.blit(label_text, label_rect)
+    def draw_gold_display(self, surface):
+        """Draw gold display showing current gold amount."""
+        # Gold display parameters - placed ABOVE health display
+        health_display_x = 40
+        health_display_y = SCREEN_HEIGHT - self.deck.rect.y
+        gold_display_x = health_display_x
+        gold_display_y = health_display_y - 130  # Position above health display
+        
+        # Load the gold coin image
+        gold_icon = ResourceLoader.load_image("gold.png")
+        
+        # Draw the gold coin image
+        surface.blit(gold_icon, (gold_display_x, gold_display_y))
+        
+        # Get icon dimensions
+        icon_width = gold_icon.get_width()
+        icon_height = gold_icon.get_height()
+        
+        # Draw gold amount with gold-colored text
+        gold_text = self.body_font.render(f"{self.game_manager.player_gold}", True, (255, 223, 0))  # Gold text
+        gold_text_rect = gold_text.get_rect(left=gold_display_x + icon_width + 15, 
+            centery=gold_display_y + icon_height//2)
+        
+        # Add dark outline to make gold text readable
+        gold_outline = self.body_font.render(f"{self.game_manager.player_gold}", True, (100, 70, 0))
+        outline_offset = 1
+        surface.blit(gold_outline, (gold_text_rect.x + outline_offset, gold_text_rect.y + outline_offset))
+        surface.blit(gold_outline, (gold_text_rect.x - outline_offset, gold_text_rect.y + outline_offset))
+        surface.blit(gold_outline, (gold_text_rect.x + outline_offset, gold_text_rect.y - outline_offset))
+        surface.blit(gold_outline, (gold_text_rect.x - outline_offset, gold_text_rect.y - outline_offset))
+        
+        # Draw the gold text on top
+        surface.blit(gold_text, gold_text_rect)
     
     def change_health(self, amount):
         """Change player health with animation."""
@@ -997,6 +1059,47 @@ class PlayingState(GameState):
         
         # Add to animation manager
         self.animation_manager.add_animation(health_anim)
+        
+    def change_gold(self, amount):
+        """Change player gold amount with animation."""
+        old_gold = self.game_manager.player_gold
+        
+        # Update the gold amount in the game manager
+        self.game_manager.player_gold += amount
+        
+        # Ensure gold doesn't go negative
+        if self.game_manager.player_gold < 0:
+            self.game_manager.player_gold = 0
+            
+        # Calculate actual change for animation
+        actual_change = abs(amount)
+        
+        # Only animate if there was an actual change
+        if actual_change > 0:
+            self.animate_gold_change(amount < 0, actual_change)  # True = gold loss, False = gold gain
+    
+    def animate_gold_change(self, is_loss, amount):
+        """Create animation for gold change."""
+        # Load the gold icon to get dimensions
+        gold_icon = ResourceLoader.load_image("gold.png")
+        icon_width = gold_icon.get_width()
+        icon_height = gold_icon.get_height()
+        
+        # Position for the animation - next to the gold display
+        health_display_x = 40
+        gold_display_x = health_display_x + icon_width + 30  # Center over gold amount text
+        gold_display_y = SCREEN_HEIGHT - self.deck.rect.y - 100 + icon_height//2  # Match gold icon position
+        
+        # Create animation
+        gold_anim = GoldChangeAnimation(
+            is_loss,
+            amount,
+            (gold_display_x, gold_display_y),
+            self.body_font
+        )
+        
+        # Add to animation manager
+        self.animation_manager.add_animation(gold_anim)
     
     def run_from_room(self):
         """Run from the current room, moving all cards to the bottom of the deck."""

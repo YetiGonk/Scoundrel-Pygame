@@ -47,7 +47,7 @@ MERCHANT_INVENTORY = {
 
 # Starting player attributes
 STARTING_ATTRIBUTES = {
-    "gold": 50,
+    "gold": 0,
     "item_slots": 3,
     "spell_slots": 2,
     "life_points": 20,

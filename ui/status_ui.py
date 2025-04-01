@@ -57,8 +57,3 @@ class StatusUI:
         room_text = self.normal_font.render(f"Room {current_room}", True, BLACK)
         room_rect = room_text.get_rect(centerx=self.panel_rect.centerx, top=self.panel_rect.top + floor_rect.height + 10)
         surface.blit(room_text, room_rect)
-        
-        # Draw player gold
-        gold_text = self.normal_font.render(f"Gold: {self.game_manager.player_gold}", True, BLACK)
-        gold_rect = gold_text.get_rect(left=self.panel_rect.left + 10, top=room_rect.bottom + 5)
-        surface.blit(gold_text, gold_rect)

@@ -1,10 +1,12 @@
 from PIL import Image
 import sys
 
-def replace_color(image_path, old_color, new_color):
+def replace_color(image_path, new_color):
     try:
         img = Image.open(image_path).convert("RGBA")
         data = img.getdata()
+        
+        old_color = data[0][:3]
         
         new_data = [new_color + (pixel[3],) if pixel[:3] == old_color else pixel for pixel in data]
         
@@ -15,6 +17,5 @@ def replace_color(image_path, old_color, new_color):
         print(f"Error: {e}")
 
 if __name__ == "__main__":
-    replace_color("../assets/cards/joker_red_15.png", (0,0,0), (171, 82, 54))
-    replace_color("../assets/cards/joker_red_16.png", (0,0,0), (171, 82, 54))
-    replace_color("../assets/cards/joker_red_17.png", (0,0,0), (171, 82, 54))
+    replace_color("assets/gold.png", (171, 82, 54))
+
