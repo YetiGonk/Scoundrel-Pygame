@@ -16,6 +16,9 @@ class RulesState(GameState):
         self.normal_font = None
         self.background = None
         self.floor = None
+        self.alpha = 255
+        self.alpha_direction = True # true for decrease alpha, false for increase alpha
+        self.speed = 40
     
     def enter(self):
         # Load fonts
@@ -46,7 +49,7 @@ class RulesState(GameState):
         surface.blit(self.floor, ((SCREEN_WIDTH - self.floor.get_width())/2, (SCREEN_HEIGHT - self.floor.get_height())/2))
         
         # Create a semi-transparent panel
-        panel = pygame.Surface((750, 650))
+        panel = pygame.Surface((800, 610))
         panel.fill(WHITE)
         panel.set_alpha(220)
         panel_rect = panel.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2))
@@ -60,7 +63,7 @@ class RulesState(GameState):
         # Rules text
         rules = [
             "Welcome to SCOUNDREL",
-            "The card-base roguelike dungeon-crawler",
+            "The card-base roguelike dungeon crawler:",
             "",
             "- Each dungeon floor is a deck of cards",
             "- Each set of 4 cards represents a floor room",
@@ -72,8 +75,7 @@ class RulesState(GameState):
             "- Equip weapons and defeat monsters",
             "- Defeat them with weapons and block some damage",
             "- Or defeat them bare-handed and take full damage",
-            "- Weapons lose durability and can only battle weaker monsters",
-            "each time",
+            "- Weapons lose durability and can only battle weaker monsters each time",
             "- Heal health with potions",
             "- You can run from dangerous rooms before you choose",
             "- But you cannot run twice in a row",
@@ -87,8 +89,22 @@ class RulesState(GameState):
             rule_rect = rule_text.get_rect(centerx=panel_rect.centerx, top=y_offset) if i < 2 else rule_text.get_rect(left=panel_rect.left + 40, top=y_offset)
             surface.blit(rule_text, rule_rect)
             y_offset += 25
-        
+
         # Continue text
         continue_text = self.body_font.render("Left-click to continue...", True, GRAY)
+        if self.alpha_direction:
+            if self.alpha > 0:
+                self.alpha -= 255/self.speed
+            else:
+                self.alpha_direction = False
+                self.alpha += 255/self.speed
+        else:
+            if self.alpha < 255:
+                self.alpha += 255/self.speed
+            else:
+                self.alpha_direction = True
+                self.alpha -= 255/self.speed
+
+        continue_text.set_alpha(self.alpha)
         continue_rect = continue_text.get_rect(center=(SCREEN_WIDTH//2, panel_rect.bottom - 30))
         surface.blit(continue_text, continue_rect)
