@@ -2,7 +2,7 @@
 import pygame
 from pygame.locals import *
 
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT, WHITE, BLACK, GRAY, LIGHT_GRAY
+from constants import SCREEN_WIDTH, SCREEN_HEIGHT, WHITE, BLACK, GRAY, DARK_GRAY, LIGHT_GRAY
 from states.game_state import GameState
 from ui.button import Button
 from ui.panel import Panel
@@ -74,19 +74,21 @@ class FloorStartState(GameState):
         self.panels["main"] = Panel(
             (800, 500),
             (SCREEN_WIDTH//2 - 400, SCREEN_HEIGHT//2 - 250),
-            WHITE
+            colour=DARK_GRAY
         )
         
         # Items panel
         self.panels["items"] = Panel(
             (350, 300),
-            (self.panels["main"].rect.left + 25, self.panels["main"].rect.top + 75 + 40)
+            (self.panels["main"].rect.left + 25, self.panels["main"].rect.top + 75 + 40),
+            colour=GRAY
         )
         
         # Spells panel
         self.panels["spells"] = Panel(
             (350, 300),
-            (self.panels["main"].rect.right - 375, self.panels["main"].rect.top + 75 + 40)
+            (self.panels["main"].rect.right - 375, self.panels["main"].rect.top + 75 + 40),
+            colour=GRAY
         )
         
         # Continue button
@@ -198,21 +200,21 @@ class FloorStartState(GameState):
         # Draw floor title
         floor_type = self.game_manager.floor_manager.get_current_floor() or "unknown"
         floor_index = self.game_manager.floor_manager.current_floor_index + 1
-        title_text = self.header_font.render(f"Floor {floor_index}: {floor_type.capitalize()}", True, BLACK)
+        title_text = self.header_font.render(f"Floor {floor_index}: {floor_type.capitalize()}", True, WHITE)
         title_rect = title_text.get_rect(centerx=self.panels["main"].rect.centerx, top=self.panels["main"].rect.top + 20)
         surface.blit(title_text, title_rect)
         
         # Draw picks remaining
-        picks_text = self.body_font.render(f"Picks Remaining: {self.picks_remaining}", True, BLACK)
+        picks_text = self.body_font.render(f"Picks Remaining: {self.picks_remaining}", True, WHITE)
         picks_rect = picks_text.get_rect(centerx=self.panels["main"].rect.centerx, top=title_rect.bottom + 10)
         surface.blit(picks_text, picks_rect)
         
         # Draw section headings
-        items_text = self.body_font.render("Items", True, BLACK)
+        items_text = self.body_font.render("Items", True, WHITE)
         items_rect = items_text.get_rect(centerx=self.panels["items"].rect.centerx, top=self.panels["items"].rect.top + 10)
         surface.blit(items_text, items_rect)
         
-        spells_text = self.body_font.render("Spells", True, BLACK)
+        spells_text = self.body_font.render("Spells", True, WHITE)
         spells_rect = spells_text.get_rect(centerx=self.panels["spells"].rect.centerx, top=self.panels["spells"].rect.top + 10)
         surface.blit(spells_text, spells_rect)
         
@@ -228,11 +230,11 @@ class FloorStartState(GameState):
             button.draw(surface)
             
             # Draw the rarity and description
-            rarity_text = self.normal_font.render(f"Rarity: {item.rarity.capitalize()}", True, BLACK)
+            rarity_text = self.normal_font.render(f"Rarity: {item.rarity.capitalize()}", True, WHITE)
             rarity_rect = rarity_text.get_rect(left=button.rect.left + 10, top=button.rect.top + 25)
             surface.blit(rarity_text, rarity_rect)
             
-            desc_text = self.normal_font.render(item.description[:40] + ("..." if len(item.description) > 40 else ""), True, BLACK)
+            desc_text = self.normal_font.render(item.description[:40] + ("..." if len(item.description) > 40 else ""), True, WHITE)
             desc_rect = desc_text.get_rect(left=button.rect.left + 10, top=button.rect.top + 45)
             surface.blit(desc_text, desc_rect)
         
@@ -245,10 +247,10 @@ class FloorStartState(GameState):
             button.draw(surface)
             
             # Draw the rarity and description
-            rarity_text = self.normal_font.render(f"Rarity: {spell.rarity.capitalize()}", True, BLACK)
+            rarity_text = self.normal_font.render(f"Rarity: {spell.rarity.capitalize()}", True, WHITE)
             rarity_rect = rarity_text.get_rect(left=button.rect.left + 10, top=button.rect.top + 25)
             surface.blit(rarity_text, rarity_rect)
             
-            desc_text = self.normal_font.render(spell.description[:40] + ("..." if len(spell.description) > 40 else ""), True, BLACK)
+            desc_text = self.normal_font.render(spell.description[:40] + ("..." if len(spell.description) > 40 else ""), True, WHITE)
             desc_rect = desc_text.get_rect(left=button.rect.left + 10, top=button.rect.top + 45)
             surface.blit(desc_text, desc_rect)

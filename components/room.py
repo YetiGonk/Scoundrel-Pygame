@@ -2,7 +2,7 @@
 Room component for the Scoundrel game.
 """
 import pygame
-from constants import CARD_WIDTH, CARD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT
+from constants import CARD_WIDTH, CARD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK, WHITE, FONTS_PATH
 # Make sure animation is properly imported
 from utils.animation import MoveAnimation, EasingFunctions
 
@@ -14,6 +14,8 @@ class Room:
         self.card_spacing = card_spacing
         self.z_index_counter = 0
         self.animation_manager = animation_manager
+        # Font for card names
+        self.name_font = None
     
     def add_card(self, card):
         self.cards.append(card)
@@ -87,6 +89,42 @@ class Room:
                 return card
         return None
     
+    def _draw_card_name(self, surface, card):
+        """Draw the card name above the card when hovering"""
+        # Initialize font if needed
+        if self.name_font is None:
+            self.name_font = pygame.font.Font(FONTS_PATH + "/Pixel Times.ttf", 18)
+        
+        # Create a background for the text
+        padding = 8
+        card_name = card.name.upper()
+        
+        # Render text
+        text_surface = self.name_font.render(card_name, True, WHITE)
+        text_rect = text_surface.get_rect()
+        
+        # Position text above card with slight overlap
+        text_rect.midbottom = (card.rect.centerx, card.rect.top - 5)
+        
+        # Create background rect slightly larger than text
+        bg_rect = text_rect.inflate(padding * 2, padding * 2)
+        
+        # Draw background with border
+        pygame.draw.rect(surface, BLACK, bg_rect)
+        pygame.draw.rect(surface, WHITE, bg_rect, 2)  # 2px white border
+        
+        # Draw text
+        surface.blit(text_surface, text_rect)
+    
     def draw(self, surface):
-        for card in sorted(self.cards, key=lambda c: c.z_index):
+        # Sort cards by z-index for proper layering
+        sorted_cards = sorted(self.cards, key=lambda c: c.z_index)
+        
+        # Draw all cards
+        for card in sorted_cards:
             card.draw(surface)
+        
+        # Draw card names for hovered cards
+        for card in sorted_cards:
+            if card.is_hovered and card.face_up and card.name:
+                self._draw_card_name(surface, card)

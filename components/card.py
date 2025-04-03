@@ -8,6 +8,30 @@ from roguelike_constants import FLOOR_MONSTERS
 class Card:
     """ Represents a card in the game with support for rotation and scaling. """
     
+    @staticmethod
+    def _to_roman(num):
+        """Convert integer to Roman numeral"""
+        val = [
+            1000, 900, 500, 400,
+            100, 90, 50, 40,
+            10, 9, 5, 4,
+            1
+        ]
+        syms = [
+            "M", "CM", "D", "CD",
+            "C", "XC", "L", "XL",
+            "X", "IX", "V", "IV",
+            "I"
+        ]
+        roman_num = ''
+        i = 0
+        while num > 0:
+            for _ in range(num // val[i]):
+                roman_num += syms[i]
+                num -= val[i]
+            i += 1
+        return roman_num
+    
     def __init__(self, suit, value, floor_type="dungeon"):
         self.suit = suit
         self.value = value
@@ -22,6 +46,15 @@ class Card:
         self.z_index = 0
         self.is_visible = True  # Controls card visibility for effects
         self.floor_type = floor_type
+        self.name = None  # Store card name for hover display
+        
+        # Set name for potions and weapons using Roman numerals
+        if self.type == "potion":
+            self.name = f"Potion {self._to_roman(self.value)}"
+        elif self.type == "weapon":
+            self.name = f"Weapon {self._to_roman(self.value)}"
+        elif self.type == "monster":
+            self.name = f"{self.name} {self._to_roman(self.value)}"
         
         # Animation properties
         self.rotation = 0  # Degrees
@@ -57,7 +90,7 @@ class Card:
         self.original_y = 0  # Original y position for reference
     
     def add_monster_to_card(self, card_surface):
-        """Add monster image and name to card surface based on suit, value and floor type"""
+        """Add monster image to card surface based on suit, value and floor type"""
         # Get monster data from roguelike_constants
         try:
             monster_data = FLOOR_MONSTERS[self.floor_type][self.suit][self.value]
@@ -65,7 +98,7 @@ class Card:
             # No monster defined for this card
             return card_surface
             
-        monster_name = monster_data["name"].upper()
+        self.name = monster_data["name"]  # Store the name for hover display
         monster_image_path = monster_data["image"]
         
         # Create a new surface based on the card surface
@@ -94,26 +127,6 @@ class Card:
         
         # Blit monster onto the card
         new_surface.blit(monster_surface, monster_pos)
-        
-        # Load font for monster name
-        font_size = 14
-        font = pygame.font.Font(FONTS_PATH + "/Pixel Times.ttf", font_size)
-        
-        text_surface = None
-        text_rect = None
-        
-        # Render monster name
-        if " " in monster_name:
-            # Split monster name to fit within the card width
-            monster_name = monster_name.split(" ")
-            for i, word in enumerate(monster_name):
-                text_surface = font.render(word, True, BLACK)
-                text_rect = text_surface.get_rect(center=(card_width // 2, monster_pos[1] + (-10 if i == 0 else monster_size + 10)))
-                new_surface.blit(text_surface, text_rect)
-        else:
-            text_surface = font.render(monster_name, True, BLACK)
-            text_rect = text_surface.get_rect(center=(card_width // 2, monster_pos[1] - 10))
-            new_surface.blit(text_surface, text_rect)
         
         return new_surface
     

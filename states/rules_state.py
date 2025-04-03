@@ -2,7 +2,8 @@
 import pygame
 from pygame.locals import *
 
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT, WHITE, BLACK, GRAY
+from ui.panel import Panel
+from constants import SCREEN_WIDTH, SCREEN_HEIGHT, WHITE, BLACK, GRAY, DARK_GRAY
 from states.game_state import GameState
 from utils.resource_loader import ResourceLoader
 
@@ -49,15 +50,12 @@ class RulesState(GameState):
         surface.blit(self.floor, ((SCREEN_WIDTH - self.floor.get_width())/2, (SCREEN_HEIGHT - self.floor.get_height())/2))
         
         # Create a semi-transparent panel
-        panel = pygame.Surface((800, 610))
-        panel.fill(WHITE)
-        panel.set_alpha(220)
-        panel_rect = panel.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2))
-        surface.blit(panel, panel_rect)
+        panel = Panel((800, 610), (SCREEN_WIDTH//2-400, SCREEN_HEIGHT//2-305), colour=DARK_GRAY)
+        panel.draw(surface)
         
         # Draw title
-        title_text = self.header_font.render("HOW TO PLAY", True, BLACK)
-        title_rect = title_text.get_rect(center=(SCREEN_WIDTH//2, panel_rect.top + 40))
+        title_text = self.header_font.render("HOW TO PLAY", True, WHITE)
+        title_rect = title_text.get_rect(center=(SCREEN_WIDTH//2, panel.rect.top + 40))
         surface.blit(title_text, title_rect)
         
         # Rules text
@@ -85,13 +83,13 @@ class RulesState(GameState):
         
         y_offset = title_rect.bottom + 10
         for i, line in enumerate(rules):
-            rule_text = self.normal_font.render(line, True, BLACK)
-            rule_rect = rule_text.get_rect(centerx=panel_rect.centerx, top=y_offset) if i < 2 else rule_text.get_rect(left=panel_rect.left + 40, top=y_offset)
+            rule_text = self.normal_font.render(line, True, WHITE)
+            rule_rect = rule_text.get_rect(centerx=panel.rect.centerx, top=y_offset) if i < 2 else rule_text.get_rect(left=panel.rect.left + 40, top=y_offset)
             surface.blit(rule_text, rule_rect)
             y_offset += 25
 
         # Continue text
-        continue_text = self.body_font.render("Left-click to continue...", True, GRAY)
+        continue_text = self.body_font.render("Left-click to continue...", True, WHITE)
         if self.alpha_direction:
             if self.alpha > 0:
                 self.alpha -= 255/self.speed
@@ -106,5 +104,5 @@ class RulesState(GameState):
                 self.alpha -= 255/self.speed
 
         continue_text.set_alpha(self.alpha)
-        continue_rect = continue_text.get_rect(center=(SCREEN_WIDTH//2, panel_rect.bottom - 30))
+        continue_rect = continue_text.get_rect(center=(SCREEN_WIDTH//2, panel.rect.bottom - 30))
         surface.blit(continue_text, continue_rect)

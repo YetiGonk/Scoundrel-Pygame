@@ -4,7 +4,7 @@ import random
 import math
 from pygame.locals import *
 
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT, WHITE, BLACK, LIGHT_GRAY
+from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT, WHITE, BLACK, GRAY, DARK_GRAY, LIGHT_GRAY
 from roguelike_constants import FLOOR_STRUCTURE
 from components.card import Card
 from components.deck import Deck
@@ -162,27 +162,27 @@ class PlayingState(GameState):
 
         # Create item and spell panels
         self.create_item_spell_panels()
-        
+
         # Reset floor completion tracking
         self.floor_completed = False
-        
+
         # Reset room counter if starting a new floor
         if self.current_room_number == 0:
             self.completed_rooms = 0
         # Initialize completed_rooms if not already set
         elif not hasattr(self, 'completed_rooms'):
             self.completed_rooms = self.current_room_number
-        
+
         # We'll track room completion based on cards processed, not based on a fixed total
-    
+
     def exit(self):
         # Save player stats to game_data
         self.game_manager.game_data["life_points"] = self.life_points
         self.game_manager.game_data["max_life"] = self.max_life
         self.game_manager.game_data["gold"] = self.gold
-    
+
     # ===== UI MANAGEMENT =====
-    
+
     def create_item_spell_panels(self):
         """Create panels for displaying items and spells."""
         from constants import ITEM_PANEL_POSITION, SPELL_PANEL_POSITION, ITEM_PANEL_WIDTH, ITEM_PANEL_HEIGHT, SPELL_PANEL_WIDTH, SPELL_PANEL_HEIGHT
@@ -191,19 +191,19 @@ class PlayingState(GameState):
         self.item_panel = Panel(
             (item_panel_rect.width, item_panel_rect.height),
             (item_panel_rect.left, item_panel_rect.top),
-            WHITE,
+            GRAY,
             180  # Semi-transparent
         )
-        
+
         # Spell panel (right side)
         spell_panel_rect = pygame.Rect(SPELL_PANEL_POSITION, (SPELL_PANEL_WIDTH, SPELL_PANEL_HEIGHT))
         self.spell_panel = Panel(
             (spell_panel_rect.width, spell_panel_rect.height),
             (spell_panel_rect.left, spell_panel_rect.top),
-            WHITE,
+            GRAY,
             180  # Semi-transparent
         )
-        
+
         # Create item and spell buttons
         self.create_item_buttons()
         self.create_spell_buttons()
@@ -462,12 +462,12 @@ class PlayingState(GameState):
         self.spell_panel.draw(surface)
         
         # Draw item panel title
-        item_title = self.body_font.render("Items", True, BLACK)
+        item_title = self.body_font.render("Items", True, WHITE)
         item_title_rect = item_title.get_rect(centerx=self.item_panel.rect.centerx, top=self.item_panel.rect.top + 10)
         surface.blit(item_title, item_title_rect)
         
         # Draw spell panel title
-        spell_title = self.body_font.render("Spells", True, BLACK)
+        spell_title = self.body_font.render("Spells", True, WHITE)
         spell_title_rect = spell_title.get_rect(centerx=self.spell_panel.rect.centerx, top=self.spell_panel.rect.top + 10)
         surface.blit(spell_title, spell_title_rect)
         

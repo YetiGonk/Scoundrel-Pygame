@@ -2,7 +2,7 @@
 import pygame
 from pygame.locals import *
 
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT, WHITE, BLACK, LIGHT_GRAY
+from constants import SCREEN_WIDTH, SCREEN_HEIGHT, WHITE, BLACK, LIGHT_GRAY, GRAY, DARK_GRAY
 from states.game_state import GameState
 from ui.panel import Panel
 from utils.resource_loader import ResourceLoader
@@ -60,16 +60,16 @@ class MenuState(GameState):
         
         # Create a semi-transparent panel
         from constants import MENU_WIDTH, MENU_HEIGHT, MENU_POSITION
-        panel = Panel((MENU_WIDTH, MENU_HEIGHT), MENU_POSITION)
+        panel = Panel((MENU_WIDTH, MENU_HEIGHT), MENU_POSITION, colour=DARK_GRAY)
         panel.draw(surface)
         
         # Draw title
-        title_text = self.title_font.render("SCOUNDREL", True, BLACK)
+        title_text = self.title_font.render("SCOUNDREL", True, WHITE)
         title_rect = title_text.get_rect(center=(SCREEN_WIDTH//2, panel.rect.top + 50))
         surface.blit(title_text, title_rect)
         
         # Draw subtitle
-        subtitle_text = self.header_font.render("The 52-Card Dungeon Crawler", True, BLACK)
+        subtitle_text = self.header_font.render("The 52-Card Dungeon Crawler", True, WHITE)
         subtitle_rect = subtitle_text.get_rect(center=(SCREEN_WIDTH//2, title_rect.bottom + 30))
         surface.blit(subtitle_text, subtitle_rect)
         
