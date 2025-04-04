@@ -90,11 +90,11 @@ DECK_VARIATIONS = {
 
 # Boss cards - one per floor
 BOSS_CARDS = {
-    "dungeon": {"suit": "spades", "value": 15, "name": "Dungeon Keeper"},
-    "forest": {"suit": "clubs", "value": 15, "name": "Ancient Treant"},
-    "library": {"suit": "clubs", "value": 16, "name": "Forbidden Grimoire"},
-    "crypt": {"suit": "spades", "value": 16, "name": "Lich King"},
-    "volcano": {"suit": "spades", "value": 17, "name": "Fire Elemental"},
+    "dungeon": {"suit": "spades", "value": 14, "name": "Dungeon Keeper"},
+    "forest": {"suit": "clubs", "value": 14, "name": "Ancient Treant"},
+    "library": {"suit": "clubs", "value": 14, "name": "Forbidden Grimoire"},
+    "crypt": {"suit": "spades", "value": 14, "name": "Lich King"},
+    "volcano": {"suit": "spades", "value": 14, "name": "Fire Elemental"},
 }
 
 """ Monster definitions for the roguelike elements of Scoundrel. """
@@ -118,10 +118,8 @@ FLOOR_MONSTERS = {
             11: {"name": "Wraith", "image": "monsters/wraith.png", "ability": "life_drain"},
             12: {"name": "Troll", "image": "monsters/troll.png", "ability": "regeneration"},
             13: {"name": "Fire Knight", "image": "monsters/fire_knight.png", "ability": "burning_attack"},
-            # Aces and special cards (14+): Mini-bosses
+            # Ace (14): Boss monster
             14: {"name": "Beholder", "image": "monsters/beholder.png", "ability": "magic_attacks"},
-            # Boss card (15)
-            15: {"name": "Dungeon Keeper", "image": "monsters/demon_king.png", "ability": "summon_minions"},
         },
         "clubs": {
             # Lower values (2-5): Easy monsters
@@ -161,10 +159,8 @@ FLOOR_MONSTERS = {
             11: {"name": "Hag", "image": "monsters/hag.png", "ability": "curse"},
             12: {"name": "Haunted Tree", "image": "monsters/haunted_tree.png", "ability": "root_attack"},
             13: {"name": "Ent Warrior", "image": "monsters/ent_warrior.png", "ability": "crushing_blow"},
-            # Aces and special cards (14): Mini-bosses
+            # Ace (14): Boss monster
             14: {"name": "Brood Mother", "image": "monsters/brood_mother.png", "ability": "spawn_spiders"},
-            # Boss card (15)
-            15: {"name": "Ancient Treant", "image": "monsters/haunted_tree.png", "ability": "nature_magic"},
         },
         "clubs": {
             # Lower values (2-5): Easy monsters
@@ -203,10 +199,8 @@ FLOOR_MONSTERS = {
             11: {"name": "Banshee", "image": "monsters/banshee.png", "ability": "wail"},
             12: {"name": "Mad Mage", "image": "monsters/mad_mage.png", "ability": "spell_reflection"},
             13: {"name": "Crucible Knight", "image": "monsters/crucible_knight.png", "ability": "counter_attack"},
-            # Aces and special cards (14): Mini-bosses
+            # Ace (14): Boss monster
             14: {"name": "Anubis", "image": "monsters/anubis.png", "ability": "judgment"},
-            # Boss card (16)
-            16: {"name": "Forbidden Grimoire", "image": "monsters/hooded_merchant.png", "ability": "reality_warp"},
         },
         "clubs": {
             # Lower values (3-5): Easy monsters
@@ -244,11 +238,8 @@ FLOOR_MONSTERS = {
             11: {"name": "Banshee", "image": "monsters/banshee.png", "ability": "wail"},
             12: {"name": "Reaper", "image": "monsters/reaper.png", "ability": "fear"},
             13: {"name": "Demon Shaman", "image": "monsters/demon_shaman.png", "ability": "curse"},
-            # Aces and special cards (14-15): Mini-bosses
+            # Ace (14): Boss monster
             14: {"name": "Chaos Demon", "image": "monsters/chaos_demon.png", "ability": "randomize"},
-            15: {"name": "Fallen Angel", "image": "monsters/fallen_angel.png", "ability": "holy_resistance"},
-            # Boss card (16)
-            16: {"name": "Lich King", "image": "monsters/hooded_merchant.png", "ability": "soul_extraction"},
         },
         "clubs": {
             # Lower values (3-5): Easy monsters
@@ -265,9 +256,8 @@ FLOOR_MONSTERS = {
             11: {"name": "Hag", "image": "monsters/hag.png", "ability": "curse"},
             12: {"name": "Stone Golem", "image": "monsters/stone_golem.png", "ability": "reduced_damage"},
             13: {"name": "Fire Knight", "image": "monsters/fire_knight.png", "ability": "burning_attack"},
-            # Aces and special cards (14-15): Mini-bosses
+            # Ace (14): Boss monster
             14: {"name": "Mad Mage", "image": "monsters/mad_mage.png", "ability": "spell_reflection"},
-            15: {"name": "Anubis", "image": "monsters/anubis.png", "ability": "judgment"},
         },
     },
     
@@ -286,12 +276,8 @@ FLOOR_MONSTERS = {
             11: {"name": "Lizard King", "image": "monsters/lizard_king.png", "ability": "royal_command"},
             12: {"name": "Wyrm", "image": "monsters/wyrm.png", "ability": "fire_breath"},
             13: {"name": "Ancient Wyrm", "image": "monsters/ancient_wyrm.png", "ability": "lava_pool"},
-            # Aces and special cards (14-16): Mini-bosses
+            # Ace (14): Boss monster
             14: {"name": "Demon King", "image": "monsters/demon_king.png", "ability": "summon_minions"},
-            15: {"name": "Lightning God", "image": "monsters/lightning_god.png", "ability": "chain_lightning"},
-            16: {"name": "Dragon", "image": "monsters/dragon.png", "ability": "devastating_breath"},
-            # Boss card (17)
-            17: {"name": "Fire Elemental", "image": "monsters/fire_spirit.png", "ability": "magma_eruption"},
         },
         "clubs": {
             # Lower values (4-5): Easy monsters
@@ -307,9 +293,8 @@ FLOOR_MONSTERS = {
             11: {"name": "Cyclops", "image": "monsters/cyclops.png", "ability": "stun_attack"},
             12: {"name": "Fallen Angel", "image": "monsters/fallen_angel.png", "ability": "holy_resistance"},
             13: {"name": "Beholder", "image": "monsters/beholder.png", "ability": "magic_attacks"},
-            # Aces and special cards (14-15): Mini-bosses
+            # Ace (14): Boss monster
             14: {"name": "Reaper", "image": "monsters/reaper.png", "ability": "fear"},
-            15: {"name": "World Snake", "image": "monsters/world_snake.png", "ability": "deadly_constriction"},
         },
     },
 }

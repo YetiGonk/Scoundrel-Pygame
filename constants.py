@@ -221,7 +221,7 @@ VOLCANO_DECK = {
         "lower": 2
     },
     "spades": {
-        "upper": 15,  # Very strong monsters
+        "upper": 14,  # Very strong monsters
         "lower": 4
     },
     "clubs": {

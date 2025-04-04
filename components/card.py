@@ -61,15 +61,10 @@ class Card:
         self.scale = 1.0
         
         # Load the card texture
-        if self.value > 14:
-            texture = ResourceLoader.load_image(
-                f"cards/joker_{"black" if self.suit in ("clubs", "spades") else "red"}_{self.value}.png"
-            )
-        else:
-            texture = ResourceLoader.load_image(f"cards/{self.suit}_{self.value}.png")
+        texture = ResourceLoader.load_image(f"cards/{self.suit}_{self.value}.png")
             
         # If this is a monster card (spades or clubs), add monster image and name
-        if self.type == "monster" and self.value >= 2 and self.value <= 17:
+        if self.type == "monster" and self.value >= 2 and self.value <= 14:
             texture = self.add_monster_to_card(texture)
             
         self.texture = pygame.transform.scale(texture, (self.width, self.height))
