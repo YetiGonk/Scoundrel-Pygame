@@ -311,10 +311,21 @@ class PlayingState(GameState):
         # Check if animations just finished
         animations_just_finished = previous_animating and not current_animating
         
-        # Update card flip animations
+        # Update card animations
         for card in self.room.cards:
+            # Update idle hover and hover animations
+            card.update(delta_time)
+            
+            # Update card flip animations
             if card.is_flipping:
                 card.update_flip(delta_time)
+        
+        # Update weapon and defeated monster animations
+        if "node" in self.equipped_weapon:
+            self.equipped_weapon["node"].update(delta_time)
+            
+        for monster in self.defeated_monsters:
+            monster.update(delta_time)
         
         # Only process game state changes if we're not animating or animations just finished
         if not current_animating:

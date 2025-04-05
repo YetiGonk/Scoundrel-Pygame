@@ -103,8 +103,27 @@ class Room:
         text_surface = self.name_font.render(card_name, True, WHITE)
         text_rect = text_surface.get_rect()
         
-        # Position text above card with slight overlap
-        text_rect.midbottom = (card.rect.centerx, card.rect.top - 5)
+        # Calculate the total float offset (idle + hover)
+        total_float_offset = 0
+        if hasattr(card, 'idle_float_offset') and hasattr(card, 'hover_float_offset'):
+            total_float_offset = card.idle_float_offset + card.hover_float_offset
+        
+        # Position text above card with slight overlap, accounting for floating
+        text_rect.midbottom = (card.rect.centerx, card.rect.top - 5 - total_float_offset)
+        
+        # Scale text to match card scale for a cohesive look
+        if hasattr(card, 'scale') and card.scale > 1.0:
+            # Optional: scale the text slightly, but not as much as the card
+            scale_factor = 1.0 + ((card.scale - 1.0) * 0.5)  # 50% of card's scaling
+            scaled_width = int(text_surface.get_width() * scale_factor)
+            scaled_height = int(text_surface.get_height() * scale_factor)
+            
+            # Scale the text surface
+            text_surface = pygame.transform.scale(text_surface, (scaled_width, scaled_height))
+            
+            # Update text rect with new size
+            text_rect = text_surface.get_rect()
+            text_rect.midbottom = (card.rect.centerx, card.rect.top - 5 - total_float_offset)
         
         # Create background rect slightly larger than text
         bg_rect = text_rect.inflate(padding * 2, padding * 2)

@@ -1,6 +1,7 @@
 """ Card component for the Scoundrel game with enhanced animation support. """
 import pygame
 import math
+import random
 from constants import CARD_WIDTH, CARD_HEIGHT, CARD_RED, BLACK, FONTS_PATH
 from utils.resource_loader import ResourceLoader
 from roguelike_constants import FLOOR_MONSTERS
@@ -59,6 +60,20 @@ class Card:
         # Animation properties
         self.rotation = 0  # Degrees
         self.scale = 1.0
+        
+        # Idle hover animation properties
+        self.idle_time = 0.0
+        self.idle_float_speed = 1
+        self.idle_float_amount = 6.0
+        self.idle_float_offset = 0.0
+        self.idle_phase_offset = 6.28 * random.random()  # Random starting phase (0-2π)
+        
+        # Hover animation properties
+        self.hover_progress = 0.0
+        self.hover_speed = 5.0  # How quickly card responds to hover
+        self.hover_float_offset = 0.0
+        self.hover_scale_target = 1.12  # Target scale when hovered (more pronounced)
+        self.hover_lift_amount = 15.0  # How much to lift card when hovered (more pronounced)
         
         # Load the card texture
         texture = ResourceLoader.load_image(f"cards/{self.suit}_{self.value}.png")
@@ -144,6 +159,36 @@ class Card:
         self.flip_progress = 0.0
         self.original_y = self.rect.y
     
+    def update(self, delta_time):
+        """Update card animations including idle float and hover effects."""
+        # Update the idle hover animation
+        self.idle_time += delta_time
+        self.idle_float_offset = math.sin(self.idle_time * self.idle_float_speed + self.idle_phase_offset) * self.idle_float_amount
+        
+        # Update hover animation
+        target_hover = 1.0 if self.is_hovered else 0.0
+        if abs(self.hover_progress - target_hover) > 0.01:
+            # Gradually change hover progress towards target
+            if self.hover_progress < target_hover:
+                self.hover_progress = min(self.hover_progress + delta_time * self.hover_speed, target_hover)
+            else:
+                self.hover_progress = max(self.hover_progress - delta_time * self.hover_speed, target_hover)
+            
+            # Store current center position of the card before scaling
+            center_x = self.rect.centerx
+            center_y = self.rect.centery
+            
+            # Update scale based on hover progress
+            new_scale = 1.0 + (self.hover_scale_target - 1.0) * self.hover_progress
+            self.update_scale(new_scale)
+            
+            # Restore the card's center position after scaling
+            self.rect.centerx = center_x
+            self.rect.centery = center_y
+            
+            # Calculate hover lift
+            self.hover_float_offset = self.hover_lift_amount * self.hover_progress
+    
     def update_flip(self, delta_time):
         if self.is_flipping:
             # Progress the flip animation
@@ -190,6 +235,10 @@ class Card:
     
     def update_scale(self, scale):
         """Update the card scale"""
+        # Store the center position to maintain it after scaling
+        center_x = self.rect.centerx
+        center_y = self.rect.centery
+        
         if abs(scale - 1.0) < 0.01:
             # Reset to original size
             self.texture = self.original_texture.copy()
@@ -209,12 +258,19 @@ class Card:
                 self.rect.width = new_width
                 self.rect.height = new_height
         
+        # Update the scale property
         self.scale = scale
+        
+        # Preserve the center position
+        # (Note: We don't directly set this here as the caller might want to handle positioning)
     
     def draw(self, surface):
         # Skip drawing if card isn't visible (for destruction animations)
         if not self.is_visible:
             return
+        
+        # Calculate total floating offset (idle + hover)
+        total_float_offset = self.idle_float_offset + self.hover_float_offset
             
         if self.is_flipping:
             # Existing flip animation code
@@ -300,11 +356,17 @@ class Card:
                 # Scale the texture to the current width
                 scaled_card = pygame.transform.scale(texture, (int(scaled_width), self.height))
                 
-                # Adjust x position to keep card centered during scaling
-                x_offset = (self.width - scaled_width) / 2
-                surface.blit(scaled_card, (self.rect.x + x_offset, self.rect.y))
+                # Calculate center position of the card
+                center_x = self.rect.x + self.rect.width / 2
+                center_y = self.rect.y + self.rect.height / 2
+                
+                # Adjust position to keep card centered during scaling and floating
+                x_pos = center_x - scaled_width / 2
+                y_pos = center_y - self.height / 2 - total_float_offset
+                
+                surface.blit(scaled_card, (x_pos, y_pos))
         else:
-            # Normal drawing (either face up or face down) with rotation support
+            # Normal drawing (either face up or face down) with rotation and hover support
             current_texture = self.texture if self.face_up else self.face_down_texture
             
             # Calculate the center position for rotated or scaled cards
@@ -312,9 +374,30 @@ class Card:
             center_x = self.rect.x + self.rect.width / 2
             center_y = self.rect.y + self.rect.height / 2
             
-            # Calculate the top-left position for drawing
+            # Calculate the top-left position for drawing, including float offset
             pos_x = center_x - current_texture.get_width() / 2
-            pos_y = center_y - current_texture.get_height() / 2
+            pos_y = center_y - current_texture.get_height() / 2 - total_float_offset
+            
+            # Calculate shadow properties based on float height
+            # As the card floats higher, shadow moves further away and gets more transparent
+            shadow_alpha = 40 + int(15 * (total_float_offset / (self.idle_float_amount + self.hover_lift_amount)))
+            shadow_offset = 4 + int(total_float_offset * 0.7)  # Shadow moves more with higher float
+            
+            # Scale shadow based on height for perspective effect
+            shadow_scale = 1.0 + (total_float_offset * 0.0007)  # Slight scaling for perspective
+            shadow_width = int(current_texture.get_width() * shadow_scale)
+            shadow_height = int(current_texture.get_height() * shadow_scale)
+            
+            # Create shadow surface
+            shadow_surf = pygame.Surface((shadow_width, shadow_height), pygame.SRCALPHA)
+            shadow_surf.fill((0, 0, 0, shadow_alpha))
+            
+            # Calculate shadow position (centered under the card)
+            shadow_x = center_x - shadow_width / 2 + shadow_offset
+            shadow_y = center_y - shadow_height / 2 + shadow_offset
+            
+            # Draw the shadow
+            surface.blit(shadow_surf, (shadow_x, shadow_y))
             
             # Draw the card at the calculated position
             surface.blit(current_texture, (pos_x, pos_y))
