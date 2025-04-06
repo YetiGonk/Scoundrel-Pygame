@@ -99,6 +99,16 @@ class Room:
         padding = 8
         card_name = card.name.upper()
         
+        # For weapon and potion cards, add instructions
+        action_text = ""
+        if hasattr(card, 'can_add_to_inventory') and card.can_add_to_inventory:
+            if card.hover_selection == "top":
+                action_text = " (ADD TO INVENTORY)"
+                card_name = f"{card_name}{action_text}"
+            elif card.hover_selection == "bottom":
+                action_text = " (USE NOW)"
+                card_name = f"{card_name}{action_text}"
+        
         # Render text
         text_surface = self.name_font.render(card_name, True, WHITE)
         text_rect = text_surface.get_rect()

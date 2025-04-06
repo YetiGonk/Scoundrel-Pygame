@@ -20,7 +20,7 @@ CARD_RED = (171, 82, 54)
 
 # Card dimensions
 CARD_WIDTH = 99
-CARD_HEIGHT = 135
+CARD_HEIGHT = 135   
 
 # UI positions and sizes
 MENU_WIDTH = 600

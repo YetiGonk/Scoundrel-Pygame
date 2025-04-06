@@ -49,11 +49,22 @@ class Card:
         self.floor_type = floor_type
         self.name = None  # Store card name for hover display
         
+        # Weapon properties
+        self.weapon_type = None  # "melee" or "ranged"
+        
         # Set name for potions and weapons using Roman numerals
         if self.type == "potion":
             self.name = f"Potion {self._to_roman(self.value)}"
         elif self.type == "weapon":
-            self.name = f"Weapon {self._to_roman(self.value)}"
+            # Determine weapon type based on value
+            # Higher value weapons (10-14) are ranged, lower (2-9) are melee
+            # with exception for Ace (value 14) which is a special melee weapon
+            if 10 <= self.value <= 13:
+                self.weapon_type = "ranged"
+                self.name = f"Ranged Weapon {self._to_roman(self.value)}"
+            else:
+                self.weapon_type = "melee"
+                self.name = f"Melee Weapon {self._to_roman(self.value)}"
         elif self.type == "monster":
             self.name = f"{self.name} {self._to_roman(self.value)}"
         
@@ -75,12 +86,27 @@ class Card:
         self.hover_scale_target = 1.12  # Target scale when hovered (more pronounced)
         self.hover_lift_amount = 15.0  # How much to lift card when hovered (more pronounced)
         
+        # Inventory selection properties (for potions and weapons)
+        self.can_add_to_inventory = self.type in ["potion", "weapon"]
+        self.hover_selection = None  # "top" for inventory, "bottom" for use
+        self.inventory_color = (128, 0, 128, 100)  # Purple with transparency
+        self.use_color = (255, 165, 0, 100)  # Orange with transparency
+        self.is_selected = False  # Track if the card has been clicked/selected
+        
+        # Special handling for arrow cards (ranged ammo)
+        if self.type == "weapon" and self.value == 2:  # 2 of Diamonds is an arrow
+            self.weapon_type = "arrow"
+            self.name = "Arrow"
+        
         # Load the card texture
         texture = ResourceLoader.load_image(f"cards/{self.suit}_{self.value}.png")
             
         # If this is a monster card (spades or clubs), add monster image and name
         if self.type == "monster" and self.value >= 2 and self.value <= 14:
             texture = self.add_monster_to_card(texture)
+        # If this is a weapon card (diamonds), add weapon image
+        elif self.type == "weapon" and self.value >= 2 and self.value <= 14:
+            texture = self.add_weapon_to_card(texture)
             
         self.texture = pygame.transform.scale(texture, (self.width, self.height))
         self.original_texture = self.texture
@@ -139,6 +165,72 @@ class Card:
         new_surface.blit(monster_surface, monster_pos)
         
         return new_surface
+        
+    def add_weapon_to_card(self, card_surface):
+        """Add weapon image to card surface based on value"""
+        # Create a new surface based on the card surface
+        card_width, card_height = card_surface.get_width(), card_surface.get_height()
+        new_surface = pygame.Surface((card_width, card_height), pygame.SRCALPHA)
+        new_surface.blit(card_surface, (0, 0))
+        
+        # Determine which weapon image to use based on value
+        # Map card values to weapon image names
+        weapon_mapping = {
+            2: "arrow",        # 2 is arrow
+            3: "shortsword",   # 3 is shortsword
+            4: "shield",       # 4 is shield
+            5: "axe",          # 5 is axe
+            6: "warhammer",    # 6 is warhammer
+            7: "flail",        # 7 is flail
+            8: "greatsword",   # 8 is greatsword
+            9: "greatsword",   # 9 is also greatsword (fallback)
+            10: "crossbow",    # 10 is crossbow
+            11: "longbow",     # 11 is longbow
+            12: "longbow",     # 12 is also longbow (fallback)
+            13: "crossbow",    # 13 is also crossbow (fallback)
+            14: "greatsword"   # 14 (Ace) is a special greatsword
+        }
+        
+        # Default weapon in case value isn't in mapping
+        weapon_name = weapon_mapping.get(self.value, "shortsword")
+        
+        # Determine weapon type from mapping if not already set
+        if self.weapon_type is None:
+            if weapon_name in ["crossbow", "longbow"]:
+                self.weapon_type = "ranged"
+            elif weapon_name == "arrow":
+                self.weapon_type = "arrow"
+            else:
+                self.weapon_type = "melee"
+                
+        # Apply weapon name to card name if not already set
+        if "Weapon" in self.name:
+            prefix = "Ranged" if self.weapon_type == "ranged" else "Melee"
+            self.name = f"{prefix} {weapon_name.capitalize()} {self._to_roman(self.value)}"
+        elif self.weapon_type == "arrow":
+            self.name = "Arrow"
+        
+        # Load weapon image
+        weapon_path = f"weapons/{weapon_name}.png"
+        try:
+            weapon_img = ResourceLoader.load_image(weapon_path)
+            
+            # Scale weapon to appropriate size for the card
+            weapon_size = 96  # Same size as monster images
+            weapon_img = pygame.transform.scale(weapon_img, (weapon_size, weapon_size))
+            
+            # Calculate center position
+            weapon_pos = ((card_width - weapon_size) // 2, (card_height - weapon_size) // 2)
+            
+            # Blit weapon onto the card
+            new_surface.blit(weapon_img, weapon_pos)
+            
+        except Exception as e:
+            print(f"Error loading weapon image: {e}")
+            # Return original card if image can't be loaded
+            return card_surface
+            
+        return new_surface
     
     def determine_type(self):
         if self.suit in ["spades", "clubs"]:
@@ -163,7 +255,12 @@ class Card:
         """Update card animations including idle float and hover effects."""
         # Update the idle hover animation
         self.idle_time += delta_time
-        self.idle_float_offset = math.sin(self.idle_time * self.idle_float_speed + self.idle_phase_offset) * self.idle_float_amount
+        
+        # For cards in inventory, use reduced floating animation (25% of normal)
+        if hasattr(self, 'in_inventory') and self.in_inventory:
+            self.idle_float_offset = math.sin(self.idle_time * self.idle_float_speed + self.idle_phase_offset) * (self.idle_float_amount * 0.25)
+        else:
+            self.idle_float_offset = math.sin(self.idle_time * self.idle_float_speed + self.idle_phase_offset) * self.idle_float_amount
         
         # Update hover animation
         target_hover = 1.0 if self.is_hovered else 0.0
@@ -186,8 +283,11 @@ class Card:
             self.rect.centerx = center_x
             self.rect.centery = center_y
             
-            # Calculate hover lift
-            self.hover_float_offset = self.hover_lift_amount * self.hover_progress
+            # For cards in inventory, use reduced hover lift (25% of normal)
+            if hasattr(self, 'in_inventory') and self.in_inventory:
+                self.hover_float_offset = self.hover_lift_amount * self.hover_progress * 0.25
+            else:
+                self.hover_float_offset = self.hover_lift_amount * self.hover_progress
     
     def update_flip(self, delta_time):
         if self.is_flipping:
@@ -401,9 +501,42 @@ class Card:
             
             # Draw the card at the calculated position
             surface.blit(current_texture, (pos_x, pos_y))
+            
+            # Draw inventory selection overlay for potion and weapon cards when hovered
+            # Only show split colors if the card hasn't been selected yet
+            if self.face_up and self.can_add_to_inventory and self.is_hovered and not self.is_selected:
+                # Create overlay surfaces for top (inventory) and bottom (use) sections
+                overlay_width = current_texture.get_width()
+                overlay_height = current_texture.get_height() // 2  # Half height for each section
+                
+                # Create top overlay (purple for inventory)
+                top_overlay = pygame.Surface((overlay_width, overlay_height), pygame.SRCALPHA)
+                top_overlay.fill(self.inventory_color)
+                
+                # Create bottom overlay (orange for use)
+                bottom_overlay = pygame.Surface((overlay_width, overlay_height), pygame.SRCALPHA)
+                bottom_overlay.fill(self.use_color)
+                
+                # Highlight the currently hovered section more intensely
+                if self.hover_selection == "top":
+                    # Make the top overlay more opaque
+                    top_overlay.set_alpha(150)
+                    bottom_overlay.set_alpha(100)
+                elif self.hover_selection == "bottom":
+                    # Make the bottom overlay more opaque
+                    top_overlay.set_alpha(100)
+                    bottom_overlay.set_alpha(150)
+                
+                # Draw the overlays
+                surface.blit(top_overlay, (pos_x, pos_y))
+                surface.blit(bottom_overlay, (pos_x, pos_y + overlay_height))
 
     def check_hover(self, mouse_pos):
         previous_hover = self.is_hovered
+        previous_selection = self.hover_selection
+        
+        # Reset hover selection
+        self.hover_selection = None
         
         # Adjust for rotation if needed
         if abs(self.rotation) > 0.1 or abs(self.scale - 1.0) > 0.01:
@@ -424,5 +557,17 @@ class Card:
         else:
             # For normal cards, use rect collision
             self.is_hovered = self.rect.collidepoint(mouse_pos)
+        
+        # Determine which part of the card is being hovered (top or bottom)
+        if self.is_hovered and self.face_up and self.can_add_to_inventory:
+            # Calculate the mid-point of the card height
+            card_midpoint_y = self.rect.y + self.rect.height / 2
             
-        return previous_hover != self.is_hovered
+            # Check if mouse is in top or bottom half
+            if mouse_pos[1] < card_midpoint_y:
+                self.hover_selection = "top"  # Inventory (purple)
+            else:
+                self.hover_selection = "bottom"  # Use (orange)
+            
+        # Return true if either the hover state or the selection changed
+        return previous_hover != self.is_hovered or previous_selection != self.hover_selection

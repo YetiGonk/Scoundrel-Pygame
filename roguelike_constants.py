@@ -308,7 +308,7 @@ MONSTER_ABILITIES = {
     "life_drain": "Heals for 50% of damage dealt",
     "regeneration": "Regains 2 health each turn",
     "burning_attack": "Deals additional 2 fire damage",
-    "magic_attacks": "Ignores weapon defense bonuses",
+    "magic_attacks": "Ignores weapon defence bonuses",
     "summon_minions": "Summons 1-3 weaker monsters",
     "split": "Creates a copy of itself at 50% health when damaged",
     "confusion": "50% chance player attacks themselves",
