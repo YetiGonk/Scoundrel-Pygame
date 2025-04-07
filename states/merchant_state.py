@@ -293,7 +293,7 @@ class MerchantState(GameState):
         )
         
         # Load gold icon
-        self.gold_icon = ResourceLoader.load_image("gold.png")
+        self.gold_icon = ResourceLoader.load_image("ui/gold.png")
         
         # Create the merchant character in the bottom left corner
         merchant_pos = (85, SCREEN_HEIGHT - 405)  # Position is the bottom-left anchor

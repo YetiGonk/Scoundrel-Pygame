@@ -90,60 +90,110 @@ class Room:
         return None
     
     def _draw_card_name(self, surface, card):
-        """Draw the card name above the card when hovering"""
+        """Draw the card name above the card and type below when hovering"""
         # Initialize font if needed
         if self.name_font is None:
             self.name_font = pygame.font.Font(FONTS_PATH + "/Pixel Times.ttf", 18)
         
         # Create a background for the text
         padding = 8
-        card_name = card.name.upper()
-        
-        # For weapon and potion cards, add instructions
-        action_text = ""
-        if hasattr(card, 'can_add_to_inventory') and card.can_add_to_inventory:
-            if card.hover_selection == "top":
-                action_text = " (ADD TO INVENTORY)"
-                card_name = f"{card_name}{action_text}"
-            elif card.hover_selection == "bottom":
-                action_text = " (USE NOW)"
-                card_name = f"{card_name}{action_text}"
-        
-        # Render text
-        text_surface = self.name_font.render(card_name, True, WHITE)
-        text_rect = text_surface.get_rect()
         
         # Calculate the total float offset (idle + hover)
         total_float_offset = 0
         if hasattr(card, 'idle_float_offset') and hasattr(card, 'hover_float_offset'):
             total_float_offset = card.idle_float_offset + card.hover_float_offset
         
-        # Position text above card with slight overlap, accounting for floating
-        text_rect.midbottom = (card.rect.centerx, card.rect.top - 5 - total_float_offset)
-        
-        # Scale text to match card scale for a cohesive look
+        # Get card scale factor for text scaling
+        scale_factor = 1.0
         if hasattr(card, 'scale') and card.scale > 1.0:
-            # Optional: scale the text slightly, but not as much as the card
+            # Scale the text slightly, but not as much as the card
             scale_factor = 1.0 + ((card.scale - 1.0) * 0.5)  # 50% of card's scaling
+        
+        # ----- DRAW CARD NAME ABOVE THE CARD -----
+        card_name = card.name.upper()
+                
+        # For monster cards, add value as roman numeral
+        if card.type == "monster":
+            if " " in card_name and not any(num in card_name for num in ["I", "V", "X"]):
+                card_name += f" {card._to_roman(card.value)}"
+                
+        # Render the name text
+        text_surface = self.name_font.render(card_name, True, WHITE)
+        text_rect = text_surface.get_rect()
+        
+        # Calculate the total float offset for proper positioning
+        total_float_offset = 0
+        if hasattr(card, 'idle_float_offset') and hasattr(card, 'hover_float_offset'):
+            total_float_offset = card.idle_float_offset + card.hover_float_offset
+        
+        # Position text above card with float offset to move with card
+        gap = 15  # Consistent gap between card and text
+        text_rect.midbottom = (card.rect.centerx, card.rect.top - gap - total_float_offset)
+        
+        # Scale text if needed
+        if scale_factor > 1.0:
             scaled_width = int(text_surface.get_width() * scale_factor)
             scaled_height = int(text_surface.get_height() * scale_factor)
-            
-            # Scale the text surface
             text_surface = pygame.transform.scale(text_surface, (scaled_width, scaled_height))
-            
-            # Update text rect with new size
             text_rect = text_surface.get_rect()
-            text_rect.midbottom = (card.rect.centerx, card.rect.top - 5 - total_float_offset)
+            text_rect.midbottom = (card.rect.centerx, card.rect.top - gap - total_float_offset)
         
-        # Create background rect slightly larger than text
+        # Create background rect and draw
         bg_rect = text_rect.inflate(padding * 2, padding * 2)
-        
-        # Draw background with border
         pygame.draw.rect(surface, BLACK, bg_rect)
         pygame.draw.rect(surface, WHITE, bg_rect, 2)  # 2px white border
-        
-        # Draw text
         surface.blit(text_surface, text_rect)
+        
+        # ----- DRAW CARD TYPE BELOW THE CARD -----
+        
+        # Determine the type text to display
+        type_text = ""
+        
+        # For weapons, show weapon type (melee/ranged/arrow) and damage type (piercing/slashing/bludgeoning)
+        if card.type == "weapon" and hasattr(card, 'weapon_type') and card.weapon_type:
+            weapon_type = card.weapon_type.upper()
+            # Only show damage type for non-arrow weapons
+            if card.weapon_type != "arrow" and hasattr(card, 'damage_type') and card.damage_type:
+                damage_type = card.damage_type.upper()
+                type_text = f"{weapon_type} ({damage_type})"
+            else:
+                type_text = weapon_type
+        
+        # For monsters, show monster type (humanoid/undead/etc.)
+        elif card.type == "monster" and hasattr(card, 'monster_type') and card.monster_type:
+            type_text = card.monster_type.upper()
+        
+        # For potions
+        elif card.type == "potion":
+            type_text = "HEALING"
+            
+        # Only draw type label if we have text
+        if type_text:
+            # Render the type text (slightly smaller)
+            small_font = pygame.font.Font(FONTS_PATH + "/Pixel Times.ttf", 16)
+            type_surface = small_font.render(type_text, True, WHITE)
+            type_rect = type_surface.get_rect()
+            
+            # Calculate the total float offset for proper positioning
+            # Reusing the already calculated total_float_offset from above
+            
+            # Position text below card with negative float offset to move with card in same direction
+            gap = 15  # Same gap as top text
+            type_rect.midtop = (card.rect.centerx, card.rect.bottom + gap - total_float_offset)
+            
+            # Scale text if needed
+            if scale_factor > 1.0:
+                scaled_width = int(type_surface.get_width() * scale_factor)
+                scaled_height = int(type_surface.get_height() * scale_factor)
+                type_surface = pygame.transform.scale(type_surface, (scaled_width, scaled_height))
+                type_rect = type_surface.get_rect()
+                type_rect.midtop = (card.rect.centerx, card.rect.bottom + gap - total_float_offset)
+            
+            # Create background rect and draw
+            type_bg_rect = type_rect.inflate(padding * 2, padding * 2)
+            pygame.draw.rect(surface, BLACK, type_bg_rect)
+            pygame.draw.rect(surface, WHITE, type_bg_rect, 2)  # 2px white border
+            surface.blit(type_surface, type_rect)
     
     def draw(self, surface):
         # Sort cards by z-index for proper layering
@@ -153,7 +203,11 @@ class Room:
         for card in sorted_cards:
             card.draw(surface)
         
-        # Draw card names for hovered cards
+        # Draw card names and hover action text for hovered cards
         for card in sorted_cards:
             if card.is_hovered and card.face_up and card.name:
                 self._draw_card_name(surface, card)
+                
+                # Draw hover text if card can be added to inventory
+                if hasattr(card, 'can_add_to_inventory') and card.can_add_to_inventory:
+                    card.draw_hover_text(surface)

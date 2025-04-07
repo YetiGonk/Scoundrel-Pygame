@@ -4,7 +4,7 @@ import random
 import math
 from pygame.locals import *
 
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT, WHITE, BLACK, GRAY, DARK_GRAY, LIGHT_GRAY
+from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT, WHITE, BLACK, GRAY, DARK_GRAY, LIGHT_GRAY, FONTS_PATH
 from roguelike_constants import FLOOR_STRUCTURE
 from components.card import Card
 from components.deck import Deck
@@ -126,7 +126,7 @@ class PlayingState(GameState):
         
         # Position below status UI and above room
         run_x = SCREEN_WIDTH // 2
-        run_y = 80  # Below status UI, above room
+        run_y = 150  # Below status UI, above room
         
         run_button_rect = pygame.Rect(run_x - run_width // 2, run_y - run_height // 2, run_width, run_height)
         self.run_button = Button(run_button_rect, "RUN", self.normal_font)  # Use smaller font too
@@ -275,6 +275,10 @@ class PlayingState(GameState):
         if event.type == MOUSEMOTION:
             # Check hover for cards in the room
             for card in self.room.cards:
+                card.check_hover(event.pos)
+            
+            # Check hover for inventory cards
+            for card in self.inventory:
                 card.check_hover(event.pos)
             
             # Check hover for run button
@@ -466,9 +470,20 @@ class PlayingState(GameState):
         
         # Draw equipped weapon and defeated monsters
         if "node" in self.equipped_weapon:
-            self.equipped_weapon["node"].draw(surface)
+            weapon_card = self.equipped_weapon["node"]
+            weapon_card.draw(surface)
+            
+            # Draw weapon type below the card
+            if hasattr(weapon_card, 'weapon_type') and weapon_card.weapon_type:
+                self.draw_card_type(surface, weapon_card, weapon_card.weapon_type.upper())
+            
+            # Draw defeated monsters and their types
             for monster in self.defeated_monsters:
                 monster.draw(surface)
+                
+                # Draw monster type below each monster in the stack
+                if hasattr(monster, 'monster_type') and monster.monster_type:
+                    self.draw_card_type(surface, monster, monster.monster_type.upper())
         
         # Draw inventory background panel between item and spell panels
         # Position it vertically centered between the item and spell panels
@@ -494,29 +509,41 @@ class PlayingState(GameState):
         title_rect = inv_title.get_rect(centerx=inv_rect.centerx, top=inv_rect.top - 30)
         surface.blit(inv_title, title_rect)
         
-        # Draw inventory cards
-        for card in self.inventory:
+        # First sort inventory cards so hovered ones are at the end (will be drawn on top)
+        # Use a stable sort so if there are multiple cards, their original order is preserved
+        sorted_cards = sorted(self.inventory, key=lambda c: 1 if c.is_hovered else 0)
+        
+        # First pass - draw shadows for all cards
+        for card in sorted_cards:
+            self._draw_card_shadow(surface, card)
+        
+        # Second pass - draw all cards and type information
+        for card in sorted_cards:
+            # Draw the card
             card.draw(surface)
             
-            # Draw card type and value underneath for clarity
-            if card.face_up:
-                # Create card label text
-                if card.type == "weapon":
-                    label_text = f"WEAPON ({card.value})"
-                else:
-                    label_text = f"POTION ({card.value})"
+            # Only draw card info if the card is hovered
+            if card.face_up and card.is_hovered:
+                # Get type text for the card
+                type_text = ""
+                if card.type == "weapon" and hasattr(card, 'weapon_type') and card.weapon_type:
+                    weapon_type = card.weapon_type.upper()
+                    # Show damage type for weapons
+                    if hasattr(card, 'damage_type') and card.damage_type and card.weapon_type != "arrow":
+                        damage_type = card.damage_type.upper()
+                        type_text = f"{weapon_type} ({damage_type})"
+                    else:
+                        type_text = weapon_type
+                elif card.type == "potion":
+                    type_text = "HEALING"
                 
-                # Render label
-                label_surf = self.normal_font.render(label_text, True, WHITE)
-                label_rect = label_surf.get_rect(centerx=card.rect.centerx, top=card.rect.bottom + 5)
+                # Draw type text below the card
+                if type_text:
+                    self.draw_card_type(surface, card, type_text)
                 
-                # Draw background
-                bg_rect = label_rect.inflate(10, 6)
-                pygame.draw.rect(surface, BLACK, bg_rect)
-                pygame.draw.rect(surface, DARK_GRAY, bg_rect, 1)
-                
-                # Draw text
-                surface.blit(label_surf, label_rect)
+                # Draw name hover info above the card
+                if card.name:
+                    self._draw_inventory_card_info(surface, card)
             
         # Draw room cards LAST always
         self.room.draw(surface)
@@ -583,6 +610,75 @@ class PlayingState(GameState):
             boss_text = self.header_font.render("BOSS ROOM", True, (255, 0, 0))
             boss_rect = boss_text.get_rect(center=(SCREEN_WIDTH//2, 30))
             surface.blit(boss_text, boss_rect)
+    
+    def _draw_inventory_card_info(self, surface, card):
+        """Draw name and other info for inventory cards."""
+        # Font for card name
+        name_font = pygame.font.Font(FONTS_PATH + "/Pixel Times.ttf", 18)
+        
+        # Render card name
+        card_name = card.name.upper()
+        text_surface = name_font.render(card_name, True, WHITE)
+        text_rect = text_surface.get_rect()
+        
+        # Calculate total float offset (idle + hover)
+        total_float_offset = 0
+        if hasattr(card, 'idle_float_offset') and hasattr(card, 'hover_float_offset'):
+            total_float_offset = card.idle_float_offset + card.hover_float_offset
+            
+        # Position text above card with floating offset
+        gap = 4
+        text_rect.midbottom = (card.rect.centerx, card.rect.top - gap - total_float_offset)
+        
+        # Add background with padding
+        padding = 8
+        bg_rect = text_rect.inflate(padding * 2, padding * 2)
+        
+        # Draw the background and text
+        pygame.draw.rect(surface, BLACK, bg_rect)
+        pygame.draw.rect(surface, WHITE, bg_rect, 2)  # White border
+        surface.blit(text_surface, text_rect)
+        
+    def _draw_card_shadow(self, surface, card):
+        """Draw shadow effect for a card"""
+        shadow_alpha = 60
+        shadow_width = 4
+        shadow_rect = card.rect.inflate(shadow_width * 2, shadow_width * 2)
+        shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(shadow_surf, (0, 0, 0, shadow_alpha), shadow_surf.get_rect(), border_radius=3)
+        surface.blit(shadow_surf, (shadow_rect.x, shadow_rect.y))
+    
+    def draw_card_type(self, surface, card, type_text):
+        """Helper method to draw a card's type below the card"""
+        # Only proceed if we have text to display
+        if not type_text:
+            return
+            
+        # Initialize font if needed
+        if not hasattr(self, 'small_font') or self.small_font is None:
+            self.small_font = pygame.font.Font(FONTS_PATH + "/Pixel Times.ttf", 16)
+        
+        padding = 6  # Smaller padding for non-hovered cards
+        
+        # Render the type text
+        type_surface = self.small_font.render(type_text, True, WHITE)
+        type_rect = type_surface.get_rect()
+        
+        # Calculate the total float offset for proper positioning
+        total_float_offset = 0
+        if hasattr(card, 'idle_float_offset') and hasattr(card, 'hover_float_offset'):
+            total_float_offset = card.idle_float_offset + card.hover_float_offset
+            
+        # Position text below card with the float offset to move with card
+        gap = 4  # Smaller consistent gap
+        # Use negative offset for inventory cards to make text move with card
+        type_rect.midtop = (card.rect.centerx, card.rect.bottom + gap - total_float_offset)
+        
+        # Create background rect and draw
+        type_bg_rect = type_rect.inflate(padding * 2, padding * 2)
+        pygame.draw.rect(surface, BLACK, type_bg_rect)
+        pygame.draw.rect(surface, WHITE, type_bg_rect, 1)  # 1px white border
+        surface.blit(type_surface, type_rect)
     
     # ===== ITEM AND SPELL HANDLING =====
     
@@ -1223,7 +1319,7 @@ class PlayingState(GameState):
         gold_display_y = health_display_y - 130  # Position above health display
         
         # Load the gold coin image
-        gold_icon = ResourceLoader.load_image("gold.png")
+        gold_icon = ResourceLoader.load_image("ui/gold.png")
         
         # Draw the gold coin image
         surface.blit(gold_icon, (gold_display_x, gold_display_y))
@@ -1464,7 +1560,7 @@ class PlayingState(GameState):
     def animate_gold_change(self, is_loss, amount):
         """Create animation for gold change."""
         # Load the gold icon to get dimensions
-        gold_icon = ResourceLoader.load_image("gold.png")
+        gold_icon = ResourceLoader.load_image("ui/gold.png")
         icon_width = gold_icon.get_width()
         icon_height = gold_icon.get_height()
         

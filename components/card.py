@@ -2,7 +2,7 @@
 import pygame
 import math
 import random
-from constants import CARD_WIDTH, CARD_HEIGHT, CARD_RED, BLACK, FONTS_PATH
+from constants import CARD_WIDTH, CARD_HEIGHT, CARD_RED, BLACK, WHITE, DARK_GRAY, FONTS_PATH
 from utils.resource_loader import ResourceLoader
 from roguelike_constants import FLOOR_MONSTERS
 
@@ -49,8 +49,10 @@ class Card:
         self.floor_type = floor_type
         self.name = None  # Store card name for hover display
         
-        # Weapon properties
-        self.weapon_type = None  # "melee" or "ranged"
+        # Card subtype properties
+        self.weapon_type = None  # "melee" or "ranged" for weapons
+        self.damage_type = None  # "piercing", "slashing", or "bludgeoning" for weapons
+        self.monster_type = None  # D&D style monster type for monsters
         
         # Set name for potions and weapons using Roman numerals
         if self.type == "potion":
@@ -66,7 +68,8 @@ class Card:
                 self.weapon_type = "melee"
                 self.name = f"Melee Weapon {self._to_roman(self.value)}"
         elif self.type == "monster":
-            self.name = f"{self.name} {self._to_roman(self.value)}"
+            # Monster name will be set later in add_monster_to_card
+            pass
         
         # Animation properties
         self.rotation = 0  # Degrees
@@ -92,6 +95,7 @@ class Card:
         self.inventory_color = (128, 0, 128, 100)  # Purple with transparency
         self.use_color = (255, 165, 0, 100)  # Orange with transparency
         self.is_selected = False  # Track if the card has been clicked/selected
+        self.icon_size = 50  # Size of the selection icons
         
         # Special handling for arrow cards (ranged ammo)
         if self.type == "weapon" and self.value == 2:  # 2 of Diamonds is an arrow
@@ -134,7 +138,37 @@ class Card:
             # No monster defined for this card
             return card_surface
             
-        self.name = monster_data["name"]  # Store the name for hover display
+        # Store monster name for hover display
+        self.name = f"{monster_data["name"]} {self._to_roman(self.value)}"
+        
+        # Determine monster type based on the name (D&D style types)
+        monster_name = monster_data["name"].lower()
+        
+        # Assign monster type based on monster name keywords
+        if any(creature in monster_name for creature in ["goblin", "knight", "soldier", "mage", "king", "merchant", "jester"]):
+            self.monster_type = "Humanoid"
+        elif any(creature in monster_name for creature in ["skeleton", "ghost", "wraith", "ghoul", "zombie", "lich"]):
+            self.monster_type = "Undead"
+        elif any(creature in monster_name for creature in ["dragon", "wyrm", "serpent"]):
+            self.monster_type = "Dragon"
+        elif any(creature in monster_name for creature in ["demon", "devil", "fiend", "shaman"]):
+            self.monster_type = "Fiend"
+        elif any(creature in monster_name for creature in ["golem", "armour", "sentinel", "totem"]):
+            self.monster_type = "Construct"
+        elif any(creature in monster_name for creature in ["ooze", "abomination", "medusa", "beholder", "eyes", "squid"]):
+            self.monster_type = "Aberration"
+        elif any(creature in monster_name for creature in ["elemental", "fire", "lightning"]):
+            self.monster_type = "Elemental"
+        elif any(creature in monster_name for creature in ["angel", "celestial"]):
+            self.monster_type = "Celestial"
+        elif any(creature in monster_name for creature in ["snail", "hornet", "crab", "adder", "python", "lizard", "gecko", "snake", "tarantula"]):
+            self.monster_type = "Beast"
+        elif any(creature in monster_name for creature in ["treant", "vine", "ent"]):
+            self.monster_type = "Plant"
+        else:
+            # Default monster type if none of the above match
+            self.monster_type = "Monstrosity"
+        
         monster_image_path = monster_data["image"]
         
         # Create a new surface based on the card surface
@@ -191,6 +225,19 @@ class Card:
             14: "greatsword"   # 14 (Ace) is a special greatsword
         }
         
+        # Map weapons to damage types
+        damage_type_mapping = {
+            "arrow": "piercing",
+            "shortsword": "slashing",
+            "shield": "bludgeoning",
+            "axe": "slashing",
+            "warhammer": "bludgeoning",
+            "flail": "bludgeoning",
+            "greatsword": "slashing",
+            "crossbow": "piercing",
+            "longbow": "piercing"
+        }
+        
         # Default weapon in case value isn't in mapping
         weapon_name = weapon_mapping.get(self.value, "shortsword")
         
@@ -203,12 +250,16 @@ class Card:
             else:
                 self.weapon_type = "melee"
                 
-        # Apply weapon name to card name if not already set
-        if "Weapon" in self.name:
-            prefix = "Ranged" if self.weapon_type == "ranged" else "Melee"
-            self.name = f"{prefix} {weapon_name.capitalize()} {self._to_roman(self.value)}"
-        elif self.weapon_type == "arrow":
+        # Set damage type based on weapon name
+        self.damage_type = damage_type_mapping.get(weapon_name, "piercing")
+        
+        # Set the card name based on the weapon
+        if self.weapon_type == "arrow":
             self.name = "Arrow"
+        else:
+            # Convert the name to title case (first letter capitalized)
+            weapon_display_name = weapon_name.capitalize()
+            self.name = f"{weapon_display_name}"
         
         # Load weapon image
         weapon_path = f"weapons/{weapon_name}.png"
@@ -276,7 +327,9 @@ class Card:
             center_y = self.rect.centery
             
             # Update scale based on hover progress
-            new_scale = 1.0 + (self.hover_scale_target - 1.0) * self.hover_progress
+            base_scale = 0.8 if hasattr(self, 'in_inventory') and self.in_inventory else 1.0
+            hover_scale_modifier = (self.hover_scale_target - 1.0) * self.hover_progress
+            new_scale = base_scale + (base_scale * hover_scale_modifier)
             self.update_scale(new_scale)
             
             # Restore the card's center position after scaling
@@ -340,7 +393,7 @@ class Card:
         center_y = self.rect.centery
         
         if abs(scale - 1.0) < 0.01:
-            # Reset to original size
+            # Reset to original sizes
             self.texture = self.original_texture.copy()
             self.face_down_texture = self.original_face_down_texture.copy()
             self.rect.width = self.width  
@@ -518,19 +571,94 @@ class Card:
                 bottom_overlay.fill(self.use_color)
                 
                 # Highlight the currently hovered section more intensely
+                top_alpha = 100
+                bottom_alpha = 100
                 if self.hover_selection == "top":
                     # Make the top overlay more opaque
-                    top_overlay.set_alpha(150)
-                    bottom_overlay.set_alpha(100)
+                    top_alpha = 150
+                    bottom_alpha = 100
                 elif self.hover_selection == "bottom":
                     # Make the bottom overlay more opaque
-                    top_overlay.set_alpha(100)
-                    bottom_overlay.set_alpha(150)
+                    top_alpha = 100
+                    bottom_alpha = 150
+                
+                top_overlay.set_alpha(top_alpha)
+                bottom_overlay.set_alpha(bottom_alpha)
                 
                 # Draw the overlays
                 surface.blit(top_overlay, (pos_x, pos_y))
                 surface.blit(bottom_overlay, (pos_x, pos_y + overlay_height))
+                
+                # Draw icons for inventory and use options
+                font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 14)
+                
+                # 1. Draw inventory bag icon in the top half
+                bag_icon = pygame.transform.scale(ResourceLoader.load_image("ui/inv.png"), (self.icon_size, self.icon_size))
+                bag_icon_x = pos_x + (overlay_width - self.icon_size) // 2
+                bag_icon_y = pos_y + (overlay_height - self.icon_size) // 2
+                surface.blit(bag_icon, (bag_icon_x, bag_icon_y))
+                
+                # 2. Draw hand icon in the bottom half
+                hand_icon = pygame.transform.scale(ResourceLoader.load_image("ui/hand.png"), (self.icon_size, self.icon_size))
+                hand_icon_x = pos_x + (overlay_width - self.icon_size) // 2
+                hand_icon_y = pos_y + overlay_height + (overlay_height - self.icon_size) // 2
+                surface.blit(hand_icon, (hand_icon_x, hand_icon_y))
 
+    def draw_hover_text(self, surface):
+        """Draw hover action text to the right of the card"""
+        # Don't show the hover text for cards in inventory
+        if not self.face_up or not self.can_add_to_inventory or not self.is_hovered or not self.hover_selection or (hasattr(self, 'in_inventory') and self.in_inventory):
+            return
+            
+        font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 14)
+        current_texture = self.texture if self.face_up else self.face_down_texture
+        overlay_width = current_texture.get_width()
+        
+        # Calculate base position (will change based on hover area)
+        center_x = self.rect.x + self.rect.width / 2
+        center_y = self.rect.y + self.rect.height / 2
+        pos_x = center_x - current_texture.get_width() / 2
+        
+        # Calculate the total float offset for proper positioning
+        total_float_offset = 0
+        if hasattr(self, 'idle_float_offset') and hasattr(self, 'hover_float_offset'):
+            total_float_offset = self.idle_float_offset + self.hover_float_offset
+        pos_y = center_y - current_texture.get_height() / 2 - total_float_offset
+            
+        # Draw text and background based on hover selection
+        if self.hover_selection == "top":
+            # Show "INVENTORY" text
+            bag_text = font.render("INVENTORY", True, WHITE)
+            
+            # Create background for the text
+            text_bg = pygame.Surface((bag_text.get_width() + 10, bag_text.get_height() + 6), pygame.SRCALPHA)
+            text_bg.fill((0, 0, 0, 220))  # More opaque black background to stand out
+            
+            # Position text to the right of the card
+            text_bg_x = pos_x + overlay_width + 5
+            text_bg_y = pos_y + (self.height // 4) - (text_bg.get_height() // 2)
+            
+            # Draw background and text
+            surface.blit(text_bg, (text_bg_x, text_bg_y))
+            surface.blit(bag_text, (text_bg_x + 5, text_bg_y + 3))
+            
+        elif self.hover_selection == "bottom":
+            # Show appropriate action text
+            action_text = "EQUIP" if self.type == "weapon" else "USE"
+            hand_text = font.render(action_text, True, WHITE)
+            
+            # Create background for the text
+            text_bg = pygame.Surface((hand_text.get_width() + 10, hand_text.get_height() + 6), pygame.SRCALPHA)
+            text_bg.fill((0, 0, 0, 220))  # More opaque black background
+            
+            # Position text to the right of the card
+            text_bg_x = pos_x + overlay_width + 5
+            text_bg_y = pos_y + (self.height * 3 // 4) - (text_bg.get_height() // 2)
+            
+            # Draw background and text
+            surface.blit(text_bg, (text_bg_x, text_bg_y))
+            surface.blit(hand_text, (text_bg_x + 5, text_bg_y + 3))
+    
     def check_hover(self, mouse_pos):
         previous_hover = self.is_hovered
         previous_selection = self.hover_selection

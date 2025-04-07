@@ -1,14 +1,16 @@
 from PIL import Image
+import glob
 import sys
 
-def replace_color(image_path, new_color):
+def replace_color(image_path, old_color, new_color):
     try:
         img = Image.open(image_path).convert("RGBA")
         data = img.getdata()
         
-        old_color = data[0][:3]
-        
-        new_data = [new_color + (pixel[3],) if pixel[:3] == old_color else pixel for pixel in data]
+        # remove all pixels with the old color and replace with new color
+        new_data = [new_color if pixel[:len(old_color)] == old_color else pixel for pixel in data]
+        # remove all pixel close to old color and replace with new color
+        new_data = [new_color if all(abs(pixel[i] - old_color[i]) < 50 for i in range(4)) else pixel for pixel in new_data]
         
         img.putdata(new_data)
         img.save(image_path, "PNG")
@@ -17,5 +19,6 @@ def replace_color(image_path, new_color):
         print(f"Error: {e}")
 
 if __name__ == "__main__":
-    replace_color("assets/gold.png", (171, 82, 54))
+    replace_color("assets/ui/inv.png", (207,213,213,255), (255,255,255,0))
+
 
