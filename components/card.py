@@ -228,7 +228,8 @@ class Card:
         else:
             # Convert the name to title case (first letter capitalized)
             weapon_display_name = weapon_name.capitalize()
-            self.name = f"{weapon_display_name}"
+            # Add Roman numeral suffix based on card value (like monsters and potions)
+            self.name = f"{weapon_display_name} {self._to_roman(self.value)}"
         
         # Load weapon image
         weapon_path = f"weapons/{weapon_name}.png"
