@@ -4,7 +4,7 @@ import math
 import random
 from constants import CARD_WIDTH, CARD_HEIGHT, CARD_RED, BLACK, WHITE, DARK_GRAY, FONTS_PATH
 from utils.resource_loader import ResourceLoader
-from roguelike_constants import FLOOR_MONSTERS
+from roguelike_constants import FLOOR_MONSTERS, WEAPON_DAMAGE_TYPES, WEAPON_MAPPINGS
 
 class Card:
     """ Represents a card in the game with support for rotation and scaling. """
@@ -207,39 +207,8 @@ class Card:
         new_surface = pygame.Surface((card_width, card_height), pygame.SRCALPHA)
         new_surface.blit(card_surface, (0, 0))
         
-        # Determine which weapon image to use based on value
-        # Map card values to weapon image names
-        weapon_mapping = {
-            2: "arrow",        # 2 is arrow
-            3: "shortsword",   # 3 is shortsword
-            4: "shield",       # 4 is shield
-            5: "axe",          # 5 is axe
-            6: "warhammer",    # 6 is warhammer
-            7: "flail",        # 7 is flail
-            8: "greatsword",   # 8 is greatsword
-            9: "greatsword",   # 9 is also greatsword (fallback)
-            10: "crossbow",    # 10 is crossbow
-            11: "longbow",     # 11 is longbow
-            12: "longbow",     # 12 is also longbow (fallback)
-            13: "crossbow",    # 13 is also crossbow (fallback)
-            14: "greatsword"   # 14 (Ace) is a special greatsword
-        }
-        
-        # Map weapons to damage types
-        damage_type_mapping = {
-            "arrow": "piercing",
-            "shortsword": "slashing",
-            "shield": "bludgeoning",
-            "axe": "slashing",
-            "warhammer": "bludgeoning",
-            "flail": "bludgeoning",
-            "greatsword": "slashing",
-            "crossbow": "piercing",
-            "longbow": "piercing"
-        }
-        
         # Default weapon in case value isn't in mapping
-        weapon_name = weapon_mapping.get(self.value, "shortsword")
+        weapon_name = WEAPON_MAPPINGS.get(self.value, "shortsword")
         
         # Determine weapon type from mapping if not already set
         if self.weapon_type is None:
@@ -251,7 +220,7 @@ class Card:
                 self.weapon_type = "melee"
                 
         # Set damage type based on weapon name
-        self.damage_type = damage_type_mapping.get(weapon_name, "piercing")
+        self.damage_type = WEAPON_DAMAGE_TYPES.get(weapon_name, "piercing")
         
         # Set the card name based on the weapon
         if self.weapon_type == "arrow":

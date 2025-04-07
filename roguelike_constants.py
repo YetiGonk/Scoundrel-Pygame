@@ -353,3 +353,32 @@ MONSTER_ABILITIES = {
     "ink_spray": "Blinds player, reducing hit chance by 75%",
     "tidal_wave": "Pushes back all characters and applies wet effect"
 }
+
+WEAPON_MAPPINGS = {
+    2: "arrow",
+    3: "arrow",
+    4: "shield",
+    5: "axe",
+    6: "warhammer",
+    7: "flail",
+    8: "shortsword",
+    9: "greatsword",
+    10: "shortsword",
+    11: "longbow",
+    12: "warhammer",
+    13: "crossbow",
+    14: "greatsword"
+}
+
+WEAPON_DAMAGE_TYPES = {
+    "arrow": "piercing",
+    "shortsword": "slashing",
+    "shield": "bludgeoning",
+    "axe": "slashing",
+    "warhammer": "bludgeoning",
+    "flail": "bludgeoning",
+    "greatsword": "slashing",
+    "crossbow": "piercing",
+    "longbow": "piercing"
+}
+
