@@ -48,7 +48,6 @@ class PlayingState(GameState):
         
         # Roguelike components
         self.current_room_number = 0
-        self.is_boss_room = False
         self.damage_shield = 0
         self.FLOOR_STRUCTURE = FLOOR_STRUCTURE
         
@@ -111,7 +110,6 @@ class PlayingState(GameState):
         floor_manager = self.game_manager.floor_manager
         self.current_floor = floor_manager.get_current_floor()
         self.current_room_number = floor_manager.current_room
-        self.is_boss_room = floor_manager.is_boss_room()
         
         # If this is a new floor, setup the appropriate deck
         if not hasattr(self, 'deck') or not self.deck:
@@ -156,16 +154,6 @@ class PlayingState(GameState):
         # Initialize the deck and start the first room if not coming from merchant
         if not hasattr(self.game_manager, 'coming_from_merchant') or not self.game_manager.coming_from_merchant:
             self.deck.initialise_deck()
-            
-            # If this is a boss room, add the boss card to the deck
-            if self.is_boss_room:
-                boss_card = self.game_manager.floor_manager.get_boss_card()
-                if boss_card:
-                    # Add the current floor type to the boss card data
-                    boss_card["floor_type"] = self.current_floor
-                    # Add the boss card to the bottom of the deck
-                    self.deck.add_to_bottom(boss_card)
-            
             self.start_new_room()
         
         # Update status UI fonts
@@ -280,6 +268,14 @@ class PlayingState(GameState):
             # Check hover for inventory cards
             for card in self.inventory:
                 card.check_hover(event.pos)
+                
+            # Check hover for equipped weapon
+            if "node" in self.equipped_weapon:
+                self.equipped_weapon["node"].check_hover(event.pos)
+            
+            # Check hover for defeated monsters
+            for monster in self.defeated_monsters:
+                monster.check_hover(event.pos)
             
             # Check hover for run button
             self.run_button.check_hover(event.pos)
@@ -298,9 +294,7 @@ class PlayingState(GameState):
             
             # Check if run button was clicked
             if self.run_button.is_clicked(event.pos) and not self.ran_last_turn and len(self.room.cards) == 4:
-                # Cannot run from boss rooms
-                if not self.is_boss_room:
-                    self.run_from_room()
+                self.run_from_room()
                 return
             
             # Check if an item button was clicked
@@ -399,11 +393,6 @@ class PlayingState(GameState):
                     
                     # Check if we're still in the playing state (not moved to merchant or other state)
                     if self.game_manager.current_state == self:
-                        # Check if we're at the boss room
-                        floor_manager = self.game_manager.floor_manager
-                        if floor_manager.current_room == self.FLOOR_STRUCTURE["boss_room"] - 1:
-                            # The next room will be the boss, prepare it
-                            self.is_boss_room = True
                         # Start a new room
                         self.start_new_room()
                 else:
@@ -411,8 +400,8 @@ class PlayingState(GameState):
                     if not self.floor_completed:
                         self.floor_completed = True
                         
-                        # Mark this floor as completed by moving to the boss room
-                        self.game_manager.floor_manager.current_room = self.game_manager.floor_manager.FLOOR_STRUCTURE["boss_room"]
+                        # Mark this floor as completed
+                        self.game_manager.floor_manager.current_room = self.FLOOR_STRUCTURE["rooms_per_floor"]
                         
                         # Check if this is the last floor
                         if self.game_manager.floor_manager.current_floor_index >= len(self.game_manager.floor_manager.floors) - 1:
@@ -471,19 +460,57 @@ class PlayingState(GameState):
         # Draw equipped weapon and defeated monsters
         if "node" in self.equipped_weapon:
             weapon_card = self.equipped_weapon["node"]
+            
+            # Check for hover over the weapon card
+            weapon_is_hovered = weapon_card.is_hovered and weapon_card.face_up
+            
+            # Draw the weapon card
             weapon_card.draw(surface)
             
-            # Draw weapon type below the card
-            if hasattr(weapon_card, 'weapon_type') and weapon_card.weapon_type:
-                self.draw_card_type(surface, weapon_card, weapon_card.weapon_type.upper())
+            # Draw weapon type and name only if hovered
+            if weapon_is_hovered:
+                # Draw weapon type below the card
+                if hasattr(weapon_card, 'weapon_type') and weapon_card.weapon_type:
+                    weapon_type = weapon_card.weapon_type.upper()
+                    if hasattr(weapon_card, 'damage_type') and weapon_card.damage_type:
+                        damage_type = weapon_card.damage_type.upper()
+                        type_text = f"{weapon_type} ({damage_type})"
+                    else:
+                        type_text = weapon_type
+                        
+                    self.draw_card_type(surface, weapon_card, type_text)
+                    
+                # Draw weapon name above the card
+                if weapon_card.name:
+                    self._draw_inventory_card_info(surface, weapon_card)
             
-            # Draw defeated monsters and their types
+            # Process all defeated monsters
+            hovered_monsters = []
+            non_hovered_monsters = []
+            
+            # Separate hovered and non-hovered monsters
             for monster in self.defeated_monsters:
+                if monster.is_hovered and monster.face_up:
+                    hovered_monsters.append(monster)
+                else:
+                    non_hovered_monsters.append(monster)
+            
+            # Draw non-hovered monsters first
+            for monster in non_hovered_monsters:
+                monster.draw(surface)
+            
+            # Draw hovered monsters and their info
+            for monster in hovered_monsters:
+                # Draw the monster card
                 monster.draw(surface)
                 
-                # Draw monster type below each monster in the stack
+                # Draw monster type below the card
                 if hasattr(monster, 'monster_type') and monster.monster_type:
                     self.draw_card_type(surface, monster, monster.monster_type.upper())
+                
+                # Draw monster name above the card
+                if monster.name:
+                    self._draw_inventory_card_info(surface, monster)
         
         # Draw inventory background panel between item and spell panels
         # Position it vertically centered between the item and spell panels
@@ -605,11 +632,6 @@ class PlayingState(GameState):
         # Draw status UI
         self.status_ui.draw(surface)
         
-        # Draw boss indicator if in boss room
-        if self.is_boss_room:
-            boss_text = self.header_font.render("BOSS ROOM", True, (255, 0, 0))
-            boss_rect = boss_text.get_rect(center=(SCREEN_WIDTH//2, 30))
-            surface.blit(boss_text, boss_rect)
     
     def _draw_inventory_card_info(self, surface, card):
         """Draw name and other info for inventory cards."""

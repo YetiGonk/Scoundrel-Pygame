@@ -1,6 +1,6 @@
 """ Floor manager for handling multiple floors in the Scoundrel game. """
 import random
-from roguelike_constants import FLOOR_TYPES, FLOOR_STRUCTURE, DECK_VARIATIONS, BOSS_CARDS
+from roguelike_constants import FLOOR_TYPES, FLOOR_STRUCTURE
 
 class FloorManager:
     """Manages the different floors in a run."""
@@ -35,14 +35,10 @@ class FloorManager:
         # Check if this is a merchant room
         is_merchant = self.current_room in FLOOR_STRUCTURE["merchant_rooms"]
         
-        # Check if this is a boss room
-        is_boss = self.current_room == FLOOR_STRUCTURE["boss_room"]
-        
         return {
             "floor": self.get_current_floor(),
             "room": self.current_room,
-            "is_merchant": is_merchant,
-            "is_boss": is_boss
+            "is_merchant": is_merchant
         }
     
     def advance_floor(self):
@@ -67,24 +63,8 @@ class FloorManager:
             "is_floor_start": True
         }
     
-    def get_floor_deck_variation(self):
-        """Get the deck variation for the current floor."""
-        current_floor = self.get_current_floor()
-        if current_floor and current_floor in DECK_VARIATIONS:
-            return DECK_VARIATIONS[current_floor]
-        return {}
-    
-    def get_boss_card(self):
-        """Get the boss card for the current floor."""
-        current_floor = self.get_current_floor()
-        if current_floor and current_floor in BOSS_CARDS:
-            return BOSS_CARDS[current_floor].copy()
-        return None
-    
     def is_merchant_room(self):
         """Check if the current room is a merchant room."""
         return self.current_room in FLOOR_STRUCTURE["merchant_rooms"]
     
-    def is_boss_room(self):
-        """Check if the current room is a boss room."""
-        return self.current_room == FLOOR_STRUCTURE["boss_room"]
+    # Boss room functionality removed

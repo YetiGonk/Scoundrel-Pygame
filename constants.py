@@ -80,19 +80,19 @@ SUITS = ["diamonds", "hearts", "spades", "clubs"]
 
 STANDARD_DECK = {
     "diamonds": {
-        "upper": 12,
+        "upper": 10,
         "lower": 2
     },
     "hearts": {
-        "upper": 12,
+        "upper": 10,
         "lower": 2
     },
     "spades": {
-        "upper": 12,
+        "upper": 14,
         "lower": 2
     },
     "clubs": {
-        "upper": 12,
+        "upper": 14,
         "lower": 2
     },
 }
@@ -119,11 +119,11 @@ EASY_DECK = {
 HARD_DECK = {
     "diamonds": {
         "upper": 10,
-        "lower": 2
+        "lower": 4
     },
     "hearts": {
         "upper": 10,
-        "lower": 2
+        "lower": 4
     },
     "spades": {
         "upper": 14,
@@ -214,19 +214,19 @@ CRYPT_DECK = {
 VOLCANO_DECK = {
     "diamonds": {
         "upper": 14,  # Strong weapons
-        "lower": 4
+        "lower": 2
     },
     "hearts": {
-        "upper": 10,  # Less healing
+        "upper": 14,  # Less healing
         "lower": 2
     },
     "spades": {
         "upper": 14,  # Very strong monsters
-        "lower": 4
+        "lower": 2
     },
     "clubs": {
-        "upper": 13,
-        "lower": 4
+        "upper": 14,
+        "lower": 2
     },
 }
 
