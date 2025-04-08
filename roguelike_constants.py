@@ -7,7 +7,7 @@ FLOOR_TYPES = ["dungeon", "forest", "library", "crypt", "volcano"]
 # Floor structure
 FLOOR_STRUCTURE = {
     "rooms_per_floor": 12,  # Maximum potential rooms (flexible)
-    "merchant_rooms": [4, 8],  # Room numbers where merchants appear
+    "merchant_rooms": [1, 8],  # Room numbers where merchants appear
     # Boss room functionality removed
 }
 

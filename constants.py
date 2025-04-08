@@ -230,6 +230,9 @@ VOLCANO_DECK = {
     },
 }
 
+# Debug mode settings
+DEBUG_MODE = True  # Set to True to enable debug features
+
 # Update DECK_DICT to include floor-specific decks
 DECK_DICT = {
     "standard": STANDARD_DECK,

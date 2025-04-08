@@ -58,15 +58,9 @@ class Card:
         if self.type == "potion":
             self.name = f"Potion {self._to_roman(self.value)}"
         elif self.type == "weapon":
-            # Determine weapon type based on value
-            # Higher value weapons (10-14) are ranged, lower (2-9) are melee
-            # with exception for Ace (value 14) which is a special melee weapon
-            if 10 <= self.value <= 13:
-                self.weapon_type = "ranged"
-                self.name = f"Ranged Weapon {self._to_roman(self.value)}"
-            else:
-                self.weapon_type = "melee"
-                self.name = f"Melee Weapon {self._to_roman(self.value)}"
+            # Weapon type will be set in add_weapon_to_card based on the weapon name
+            # Initialize with a generic name that will be overridden later
+            self.name = f"Weapon {self._to_roman(self.value)}"
         elif self.type == "monster":
             # Monster name will be set later in add_monster_to_card
             pass
@@ -210,14 +204,14 @@ class Card:
         # Default weapon in case value isn't in mapping
         weapon_name = WEAPON_MAPPINGS.get(self.value, "shortsword")
         
-        # Determine weapon type from mapping if not already set
-        if self.weapon_type is None:
-            if weapon_name in ["crossbow", "longbow"]:
-                self.weapon_type = "ranged"
-            elif weapon_name == "arrow":
-                self.weapon_type = "arrow"
-            else:
-                self.weapon_type = "melee"
+        # Determine weapon type based on the weapon name
+        if weapon_name in ["crossbow", "longbow"]:
+            self.weapon_type = "ranged"
+        elif weapon_name == "arrow":
+            self.weapon_type = "arrow"
+        else:
+            # All other weapons (warhammer, flail, shortsword, etc.) are melee
+            self.weapon_type = "melee"
                 
         # Set damage type based on weapon name
         self.damage_type = WEAPON_DAMAGE_TYPES.get(weapon_name, "piercing")

@@ -85,6 +85,7 @@ class PlayingState(GameState):
         # Add flags for room state tracking
         self.gold_reward_given = False
         self.room_completion_in_progress = False
+        self.merchant_transition_started = False
         
         # Initialize message display
         self.message = None
@@ -167,6 +168,7 @@ class PlayingState(GameState):
 
         # Reset floor completion tracking
         self.floor_completed = False
+        self.merchant_transition_started = False
 
         # Reset room counter if starting a new floor
         if self.current_room_number == 0:
@@ -377,17 +379,8 @@ class PlayingState(GameState):
                     gold_reward = random.randint(2, 5) + floor_bonus
                     self.change_gold(gold_reward)
 
-                # Check if the next room should be a merchant room
-                is_merchant_next = self.completed_rooms in self.FLOOR_STRUCTURE["merchant_rooms"]
-                
-                if is_merchant_next:
-                    # Set the floor manager's current room for the merchant (don't increment)
-                    self.game_manager.floor_manager.current_room = self.completed_rooms - 1
-                    # Flag that we're coming from merchant so we preserve state
-                    self.game_manager.coming_from_merchant = True
-                    # Advance to merchant room
-                    self.game_manager.advance_to_next_room()
-                elif len(self.deck.cards) > 0:
+                # Go directly to the next room if we have cards
+                if len(self.deck.cards) > 0:
                     # More cards in deck - advance to next room
                     self.game_manager.advance_to_next_room()
                     
@@ -410,9 +403,17 @@ class PlayingState(GameState):
                             self.game_manager.game_data["run_complete"] = True
                             self.game_manager.change_state("game_over")
                         else:
-                            # Not the last floor, advance to next floor
-                            self.game_manager.floor_manager.advance_floor()
-                            self.game_manager.change_state("floor_start")
+                            # Not the last floor, show a brief message and advance to next floor
+                            floor_type = self.game_manager.floor_manager.get_current_floor()
+                            next_floor_index = self.game_manager.floor_manager.current_floor_index + 1
+                            next_floor_type = self.game_manager.floor_manager.floors[next_floor_index]
+                            self.show_message(f"Floor {floor_type.capitalize()} completed! Moving to {next_floor_type.capitalize()}...")
+                            
+                            # Schedule transition to next floor after a short delay
+                            self.schedule_delayed_animation(
+                                3.0,  # 3 second delay to show the message
+                                lambda: self.transition_to_next_floor()
+                            )
             
             # If we have only one card left and animations just finished, start a new room 
             elif len(self.room.cards) == 1 and animations_just_finished and len(self.deck.cards) > 0:
@@ -430,19 +431,8 @@ class PlayingState(GameState):
                     gold_reward = random.randint(2, 5) + floor_bonus
                     self.change_gold(gold_reward)
                 
-                # Check if the next room should be a merchant room
-                is_merchant_next = self.completed_rooms in self.FLOOR_STRUCTURE["merchant_rooms"]
-                
-                if is_merchant_next:
-                    # Set the floor manager's current room for the merchant (don't increment)
-                    self.game_manager.floor_manager.current_room = self.completed_rooms - 1
-                    # Flag that we're coming from merchant so we preserve state
-                    self.game_manager.coming_from_merchant = True
-                    # Advance to merchant room
-                    self.game_manager.advance_to_next_room()
-                else:
-                    # Start a new room with the remaining card
-                    self.start_new_room(self.room.cards[0])
+                # Start a new room with the remaining card - merchant check happens inside start_new_room
+                self.start_new_room(self.room.cards[0])
         
         self.check_game_over()
 
@@ -863,13 +853,7 @@ class PlayingState(GameState):
             
             # Handle ranged weapon with arrow
             if weapon_node and hasattr(weapon_node, "weapon_type") and weapon_node.weapon_type == "ranged" and has_arrow:
-                # Remove arrow from inventory if using ranged weapon
-                if arrow_card:
-                    self.inventory.remove(arrow_card)
-                    # Discard the used arrow
-                    self.animate_card_to_discard(arrow_card)
-                    # Reposition remaining inventory cards
-                    self.position_inventory_cards()
+                # Keep arrows in inventory - do not consume them
                 
                 # With ranged weapon + arrow, you don't take damage if monster value > weapon value
                 if monster_value <= weapon_value:
@@ -1005,7 +989,7 @@ class PlayingState(GameState):
         if weapon_type == "ranged":
             has_arrow = any(card.weapon_type == "arrow" for card in self.inventory if hasattr(card, "weapon_type"))
             if has_arrow:
-                self.show_message(f"Equipped {weapon.name}. Arrows ready!")
+                self.show_message(f"Equipped {weapon.name}. Arrows ready! (Reusable)")
             else:
                 self.show_message(f"Equipped {weapon.name}. No arrows available!")
         else:
@@ -1161,9 +1145,24 @@ class PlayingState(GameState):
         if self.animation_manager.is_animating():
             return  # Don't start a new room if animations are running
         
+        # Check if we should transition to a merchant room instead of starting a new room
+        if not self.merchant_transition_started:
+            is_merchant_next = self.completed_rooms in self.FLOOR_STRUCTURE["merchant_rooms"]
+            if is_merchant_next:
+                # Set flag to prevent multiple merchant transitions
+                self.merchant_transition_started = True
+                # Set the floor manager's current room for the merchant
+                self.game_manager.floor_manager.current_room = self.completed_rooms - 1
+                # Flag that we're coming from merchant so we preserve state
+                self.game_manager.coming_from_merchant = True
+                # Advance to merchant room
+                self.game_manager.advance_to_next_room()
+                return
+        
         # Reset the room state tracking flags when starting a new room
         self.gold_reward_given = False
         self.room_completion_in_progress = False
+        self.merchant_transition_started = False
         
         # Clear the room
         self.room.clear()
@@ -1656,12 +1655,17 @@ class PlayingState(GameState):
     
     # ===== GAME STATE MANAGEMENT =====
     
+    def transition_to_next_floor(self):
+        """Helper method to transition to the next floor."""
+        # Advance to the next floor
+        self.game_manager.floor_manager.advance_floor()
+        # Change to floor start state
+        self.game_manager.change_state("floor_start")
+    
     def check_game_over(self):
-        """Check if the game is over due to player death or victory."""
+        """Check if the game is over due to player death."""
         if self.life_points <= 0:
             self.end_game(False)
-        elif not self.deck.cards and not self.room.cards and self.floor_completed and self.total_rooms_on_floor == self.completed_rooms:
-            self.end_game(True)
     
     def end_game(self, victory):
         """End the game with either victory or defeat."""
