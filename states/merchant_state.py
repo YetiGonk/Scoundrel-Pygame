@@ -299,11 +299,23 @@ class MerchantState(GameState):
         merchant_pos = (85, SCREEN_HEIGHT - 405)  # Position is the bottom-left anchor
         self.merchant = MerchantCharacter(merchant_pos)
         
-        # Preserve the playing state's equipped weapon and defeated monsters
+        # Preserve the playing state's equipped weapon, defeated monsters and remaining card
         playing_state = self.game_manager.states["playing"]
         # Store them in the game_manager to be restored when returning to playing state
         self.game_manager.equipped_weapon = playing_state.equipped_weapon
         self.game_manager.defeated_monsters = playing_state.defeated_monsters.copy()
+        
+        # Also preserve the last remaining card if present
+        if playing_state.room and len(playing_state.room.cards) == 1:
+            # Store the remaining card data to be restored when returning to playing state
+            last_card = playing_state.room.cards[0]
+            self.game_manager.last_card_data = {
+                "suit": last_card.suit,
+                "value": last_card.value,
+                "floor_type": last_card.floor_type
+            }
+            # Remove the card from the room so it doesn't get discarded
+            playing_state.room.cards = []
     
     def generate_inventory(self):
         """Generate the merchant's inventory."""
@@ -463,6 +475,11 @@ class MerchantState(GameState):
             if self.continue_button.is_clicked(event.pos):
                 # Don't increment the room counter for merchant rooms
                 # The current_room still points to the room before the merchant
+                
+                # Explicitly set the flag to indicate we're coming from merchant
+                self.game_manager.coming_from_merchant = True
+                
+                # Change state to playing
                 self.game_manager.change_state("playing")
                 return
             

@@ -43,9 +43,10 @@ class GameManager:
             "run_complete": False
         }
         
-        # Storage for equipment and defeated monsters when transitioning between states
+        # Storage for equipment, defeated monsters, and remaining card when transitioning between states
         self.equipped_weapon = {}
         self.defeated_monsters = []
+        self.last_card_data = None
         # Flag to track if coming from merchant room
         self.coming_from_merchant = False
         
@@ -56,9 +57,11 @@ class GameManager:
         if self.current_state:
             self.current_state.exit()
         
-        # Reset coming_from_merchant flag when we're not going to playing state
-        if state_name != "playing":
+        # Reset coming_from_merchant flag and last_card_data when we're not going between merchant and playing
+        # We need to preserve these values when going from merchant to playing
+        if state_name != "playing" and (not self.current_state or not isinstance(self.current_state, MerchantState)):
             self.coming_from_merchant = False
+            self.last_card_data = None
             
         self.current_state = self.states[state_name]
         self.current_state.enter()

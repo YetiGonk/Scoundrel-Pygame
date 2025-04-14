@@ -16,13 +16,34 @@ from ui.panel import Panel
 from ui.status_ui import StatusUI
 from ui.hud import HUD
 from utils.resource_loader import ResourceLoader
-from utils.animation import Animation, AnimationManager, MoveAnimation, DestructionAnimation, MaterializeAnimation, HealthChangeAnimation, GoldChangeAnimation, EasingFunctions
+from utils.animation import AnimationManager
+
+# Import our modular gameplay classes
+from gameplay.card_action_manager import CardActionManager
+from gameplay.room_manager import RoomManager
+from gameplay.animation_controller import AnimationController
+from gameplay.player_state_manager import PlayerStateManager
+from gameplay.inventory_manager import InventoryManager
+from gameplay.ui_renderer import UIRenderer
+from gameplay.game_state_controller import GameStateController
+from gameplay.ui_factory import UIFactory
+
 
 class PlayingState(GameState):
     """The main gameplay state of the game with roguelike elements."""
     
     def __init__(self, game_manager):
+        """Initialize the playing state."""
         super().__init__(game_manager)
+        
+        # Make constants accessible to the class
+        self.SCREEN_WIDTH = SCREEN_WIDTH
+        self.SCREEN_HEIGHT = SCREEN_HEIGHT
+        self.WHITE = WHITE
+        self.BLACK = BLACK
+        self.GRAY = GRAY
+        self.DARK_GRAY = DARK_GRAY
+        self.LIGHT_GRAY = LIGHT_GRAY
         
         # Game components
         self.deck = None
@@ -89,8 +110,22 @@ class PlayingState(GameState):
         
         # Initialize message display
         self.message = None
+        
+        # Initialize resource loader
+        self.resource_loader = ResourceLoader
+
+        # Initialize our modular managers
+        self.card_action_manager = CardActionManager(self)
+        self.room_manager = RoomManager(self)
+        self.animation_controller = AnimationController(self)
+        self.player_state_manager = PlayerStateManager(self)
+        self.inventory_manager = InventoryManager(self)
+        self.ui_renderer = UIRenderer(self)
+        self.game_state_controller = GameStateController(self)
+        self.ui_factory = UIFactory(self)
 
     def enter(self):
+        """Initialize the playing state when entering."""
         # Load fonts
         self.title_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 60)
         self.header_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 36)
@@ -118,21 +153,12 @@ class PlayingState(GameState):
             self.discard_pile = DiscardPile()
             self.room = Room(self.animation_manager)
 
-        # Create run button (smaller and positioned below status UI, above room)
-        # Make the button smaller
-        run_width = 60  # Smaller width
-        run_height = 30  # Smaller height
-        
-        # Position below status UI and above room
-        run_x = SCREEN_WIDTH // 2
-        run_y = 150  # Below status UI, above room
-        
-        run_button_rect = pygame.Rect(run_x - run_width // 2, run_y - run_height // 2, run_width, run_height)
-        self.run_button = Button(run_button_rect, "RUN", self.normal_font)  # Use smaller font too
+        # Create run button
+        self.ui_factory.create_run_button()
 
         # Create item and spell buttons
-        self.create_item_buttons()
-        self.create_spell_buttons()
+        self.ui_factory.create_item_buttons()
+        self.ui_factory.create_spell_buttons()
 
         # Reset player stats
         self.life_points = self.game_manager.game_data["life_points"]
@@ -151,11 +177,57 @@ class PlayingState(GameState):
             self.defeated_monsters = []
             
         self.damage_shield = 0
-
-        # Initialize the deck and start the first room if not coming from merchant
-        if not hasattr(self.game_manager, 'coming_from_merchant') or not self.game_manager.coming_from_merchant:
+        
+        # Check if we're coming from merchant room
+        coming_from_merchant = hasattr(self.game_manager, 'coming_from_merchant') and self.game_manager.coming_from_merchant
+        
+        # Initialize the deck if needed
+        if not coming_from_merchant:
             self.deck.initialise_deck()
-            self.start_new_room()
+            
+            # Also clear the discard pile when starting a new floor (not from merchant)
+            if self.discard_pile:
+                self.discard_pile.cards = []
+                if hasattr(self.discard_pile, 'card_stack'):
+                    self.discard_pile.card_stack = []
+        
+        # Initialize last_card variable
+        last_card_from_merchant = None
+        
+        # Debug: print our current state when coming from merchant
+        if coming_from_merchant:
+            print("Coming from merchant room")
+            print(f"Has last_card_data: {hasattr(self.game_manager, 'last_card_data')}")
+            if hasattr(self.game_manager, 'last_card_data'):
+                print(f"last_card_data is None: {self.game_manager.last_card_data is None}")
+        
+        # If we have preserved card data, prepare it for the next room
+        if coming_from_merchant and hasattr(self.game_manager, 'last_card_data') and self.game_manager.last_card_data:
+            # Create a card object from the stored data
+            card_data = self.game_manager.last_card_data
+            last_card_from_merchant = Card(card_data["suit"], card_data["value"], card_data.get("floor_type", self.current_floor))
+            last_card_from_merchant.face_up = True
+            
+            # Set initial position for the card (will be positioned properly by start_new_room)
+            # This ensures it doesn't appear in the top-left corner before being properly positioned
+            # Use a position that would be reasonable for a room card
+            num_cards = 1  # Just this card initially
+            total_width = (CARD_WIDTH * num_cards)
+            start_x = (SCREEN_WIDTH - total_width) // 2
+            start_y = (SCREEN_HEIGHT - CARD_HEIGHT) // 2 - 40
+            last_card_from_merchant.update_position((start_x, start_y))
+            
+            # Now clear the stored card data
+            self.game_manager.last_card_data = None
+            
+            # Start a new room with the preserved card
+            self.room_manager.start_new_room(last_card_from_merchant)
+        else:
+            # No card was preserved or not coming from merchant, start a normal room
+            self.room_manager.start_new_room()
+        
+        # Reset coming_from_merchant flag after handling the transition
+        self.game_manager.coming_from_merchant = False
         
         # Update status UI fonts
         self.status_ui.update_fonts(self.header_font, self.normal_font)
@@ -164,7 +236,7 @@ class PlayingState(GameState):
         self.hud.update_fonts(self.normal_font, self.normal_font)
 
         # Create item and spell panels
-        self.create_item_spell_panels()
+        self.ui_factory.create_item_spell_panels()
 
         # Reset floor completion tracking
         self.floor_completed = False
@@ -177,88 +249,15 @@ class PlayingState(GameState):
         elif not hasattr(self, 'completed_rooms'):
             self.completed_rooms = self.current_room_number
 
-        # We'll track room completion based on cards processed, not based on a fixed total
-
     def exit(self):
+        """Save state when exiting playing state."""
         # Save player stats to game_data
         self.game_manager.game_data["life_points"] = self.life_points
         self.game_manager.game_data["max_life"] = self.max_life
         self.game_manager.game_data["gold"] = self.gold
 
-    # ===== UI MANAGEMENT =====
-
-    def create_item_spell_panels(self):
-        """Create panels for displaying items and spells."""
-        from constants import ITEM_PANEL_POSITION, SPELL_PANEL_POSITION, ITEM_PANEL_WIDTH, ITEM_PANEL_HEIGHT, SPELL_PANEL_WIDTH, SPELL_PANEL_HEIGHT
-        # Item panel (left side)
-        item_panel_rect = pygame.Rect(ITEM_PANEL_POSITION, (ITEM_PANEL_WIDTH, ITEM_PANEL_HEIGHT))
-        self.item_panel = Panel(
-            (item_panel_rect.width, item_panel_rect.height),
-            (item_panel_rect.left, item_panel_rect.top),
-            GRAY,
-            180  # Semi-transparent
-        )
-
-        # Spell panel (right side)
-        spell_panel_rect = pygame.Rect(SPELL_PANEL_POSITION, (SPELL_PANEL_WIDTH, SPELL_PANEL_HEIGHT))
-        self.spell_panel = Panel(
-            (spell_panel_rect.width, spell_panel_rect.height),
-            (spell_panel_rect.left, spell_panel_rect.top),
-            GRAY,
-            180  # Semi-transparent
-        )
-
-        # Create item and spell buttons
-        self.create_item_buttons()
-        self.create_spell_buttons()
-
-    def create_item_buttons(self):
-        """Create buttons for player items."""
-        self.item_buttons = []
-        
-        # Create a panel for items
-        item_panel_rect = pygame.Rect(20, 20, 160, 200)
-        
-        # Create buttons for each item
-        for i, item in enumerate(self.game_manager.item_manager.player_items):
-            button_rect = pygame.Rect(
-                item_panel_rect.left + 10,
-                item_panel_rect.top + 40 + (i * 50),
-                140,
-                40
-            )
-            
-            self.item_buttons.append({
-                "item": item,
-                "index": i,
-                "button": Button(button_rect, item.name, self.normal_font)
-            })
-    
-    def create_spell_buttons(self):
-        """Create buttons for player spells."""
-        self.spell_buttons = []
-        
-        # Create a panel for spells
-        spell_panel_rect = pygame.Rect(SCREEN_WIDTH - 180, 20, 160, 200)
-        
-        # Create buttons for each spell
-        for i, spell in enumerate(self.game_manager.spell_manager.player_spells):
-            button_rect = pygame.Rect(
-                spell_panel_rect.left + 10,
-                spell_panel_rect.top + 40 + (i * 50),
-                140,
-                40
-            )
-            
-            self.spell_buttons.append({
-                "spell": spell,
-                "index": i,
-                "button": Button(button_rect, spell.name, self.normal_font)
-            })
-            
-    # ===== EVENT HANDLING =====
-    
     def handle_event(self, event):
+        """Handle player input events."""
         if self.animation_manager.is_animating():
             return  # Don't handle events while animating
         
@@ -296,19 +295,19 @@ class PlayingState(GameState):
             
             # Check if run button was clicked
             if self.run_button.is_clicked(event.pos) and not self.ran_last_turn and len(self.room.cards) == 4:
-                self.run_from_room()
+                self.room_manager.run_from_room()
                 return
             
             # Check if an item button was clicked
             for item_data in self.item_buttons:
                 if item_data["button"].is_clicked(event.pos):
-                    self.use_item(item_data["index"])
+                    self.player_state_manager.use_item(item_data["index"])
                     return
             
             # Check if a spell button was clicked
             for spell_data in self.spell_buttons:
                 if spell_data["button"].is_clicked(event.pos):
-                    self.cast_spell(spell_data["index"])
+                    self.player_state_manager.cast_spell(spell_data["index"])
                     return
             
             # Check if a card was clicked
@@ -317,15 +316,16 @@ class PlayingState(GameState):
             # First check room cards
             card = self.room.get_card_at_position(event.pos)
             if card:
-                self.resolve_card(card, event_pos=event.pos)
+                self.card_action_manager.resolve_card(card, event_pos=event.pos)
                 return  # Important: Return to prevent checking inventory cards
             
             # If no room card was clicked, check inventory cards
-            clicked_inventory_card = self.get_inventory_card_at_position(event.pos)
+            clicked_inventory_card = self.inventory_manager.get_inventory_card_at_position(event.pos)
             if clicked_inventory_card:
-                self.use_inventory_card(clicked_inventory_card)
+                self.card_action_manager.use_inventory_card(clicked_inventory_card)
     
     def update(self, delta_time):
+        """Update game state for this frame."""
         # First, update animations
         previous_animating = self.animation_manager.is_animating()
         self.animation_manager.update(delta_time)
@@ -360,7 +360,7 @@ class PlayingState(GameState):
         if not current_animating:
             # If we were running and animations finished, complete the run
             if self.is_running:
-                self.on_run_completed()
+                self.room_manager.on_run_completed()
                 return
             
             # Process room state only when no animations are running
@@ -377,7 +377,7 @@ class PlayingState(GameState):
                     # More difficult floors could give more gold
                     floor_bonus = min(2, self.game_manager.floor_manager.current_floor_index)  # 0-2 bonus based on floor
                     gold_reward = random.randint(2, 5) + floor_bonus
-                    self.change_gold(gold_reward)
+                    self.player_state_manager.change_gold(gold_reward)
 
                 # Go directly to the next room if we have cards
                 if len(self.deck.cards) > 0:
@@ -387,7 +387,7 @@ class PlayingState(GameState):
                     # Check if we're still in the playing state (not moved to merchant or other state)
                     if self.game_manager.current_state == self:
                         # Start a new room
-                        self.start_new_room()
+                        self.room_manager.start_new_room()
                 else:
                     # No more cards in the deck - floor completed
                     if not self.floor_completed:
@@ -407,12 +407,12 @@ class PlayingState(GameState):
                             floor_type = self.game_manager.floor_manager.get_current_floor()
                             next_floor_index = self.game_manager.floor_manager.current_floor_index + 1
                             next_floor_type = self.game_manager.floor_manager.floors[next_floor_index]
-                            self.show_message(f"Floor {floor_type.capitalize()} completed! Moving to {next_floor_type.capitalize()}...")
+                            self.game_state_controller.show_message(f"Floor {floor_type.capitalize()} completed! Moving to {next_floor_type.capitalize()}...")
                             
                             # Schedule transition to next floor after a short delay
-                            self.schedule_delayed_animation(
+                            self.animation_controller.schedule_delayed_animation(
                                 3.0,  # 3 second delay to show the message
-                                lambda: self.transition_to_next_floor()
+                                lambda: self.room_manager.transition_to_next_floor()
                             )
             
             # If we have only one card left and animations just finished, start a new room 
@@ -429,14 +429,16 @@ class PlayingState(GameState):
                     # More difficult floors could give more gold
                     floor_bonus = min(2, self.game_manager.floor_manager.current_floor_index)  # 0-2 bonus based on floor
                     gold_reward = random.randint(2, 5) + floor_bonus
-                    self.change_gold(gold_reward)
+                    self.player_state_manager.change_gold(gold_reward)
                 
                 # Start a new room with the remaining card - merchant check happens inside start_new_room
-                self.start_new_room(self.room.cards[0])
+                self.room_manager.start_new_room(self.room.cards[0])
         
-        self.check_game_over()
+        # Check for game over
+        self.game_state_controller.check_game_over()
 
     def draw(self, surface):
+        """Draw game elements to the screen."""
         # Draw background
         surface.blit(self.background, (0, 0))
         surface.blit(self.floor, ((SCREEN_WIDTH - self.floor.get_width())/2, (SCREEN_HEIGHT - self.floor.get_height())/2))
@@ -468,11 +470,11 @@ class PlayingState(GameState):
                     else:
                         type_text = weapon_type
                         
-                    self.draw_card_type(surface, weapon_card, type_text)
+                    self.ui_renderer.draw_card_type(surface, weapon_card, type_text)
                     
                 # Draw weapon name above the card
                 if weapon_card.name:
-                    self._draw_inventory_card_info(surface, weapon_card)
+                    self.ui_renderer._draw_inventory_card_info(surface, weapon_card)
             
             # Process all defeated monsters
             hovered_monsters = []
@@ -496,11 +498,11 @@ class PlayingState(GameState):
                 
                 # Draw monster type below the card
                 if hasattr(monster, 'monster_type') and monster.monster_type:
-                    self.draw_card_type(surface, monster, monster.monster_type.upper())
+                    self.ui_renderer.draw_card_type(surface, monster, monster.monster_type.upper())
                 
                 # Draw monster name above the card
                 if monster.name:
-                    self._draw_inventory_card_info(surface, monster)
+                    self.ui_renderer._draw_inventory_card_info(surface, monster)
         
         # Draw inventory background panel between item and spell panels
         # Position it vertically centered between the item and spell panels
@@ -515,15 +517,41 @@ class PlayingState(GameState):
         inv_height = 120  # Smaller height
         inv_x = SCREEN_WIDTH - inv_width - 40  # Same x as item/spell panels
         inv_y = vertical_center - inv_height // 2 # Center between items and spells
-        inv_rect = pygame.Rect(inv_x, inv_y, inv_width, inv_height)
         
-        # Draw panel background with border
-        pygame.draw.rect(surface, GRAY, inv_rect, border_radius=8)
-        pygame.draw.rect(surface, DARK_GRAY, inv_rect, 2, border_radius=8)
+        # Create the inventory panel using the Panel class
+        if not hasattr(self, 'inventory_panel'):
+            # Define a slightly more brown color for the inventory panel to look more like aged parchment
+            parchment_color = (60, 45, 35)
+            self.inventory_panel = Panel(
+                (inv_width, inv_height), 
+                (inv_x, inv_y),
+                colour=parchment_color,
+                alpha=230,
+                border_radius=8,
+                dungeon_style=True,
+                border_width=3,
+                border_color=(95, 75, 45)  # Slightly lighter brown for border
+            )
         
-        # Draw title
+        # Draw the panel
+        self.inventory_panel.draw(surface)
+        
+        # Get the rect for positioning
+        inv_rect = self.inventory_panel.rect
+        
+        # Draw title with a slight glow effect for a magical appearance
         inv_title = self.body_font.render("Inventory", True, WHITE)
+        # Create a subtle glow
+        glow_surface = pygame.Surface((inv_title.get_width() + 10, inv_title.get_height() + 10), pygame.SRCALPHA)
+        glow_color = (255, 240, 200, 50)  # Soft golden glow
+        pygame.draw.ellipse(glow_surface, glow_color, glow_surface.get_rect())
+        
+        # Position the glow and title text
+        glow_rect = glow_surface.get_rect(centerx=inv_rect.centerx, top=inv_rect.top - 35)
         title_rect = inv_title.get_rect(centerx=inv_rect.centerx, top=inv_rect.top - 30)
+        
+        # Draw the glow and title
+        surface.blit(glow_surface, glow_rect)
         surface.blit(inv_title, title_rect)
         
         # First sort inventory cards so hovered ones are at the end (will be drawn on top)
@@ -532,7 +560,7 @@ class PlayingState(GameState):
         
         # First pass - draw shadows for all cards
         for card in sorted_cards:
-            self._draw_card_shadow(surface, card)
+            self.ui_renderer._draw_card_shadow(surface, card)
         
         # Second pass - draw all cards and type information
         for card in sorted_cards:
@@ -556,11 +584,11 @@ class PlayingState(GameState):
                 
                 # Draw type text below the card
                 if type_text:
-                    self.draw_card_type(surface, card, type_text)
+                    self.ui_renderer.draw_card_type(surface, card, type_text)
                 
                 # Draw name hover info above the card
                 if card.name:
-                    self._draw_inventory_card_info(surface, card)
+                    self.ui_renderer._draw_inventory_card_info(surface, card)
             
         # Draw room cards LAST always
         self.room.draw(surface)
@@ -569,10 +597,10 @@ class PlayingState(GameState):
         self.animation_manager.draw_effects(surface)
         
         # Draw health display
-        self.draw_health_display(surface)
+        self.ui_renderer.draw_health_display(surface)
         
         # Draw gold display
-        self.draw_gold_display(surface)
+        self.ui_renderer.draw_gold_display(surface)
         
         # Draw UI animations (health changes, etc.)
         self.animation_manager.draw_ui_effects(surface)
@@ -581,21 +609,35 @@ class PlayingState(GameState):
         if not self.ran_last_turn and len(self.room.cards) == 4 and not self.animation_manager.is_animating():
             self.run_button.draw(surface)
         else:
-            # Draw disabled run button
+            # Draw disabled run button with consistent styling
             button_rect = self.run_button.rect
-            pygame.draw.rect(surface, LIGHT_GRAY, button_rect)
-            pygame.draw.rect(surface, BLACK, button_rect, 2)
+            
+            # Button background
+            pygame.draw.rect(surface, LIGHT_GRAY, button_rect, border_radius=5)
+            pygame.draw.rect(surface, BLACK, button_rect, 2, border_radius=5)
+            
+            # Render disabled text with the same font as the active button
             button_text = self.body_font.render("RUN", True, (150, 150, 150))  # Greyed out text
             button_text_rect = button_text.get_rect(center=button_rect.center)
             surface.blit(button_text, button_text_rect)
             
-        # Draw any active message
+        # Draw any active message with dungeon styling
         if hasattr(self, 'message') and self.message:
-            # Draw message background
-            pygame.draw.rect(surface, BLACK, self.message["bg_rect"], border_radius=8)
-            pygame.draw.rect(surface, WHITE, self.message["bg_rect"], 2, border_radius=8)
-            # Draw message text
-            surface.blit(self.message["text"], self.message["rect"])
+            if "panel" in self.message:
+                # Draw the styled panel
+                self.message["panel"].draw(surface)
+                
+                # Draw the glow effect
+                if "glow" in self.message and "glow_rect" in self.message:
+                    surface.blit(self.message["glow"], self.message["glow_rect"])
+                
+                # Draw the message text
+                surface.blit(self.message["text"], self.message["rect"])
+            else:
+                # Fallback for old message format
+                pygame.draw.rect(surface, BLACK, self.message["bg_rect"], border_radius=8)
+                pygame.draw.rect(surface, WHITE, self.message["bg_rect"], 2, border_radius=8)
+                surface.blit(self.message["text"], self.message["rect"])
 
         # Draw item and spell panels
         self.item_panel.draw(surface)
@@ -621,1056 +663,48 @@ class PlayingState(GameState):
         
         # Draw status UI
         self.status_ui.draw(surface)
-        
     
-    def _draw_inventory_card_info(self, surface, card):
-        """Draw name and other info for inventory cards."""
-        # Font for card name
-        name_font = pygame.font.Font(FONTS_PATH + "/Pixel Times.ttf", 18)
-        
-        # Render card name
-        card_name = card.name.upper()
-        text_surface = name_font.render(card_name, True, WHITE)
-        text_rect = text_surface.get_rect()
-        
-        # Calculate total float offset (idle + hover)
-        total_float_offset = 0
-        if hasattr(card, 'idle_float_offset') and hasattr(card, 'hover_float_offset'):
-            total_float_offset = card.idle_float_offset + card.hover_float_offset
-            
-        # Position text above card with floating offset
-        gap = 4
-        text_rect.midbottom = (card.rect.centerx, card.rect.top - gap - total_float_offset)
-        
-        # Add background with padding
-        padding = 8
-        bg_rect = text_rect.inflate(padding * 2, padding * 2)
-        
-        # Draw the background and text
-        pygame.draw.rect(surface, BLACK, bg_rect)
-        pygame.draw.rect(surface, WHITE, bg_rect, 2)  # White border
-        surface.blit(text_surface, text_rect)
-        
-    def _draw_card_shadow(self, surface, card):
-        """Draw shadow effect for a card"""
-        shadow_alpha = 60
-        shadow_width = 4
-        shadow_rect = card.rect.inflate(shadow_width * 2, shadow_width * 2)
-        shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
-        pygame.draw.rect(shadow_surf, (0, 0, 0, shadow_alpha), shadow_surf.get_rect(), border_radius=3)
-        surface.blit(shadow_surf, (shadow_rect.x, shadow_rect.y))
+    # Forward key methods to our modular components
+    def change_health(self, amount):
+        """Forward health change to player state manager."""
+        self.player_state_manager.change_health(amount)
     
-    def draw_card_type(self, surface, card, type_text):
-        """Helper method to draw a card's type below the card"""
-        # Only proceed if we have text to display
-        if not type_text:
-            return
-            
-        # Initialize font if needed
-        if not hasattr(self, 'small_font') or self.small_font is None:
-            self.small_font = pygame.font.Font(FONTS_PATH + "/Pixel Times.ttf", 16)
-        
-        padding = 6  # Smaller padding for non-hovered cards
-        
-        # Render the type text
-        type_surface = self.small_font.render(type_text, True, WHITE)
-        type_rect = type_surface.get_rect()
-        
-        # Calculate the total float offset for proper positioning
-        total_float_offset = 0
-        if hasattr(card, 'idle_float_offset') and hasattr(card, 'hover_float_offset'):
-            total_float_offset = card.idle_float_offset + card.hover_float_offset
-            
-        # Position text below card with the float offset to move with card
-        gap = 4  # Smaller consistent gap
-        # Use negative offset for inventory cards to make text move with card
-        type_rect.midtop = (card.rect.centerx, card.rect.bottom + gap - total_float_offset)
-        
-        # Create background rect and draw
-        type_bg_rect = type_rect.inflate(padding * 2, padding * 2)
-        pygame.draw.rect(surface, BLACK, type_bg_rect)
-        pygame.draw.rect(surface, WHITE, type_bg_rect, 1)  # 1px white border
-        surface.blit(type_surface, type_rect)
-    
-    # ===== ITEM AND SPELL HANDLING =====
-    
-    def use_item(self, item_index):
-        """Use an item from the player's inventory."""
-        if self.game_manager.item_manager.use_item(item_index):
-            # Apply shield effect if it's a protection item
-            if item_index < len(self.game_manager.item_manager.player_items):
-                item = self.game_manager.item_manager.player_items[item_index]
-                if item.effect == "protect_from_damage":
-                    self.set_damage_shield(10)  # Set a default shield value
-            
-            # Refresh the UI
-            self.create_item_buttons()
-            return True
-        return False
-    
-    def cast_spell(self, spell_index):
-        """Cast a spell from the player's spellbook."""
-        if self.game_manager.spell_manager.cast_spell(spell_index):
-            # Apply shield effect if it's a protection spell
-            if spell_index < len(self.game_manager.spell_manager.player_spells):
-                spell = self.game_manager.spell_manager.player_spells[spell_index]
-                if spell.effect == "protect_from_damage":
-                    self.set_damage_shield(5)  # Set a default shield value
-            
-            # Refresh the UI
-            self.create_spell_buttons()
-            return True
-        return False
+    def change_gold(self, amount):
+        """Forward gold change to player state manager."""
+        self.player_state_manager.change_gold(amount)
     
     def set_damage_shield(self, amount):
-        """Set a damage shield for the player."""
-        self.damage_shield = amount
-        
-        # Create a visual indicator for the shield
-        shield_effect = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        pygame.draw.circle(shield_effect, (0, 100, 255, 100), (SCREEN_WIDTH//2, SCREEN_HEIGHT//2), 150, 5)
-        
-    def show_message(self, message, duration=2.0):
-        """Display a temporary message on screen."""
-        # Create a temporary animation to display the message
-        message_text = self.header_font.render(message, True, WHITE)
-        message_rect = message_text.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2 - 50))
-        
-        # Create a dark background for the message
-        bg_rect = message_rect.inflate(40, 20)
-        
-        # Store the message info
-        self.message = {
-            "text": message_text,
-            "rect": message_rect,
-            "bg_rect": bg_rect,
-            "time_remaining": duration
-        }
-        
-        # Schedule a delay to clear the message
-        from utils.animation import Animation
-        timer = Animation(duration, on_complete=lambda: setattr(self, 'message', None))
-        self.animation_manager.add_animation(timer)
-    
-    # ===== CARD HANDLING =====
-    
-    def resolve_card(self, card, event_pos=None):
-        """Process a card that has been clicked by the player."""
-        # Can only resolve cards that are face up and not flipping
-        if not card.face_up or card.is_flipping or self.animation_manager.is_animating():
-            return
-        
-        # Reset the ran_last_turn flag
-        self.ran_last_turn = False
-        
-        # Mark the card as selected to remove split colors
-        card.is_selected = True
-        
-        # For cards that can be added to inventory, determine which part was clicked
-        if card.can_add_to_inventory and event_pos:
-            # Calculate position of the card's visual midpoint
-            # This takes into account the card's current drawing position 
-            # including floating and scaling effects
-            
-            # Get card's current visual position (centered around middle)
-            center_x = card.rect.centerx 
-            
-            # For the Y position, we need to account for the float offset
-            total_float_offset = 0
-            if hasattr(card, 'idle_float_offset') and hasattr(card, 'hover_float_offset'):
-                total_float_offset = card.idle_float_offset + card.hover_float_offset
-            
-            # Calculate center Y with float offset
-            center_y = card.rect.centery - total_float_offset
-            
-            # Check if click is above or below midpoint
-            if event_pos[1] < center_y:
-                # Top half clicked - add to inventory
-                self.add_to_inventory(card)
-                return
-            # Bottom half clicked - continue to use the card normally
-        
-        # Process card effects based on type
-        if card.type == "monster":
-            self.attack_monster(card)
-        elif card.type == "weapon":
-            self.equip_weapon(card)
-        elif card.type == "potion":
-            self.use_potion(card)
-        
-        # We'll let each handler reposition the cards with proper timing
-        # This prevents cards from disappearing during animations
-        
-    def remove_and_discard(self, card):
-        """Remove a card from the room and add it to the discard pile.
-        This function should be called only after an animation completes."""
-        # First remove from the room if it's still there
-        if card in self.room.cards:
-            self.room.remove_card(card)
-
-        if card in self.defeated_monsters:
-            self.defeated_monsters.remove(card)
-
-        if self.equipped_weapon and card == self.equipped_weapon["node"]:
-            self.equipped_weapon = {}
-
-        # Add to discard pile
-        self.discard_pile.add_card(card)
-
-    def attack_monster(self, monster):
-        """Process player attacking a monster card."""
-        # Calculate monster value - apply any effect from items or spells
-        monster_value = monster.value
-        
-        # Use damage shield if available
-        damage_reduction = 0
-        if self.damage_shield > 0:
-            damage_reduction = min(self.damage_shield, monster_value)
-            monster_value -= damage_reduction
-            self.damage_shield -= damage_reduction
-
-        # First ensure the monster is removed from the room before animations start
-        self.room.remove_card(monster)
-        
-        # Check if player has a weapon equipped
-        if self.equipped_weapon:
-            weapon_node = self.equipped_weapon.get("node", None)
-            weapon_value = self.equipped_weapon.get("value", 0)
-            
-            # Check if it's a ranged weapon and if player has arrows
-            has_arrow = False
-            arrow_card = None
-            
-            # Only check for arrows if the equipped weapon is ranged
-            if weapon_node and hasattr(weapon_node, "weapon_type") and weapon_node.weapon_type == "ranged":
-                # Look for arrow cards in inventory
-                for card in self.inventory:
-                    if (hasattr(card, "weapon_type") and card.weapon_type == "arrow") or \
-                       (card.type == "weapon" and card.value == 2):  # 2 of diamonds is arrow
-                        has_arrow = True
-                        arrow_card = card
-                        break
-            
-            # Handle ranged weapon with arrow
-            if weapon_node and hasattr(weapon_node, "weapon_type") and weapon_node.weapon_type == "ranged" and has_arrow:
-                # Keep arrows in inventory - do not consume them
-                
-                # With ranged weapon + arrow, you don't take damage if monster value > weapon value
-                if monster_value <= weapon_value:
-                    # Monster defeated with no damage
-                    monster.z_index = self.z_index_counter
-                    self.z_index_counter += 1
-                    # Add to defeated monster stack
-                    self.defeated_monsters.append(monster)
-                    self.position_monster_stack()
-                else:
-                    # Monster escapes but no damage taken (ranged weapon benefit)
-                    # Animate to discard pile
-                    self.animate_card_to_discard(monster)
-                    
-                    # Show message that ranged attack missed but no damage taken
-                    self.show_message("Ranged attack missed! No damage taken.")
-            
-            # Handle ranged weapon without arrow (use as melee with no weapon value)
-            elif weapon_node and hasattr(weapon_node, "weapon_type") and weapon_node.weapon_type == "ranged" and not has_arrow:
-                # Show message about missing arrows
-                self.show_message("No arrows! Fighting with bare hands.")
-                
-                # Take full damage from monster (as if no weapon)
-                if monster_value > 0:
-                    self.change_health(-monster_value)
-                
-                # Monster defeats player (add to discard)
-                self.animate_card_to_discard(monster)
-            
-            # Normal melee weapon combat
-            else:
-                # Monster will be added to stack or discard
-                if self.defeated_monsters:
-                    if self.defeated_monsters[-1].value > monster_value:
-                        damage = monster_value - weapon_value
-                        if damage < 0:
-                            damage = 0
-                        
-                        # Apply damage with animation
-                        if damage > 0:
-                            self.change_health(-damage)
-                        
-                        monster.z_index = self.z_index_counter
-                        self.z_index_counter += 1
-                        
-                        # Add to defeated monster stack
-                        self.defeated_monsters.append(monster)
-                        self.position_monster_stack()
-                    else:
-                        # Apply damage with animation
-                        if monster_value > 0:
-                            self.change_health(-monster_value)
-                        
-                        # Animate to discard pile
-                        self.animate_card_to_discard(monster)
-                else:
-                    if monster_value <= weapon_value:
-                        monster.z_index = self.z_index_counter
-                        self.z_index_counter += 1
-                        # Add to defeated monster stack
-                        self.defeated_monsters.append(monster)
-                        self.position_monster_stack()
-                    else:
-                        damage = monster_value - weapon_value
-                        if damage < 0:
-                            damage = 0
-                        
-                        # Apply damage with animation
-                        if damage > 0:
-                            self.change_health(-damage)
-                        
-                        monster.z_index = self.z_index_counter
-                        self.z_index_counter += 1
-                        # Add to defeated monster stack
-                        self.defeated_monsters.append(monster)
-                        self.position_monster_stack()
-        else:
-            # No weapon equipped - take full damage
-            # Apply damage with animation
-            if monster_value > 0:
-                self.change_health(-monster_value)
-            
-            # Animate to discard pile
-            self.animate_card_to_discard(monster)
-                
-        # After processing the monster, reposition remaining room cards
-        if len(self.room.cards) > 0:
-            # Add a slight delay before repositioning room cards
-            self.schedule_delayed_animation(
-                0.1,
-                lambda: self.room.position_cards(animate=True, animation_manager=self.animation_manager)
-            )
-        
-        # After attack is complete, update interface
-        self.create_item_buttons()
-        self.create_spell_buttons()
-
-    def equip_weapon(self, weapon):
-        """Equip a weapon card."""
-        # Check if the card is an arrow (can't be equipped as a weapon)
-        if hasattr(weapon, "weapon_type") and weapon.weapon_type == "arrow":
-            # Add arrow to inventory instead of equipping
-            self.add_to_inventory(weapon)
-            self.show_message("Arrows added to inventory")
-            return
-        
-        # First clear previous weapon and monsters
-        old_weapon = self.equipped_weapon.get("node", None)
-        old_monsters = self.defeated_monsters.copy()
-        
-        # Update data structures first
-        self.room.remove_card(weapon)
-        
-        # Store weapon type in the equipped_weapon dict
-        weapon_type = getattr(weapon, "weapon_type", "melee")  # Default to melee if not specified
-        self.equipped_weapon = {
-            "suit": weapon.suit, 
-            "value": weapon.value,
-            "node": weapon,
-            "weapon_type": weapon_type
-        }
-        self.defeated_monsters = []
-        
-        # Set z-index for new weapon
-        weapon.z_index = self.z_index_counter
-        self.z_index_counter += 1
-        
-        # Animate new weapon equipping first
-        from constants import WEAPON_POSITION
-        self.animate_card_movement(weapon, WEAPON_POSITION)
-        
-        # Show appropriate message based on weapon type
-        if weapon_type == "ranged":
-            has_arrow = any(card.weapon_type == "arrow" for card in self.inventory if hasattr(card, "weapon_type"))
-            if has_arrow:
-                self.show_message(f"Equipped {weapon.name}. Arrows ready! (Reusable)")
-            else:
-                self.show_message(f"Equipped {weapon.name}. No arrows available!")
-        else:
-            self.show_message(f"Equipped {weapon.name}")
-        
-        # Now discard old weapon and monsters
-        if old_weapon or old_monsters:
-            for i, monster in enumerate(old_monsters):
-                # Add a slight delay for each monster
-                delay = 0.08 * i
-                self.schedule_delayed_animation(
-                    delay,
-                    lambda card=monster: self.animate_card_to_discard(card)
-                )
-            
-            # Discard old weapon last if it exists
-            if old_weapon:
-                delay = 0.08 * len(old_monsters)
-                self.schedule_delayed_animation(
-                    delay,
-                    lambda: self.animate_card_to_discard(old_weapon)
-                )
-    
-    def clear_weapon_and_monsters(self):
-        """Discard the equipped weapon and all defeated monsters."""
-        # Animate all monsters moving to the discard pile with staggered timing
-        for i, monster in enumerate(self.defeated_monsters):
-            # Add a slight delay for each monster to create a cascade effect
-            delay = 0.08 * i
-            self.schedule_delayed_animation(
-                delay,
-                lambda card=monster: self.animate_card_to_discard(card)
-            )
-        
-        # Animate the weapon moving to the discard pile last
-        if "node" in self.equipped_weapon:
-            delay = 0.08 * len(self.defeated_monsters)
-            self.schedule_delayed_animation(
-                delay,
-                lambda: self.animate_card_to_discard(self.equipped_weapon["node"])
-            )
-    
-    def use_potion(self, potion):
-        """Use a potion card to heal the player."""
-        # Apply healing with animation
-        self.change_health(potion.value)
-        
-        # First ensure the potion is removed from the room
-        self.room.remove_card(potion)
-        
-        # Animate potion moving to discard pile
-        self.animate_card_to_discard(potion)
-        
-        # After processing the potion, reposition remaining room cards
-        if len(self.room.cards) > 0:
-            # Add a slight delay before repositioning room cards
-            self.schedule_delayed_animation(
-                0.1,
-                lambda: self.room.position_cards(animate=True, animation_manager=self.animation_manager)
-            )
-    
-    # ===== ANIMATION METHODS =====
-    
-    def animate_card_to_discard(self, card):
-        """Animate a card being destroyed and appearing in the discard pile."""
-        # First create a destruction animation
-        from utils.animation import DestructionAnimation
-        
-        # Choose a random destruction effect based on card type
-        if card.type == "monster":
-            effect_type = "slash"  # Monsters get slashed
-        elif card.type == "weapon":
-            effect_type = "shatter"  # Weapons shatter
-        elif card.type == "potion":
-            effect_type = "burn"  # Potions burn away
-        else:
-            effect_type = random.choice(["slash", "burn", "shatter"])
-            
-        destroy_anim = DestructionAnimation(
-            card,
-            effect_type,
-            duration=0.5,
-            on_complete=lambda: self.materialize_card_at_discard(card)
-        )
-        
-        self.animation_manager.add_animation(destroy_anim)
-        
-    def materialize_card_at_discard(self, card):
-        """Materialize the card at the discard pile position."""
-        # Update card position to discard pile
-        card.update_position(self.discard_pile.position)
-        
-        # Create materialize animation
-        from utils.animation import MaterializeAnimation
-        materialize_anim = MaterializeAnimation(
-            card,
-            self.discard_pile.position,
-            effect_type="sparkle",
-            duration=0.3,
-            on_complete=lambda: self.remove_and_discard(card)
-        )
-        
-        self.animation_manager.add_animation(materialize_anim)
-
-    def animate_card_movement(self, card, target_pos, duration=0.3, easing=None, 
-        on_complete=None):
-        """Create a simple, direct animation for card movement with optional callback."""
-        if easing is None:
-            from utils.animation import EasingFunctions
-            easing = EasingFunctions.ease_out_quad
-        
-        from utils.animation import MoveAnimation
-        animation = MoveAnimation(
-            card,
-            card.rect.topleft,
-            target_pos,
-            duration,
-            easing,
-            on_complete
-        )
-        
-        self.animation_manager.add_animation(animation)
-
-    def position_monster_stack(self):
-        """Position defeated monsters in a stack."""
-        if not self.defeated_monsters or "node" not in self.equipped_weapon:
-            return
-            
-        from constants import MONSTER_STACK_OFFSET, MONSTER_START_OFFSET
-        total_width = MONSTER_STACK_OFFSET[0] * (len(self.defeated_monsters) - 1)
-        start_x = self.equipped_weapon["node"].rect.x + MONSTER_START_OFFSET[0]
-        
-        for i, monster in enumerate(self.defeated_monsters):
-            new_stack_position = (
-                start_x + i * MONSTER_STACK_OFFSET[0],
-                self.equipped_weapon["node"].rect.y + MONSTER_STACK_OFFSET[1] * i
-            )
-            self.animate_card_movement(monster, new_stack_position)
-
-        new_weapon_position = (
-            self.equipped_weapon["node"].rect.x - MONSTER_STACK_OFFSET[1]*2,
-            self.equipped_weapon["node"].rect.y
-        )
-        self.animate_card_movement(self.equipped_weapon["node"], new_weapon_position)
-    
-    # ===== ROOM MANAGEMENT =====
-    
-    def start_new_room(self, last_card=None):
-        """Start a new room with cards from the deck."""
-        if self.life_points <= 0:
-            return
-        
-        if self.animation_manager.is_animating():
-            return  # Don't start a new room if animations are running
-        
-        # Check if we should transition to a merchant room instead of starting a new room
-        if not self.merchant_transition_started:
-            is_merchant_next = self.completed_rooms in self.FLOOR_STRUCTURE["merchant_rooms"]
-            if is_merchant_next:
-                # Set flag to prevent multiple merchant transitions
-                self.merchant_transition_started = True
-                # Set the floor manager's current room for the merchant
-                self.game_manager.floor_manager.current_room = self.completed_rooms - 1
-                # Flag that we're coming from merchant so we preserve state
-                self.game_manager.coming_from_merchant = True
-                # Advance to merchant room
-                self.game_manager.advance_to_next_room()
-                return
-        
-        # Reset the room state tracking flags when starting a new room
-        self.gold_reward_given = False
-        self.room_completion_in_progress = False
-        self.merchant_transition_started = False
-        
-        # Clear the room
-        self.room.clear()
-        
-        # Keep the last card if provided
-        if last_card:
-            self.room.add_card(last_card)
-            last_card.face_up = True
-        
-        # Calculate how many cards to draw
-        cards_to_draw = min(4 - len(self.room.cards), len(self.deck.cards))
-        
-        # Calculate final target positions first
-        num_cards = min(4, len(self.deck.cards)+len(self.room.cards))  # Always 4 cards in a full room
-        total_width = (CARD_WIDTH * num_cards) + (self.room.card_spacing * (num_cards - 1))
-        start_x = (SCREEN_WIDTH - total_width) // 2
-        start_y = (SCREEN_HEIGHT - CARD_HEIGHT) // 2 - 40
-        
-        target_positions = []
-        for i in range(num_cards):
-            target_positions.append((
-                int(start_x + i * (CARD_WIDTH + self.room.card_spacing)),
-                int(start_y)
-            ))
-
-        # Draw cards one by one with animations
-        for i in range(cards_to_draw):
-            if self.deck.cards:
-                card_data = self.deck.draw_card()
-                # Check if floor_type is included in card_data, otherwise use self.current_floor
-                floor_type = card_data.get("floor_type", self.current_floor)
-                card = Card(card_data["suit"], card_data["value"], floor_type)
-                
-                # Cards start face down
-                card.face_up = False
-                
-                # Set the initial position to the top of the deck
-                if self.deck.card_stack:
-                    card.update_position(self.deck.card_stack[-1])
-                else:
-                    card.update_position(self.deck.position)
-                
-                # Add card to room
-                self.room.add_card(card)
-                
-                # Calculate which target position to use
-                if last_card:
-                    if num_cards < 4:
-                        target_pos = target_positions[i]
-                    else:
-                        target_pos = target_positions[i + 1]  # Skip position 0 for last_card
-                else:
-                    target_pos = target_positions[i]
-                
-                # Create animation to move card to position with staggered timing
-                delay = 0.1 * i  # Stagger the dealing animations
-                
-                # Create a delayed animation
-                self.schedule_delayed_animation(
-                    delay,
-                    lambda card=card, pos=target_pos: self.animate_card_movement(
-                        card, 
-                        pos, 
-                        duration=0.3,
-                        on_complete=lambda c=card: self.start_card_flip(c)
-                    )
-                )
-        
-        # Update deck display
-        if self.deck.card_stack:
-            for i in range(cards_to_draw):
-                if self.deck.card_stack:
-                    self.deck.card_stack.pop()
-        self.deck.initialise_visuals()
-    
-    def schedule_delayed_animation(self, delay, callback):
-        """Schedule an animation to start after a delay."""
-        # Add a "timer" animation that does nothing except wait
-        # When it completes, it will run the callback to create the real animation
-        from utils.animation import Animation
-        timer = Animation(delay, on_complete=callback)
-        self.animation_manager.add_animation(timer)
-
-    def start_card_flip(self, card):
-        """Start the flip animation for a card."""
-        card.start_flip()
-        
-    # ===== HEALTH MANAGEMENT =====
-        
-    def draw_health_display(self, surface):
-        """Draw health display with current and max life points."""
-        # Health display parameters
-        health_display_x = 40
-        health_display_y = SCREEN_HEIGHT - self.deck.rect.y
-        health_bar_width = 160
-        health_bar_height = 40
-        
-        # Draw background panel
-        panel_rect = pygame.Rect(
-            health_display_x - 10, 
-            health_display_y - health_bar_height - 20,
-            health_bar_width + 20,
-            health_bar_height + 20
-        )
-        panel_surface = pygame.Surface((panel_rect.width, panel_rect.height), pygame.SRCALPHA)
-        panel_surface.fill((0, 0, 0, 180))
-        pygame.draw.rect(panel_surface, WHITE, pygame.Rect(0, 0, panel_rect.width, panel_rect.height), 2, border_radius=10)
-        surface.blit(panel_surface, panel_rect)
-        
-        # Draw health bar background
-        bar_bg_rect = pygame.Rect(
-            health_display_x,
-            health_display_y - health_bar_height - 10,
-            health_bar_width,
-            health_bar_height
-        )
-        pygame.draw.rect(surface, (60, 60, 60), bar_bg_rect, border_radius=5)
-        
-        # Calculate health percentage
-        health_percent = self.life_points / self.max_life
-        health_width = int(health_bar_width * health_percent)
-        
-        # Choose color based on health percentage
-        if health_percent > 0.7:
-            health_color = (0, 200, 0)  # Green
-        elif health_percent > 0.3:
-            health_color = (255, 165, 0)  # Orange
-        else:
-            health_color = (255, 40, 40)  # Red
-        
-        # Draw health bar
-        if health_width > 0:
-            health_rect = pygame.Rect(
-                health_display_x,
-                health_display_y - health_bar_height - 10,
-                health_width,
-                health_bar_height
-            )
-            pygame.draw.rect(surface, health_color, health_rect, border_radius=5)
-        
-        # Add a subtle inner shadow at the top
-        shadow_rect = pygame.Rect(
-            health_display_x,
-            health_display_y - health_bar_height - 10,
-            health_bar_width,
-            5
-        )
-        shadow_surface = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
-        shadow_surface.fill((0, 0, 0, 80))
-        surface.blit(shadow_surface, shadow_rect)
-        
-        # Add highlights at the bottom
-        if health_width > 0:
-            highlight_rect = pygame.Rect(
-                health_display_x,
-                health_display_y - 15,
-                health_width,
-                5
-            )
-            highlight_surface = pygame.Surface((highlight_rect.width, highlight_rect.height), pygame.SRCALPHA)
-            highlight_surface.fill((255, 255, 255, 80))
-            surface.blit(highlight_surface, highlight_rect)
-        
-        # Draw health text (current/max)
-        health_text = self.body_font.render(f"{self.life_points}/{self.max_life}", True, WHITE)
-        health_text_rect = health_text.get_rect(center=bar_bg_rect.center)
-        surface.blit(health_text, health_text_rect)
-        
-    def draw_gold_display(self, surface):
-        """Draw gold display showing current gold amount."""
-        # Gold display parameters - placed ABOVE health display
-        health_display_x = 40
-        health_display_y = SCREEN_HEIGHT - self.deck.rect.y
-        gold_display_x = health_display_x
-        gold_display_y = health_display_y - 130  # Position above health display
-        
-        # Load the gold coin image
-        gold_icon = ResourceLoader.load_image("ui/gold.png")
-        
-        # Draw the gold coin image
-        surface.blit(gold_icon, (gold_display_x, gold_display_y))
-        
-        # Get icon dimensions
-        icon_width = gold_icon.get_width()
-        icon_height = gold_icon.get_height()
-        
-        # Draw gold amount with gold-colored text
-        gold_text = self.body_font.render(f"{self.game_manager.player_gold}", True, (255, 223, 0))  # Gold text
-        gold_text_rect = gold_text.get_rect(left=gold_display_x + icon_width + 15, 
-            centery=gold_display_y + icon_height//2)
-        
-        # Add dark outline to make gold text readable
-        gold_outline = self.body_font.render(f"{self.game_manager.player_gold}", True, (100, 70, 0))
-        outline_offset = 1
-        surface.blit(gold_outline, (gold_text_rect.x + outline_offset, gold_text_rect.y + outline_offset))
-        surface.blit(gold_outline, (gold_text_rect.x - outline_offset, gold_text_rect.y + outline_offset))
-        surface.blit(gold_outline, (gold_text_rect.x + outline_offset, gold_text_rect.y - outline_offset))
-        surface.blit(gold_outline, (gold_text_rect.x - outline_offset, gold_text_rect.y - outline_offset))
-        
-        # Draw the gold text on top
-        surface.blit(gold_text, gold_text_rect)
-    
-    def change_health(self, amount):
-        """Change player health with animation."""
-        old_health = self.life_points
-        
-        # Calculate new health value with limits
-        if amount > 0:  # Healing
-            # Can't heal beyond max_life
-            self.life_points = min(self.life_points + amount, self.max_life)
-            actual_change = self.life_points - old_health
-            # Only animate if there was an actual change
-            if actual_change > 0:
-                self.animate_health_change(False, actual_change)  # False = healing
-        else:  # Damage
-            # Can't go below 0
-            self.life_points = max(0, self.life_points + amount)  # amount is negative for damage
-            actual_change = old_health - self.life_points
-            # Only animate if there was an actual change
-            if actual_change > 0:
-                self.animate_health_change(True, actual_change)  # True = damage
-    
-    def animate_health_change(self, is_damage, amount):
-        """Create animation for health change."""
-        # Position for the animation
-        health_display_x = self.deck.rect.x + 100  # Center of health bar
-        health_display_y = SCREEN_HEIGHT - self.deck.rect.y - 30  # Middle of health bar
-        
-        # Create animation
-        health_anim = HealthChangeAnimation(
-            is_damage,
-            amount,
-            (health_display_x, health_display_y),
-            self.body_font
-        )
-        
-        # Add to animation manager
-        self.animation_manager.add_animation(health_anim)
-        
-    def change_gold(self, amount):
-        """Change player gold amount with animation."""
-        old_gold = self.game_manager.player_gold
-        
-        # Update the gold amount in the game manager
-        self.game_manager.player_gold += amount
-        
-        # Ensure gold doesn't go negative
-        if self.game_manager.player_gold < 0:
-            self.game_manager.player_gold = 0
-            
-        # Calculate actual change for animation
-        actual_change = abs(amount)
-        
-        # Only animate if there was an actual change
-        if actual_change > 0:
-            self.animate_gold_change(amount < 0, actual_change)  # True = gold loss, False = gold gain
-            
-    # ===== INVENTORY METHODS =====
-    
-    def add_to_inventory(self, card):
-        """Add a card to the player's inventory if space is available."""
-        if len(self.inventory) >= self.MAX_INVENTORY_SIZE:
-            # Inventory is full, can't add more cards
-            # TODO: Show a message to the player
-            return False
-        
-        # Mark the card as selected to remove split colors
-        card.is_selected = True
-        
-        # Mark the card as being in inventory to reduce animation
-        card.in_inventory = True
-        
-        # Remove the card from the room
-        self.room.remove_card(card)
-        
-        # Add to inventory
-        self.inventory.append(card)
-        
-        # Animate the card moving to its inventory position
-        self.animate_card_to_inventory(card)
-        
-        # Reposition remaining room cards
-        if len(self.room.cards) > 0:
-            self.schedule_delayed_animation(
-                0.1,
-                lambda: self.room.position_cards(animate=True, animation_manager=self.animation_manager)
-            )
-        
-        return True
-    
-    def animate_card_to_inventory(self, card):
-        """Animate a card moving to its position in the inventory."""
-        # Calculate position based on inventory panel location
-        from constants import ITEM_PANEL_POSITION, SPELL_PANEL_POSITION, ITEM_PANEL_WIDTH, SPELL_PANEL_HEIGHT
-        
-        # Calculate vertical center between spell and item panels
-        vertical_center = (SPELL_PANEL_POSITION[1] + SPELL_PANEL_HEIGHT + 
-            (ITEM_PANEL_POSITION[1] - (SPELL_PANEL_POSITION[1] + SPELL_PANEL_HEIGHT))// 2)
-        
-        # Create a smaller inventory panel
-        inv_width = ITEM_PANEL_WIDTH
-        inv_height = 120  # Smaller height
-        inv_x = SCREEN_WIDTH - inv_width - 40  # Same x as item/spell panels
-        inv_y = vertical_center - inv_height // 2  # Center between items and spells
-        
-        # Scale cards to fit inventory panel nicely
-        card_scale = 0.8  # 80% of normal size
-        
-        # Scale the card
-        card.update_scale(card_scale)
-        
-        # Mark card as being in inventory to reduce animations
-        card.in_inventory = True
-        
-        # Calculate the scaled card dimensions
-        scaled_card_width = int(CARD_WIDTH * card_scale)
-        scaled_card_height = int(CARD_HEIGHT * card_scale)
-        
-        # Center cards in inventory panel with proper spacing
-        margin = 10
-        card_spacing = 10  # Fixed spacing between cards
-        if self.MAX_INVENTORY_SIZE > 1:
-            card_spacing = (inv_width - (self.MAX_INVENTORY_SIZE * scaled_card_width) - (margin * 2)) // max(1, self.MAX_INVENTORY_SIZE - 1)
-        
-        # Calculate position for this specific card
-        inventory_index = len(self.inventory) - 1
-        inventory_x = inv_x + margin + (inventory_index * (scaled_card_width + card_spacing))
-        inventory_y = inv_y + margin
-        
-        inventory_pos = (inventory_x, inventory_y)
-        
-        # Animate the card movement
-        self.animate_card_movement(card, inventory_pos)
+        """Forward damage shield to player state manager."""
+        self.player_state_manager.set_damage_shield(amount)
     
     def position_inventory_cards(self):
-        """Position all inventory cards in their proper places."""
-        # Calculate position based on inventory panel location
-        from constants import ITEM_PANEL_POSITION, SPELL_PANEL_POSITION, ITEM_PANEL_WIDTH, SPELL_PANEL_HEIGHT
-        
-        # Calculate vertical center between spell and item panels
-        vertical_center = (SPELL_PANEL_POSITION[1] + SPELL_PANEL_HEIGHT + 
-            (ITEM_PANEL_POSITION[1] - (SPELL_PANEL_POSITION[1] + SPELL_PANEL_HEIGHT))// 2)
-        
-        # Create a smaller inventory panel
-        inv_width = ITEM_PANEL_WIDTH
-        inv_height = 120  # Smaller height
-        inv_x = SCREEN_WIDTH - inv_width - 40  # Same x as item/spell panels
-        inv_y = vertical_center - inv_height // 2  # Center between items and spells
-        
-        # Scale cards to fit inventory panel nicely
-        card_scale = 0.8  # 80% of normal size
-        
-        # Calculate the scaled card dimensions
-        scaled_card_width = int(CARD_WIDTH * card_scale)
-        scaled_card_height = int(CARD_HEIGHT * card_scale)
-        
-        # Center cards in inventory panel with proper spacing
-        margin = 10
-        card_spacing = 10  # Fixed spacing between cards
-        if self.MAX_INVENTORY_SIZE > 1:
-            card_spacing = (inv_width - (self.MAX_INVENTORY_SIZE * scaled_card_width) - (margin * 2)) // max(1, self.MAX_INVENTORY_SIZE - 1)
-        
-        # Position each card
-        for i, card in enumerate(self.inventory):
-            # Apply scale to card
-            card.update_scale(card_scale)
-            
-            # Make sure card knows it's in inventory to reduce bobbing
-            card.in_inventory = True
-            
-            # Calculate position
-            inventory_x = inv_x + margin + (i * (scaled_card_width + card_spacing))
-            inventory_y = inv_y + margin
-            
-            card.update_position((inventory_x, inventory_y))
+        """Forward inventory positioning to inventory manager."""
+        self.inventory_manager.position_inventory_cards()
     
-    def get_inventory_card_at_position(self, position):
-        """Check if the position overlaps with any inventory card."""
-        for card in self.inventory:
-            if card.rect.collidepoint(position):
-                return card
-        return None
+    def animate_card_to_discard(self, card):
+        """Forward card discard animation to animation controller."""
+        self.animation_controller.animate_card_to_discard(card)
     
-    def use_inventory_card(self, card):
-        """Use a card from the inventory."""
-        if card in self.inventory:
-            # Mark the card as selected to ensure no split colors
-            card.is_selected = True
-            
-            # Reset inventory flag since it's being removed
-            card.in_inventory = False
-            
-            # Remove from inventory
-            self.inventory.remove(card)
-            
-            # Reposition remaining inventory cards
-            self.position_inventory_cards()
-            
-            # Process the card effect based on type
-            if card.type == "weapon":
-                # Reset the card's scale back to original size (1.0)
-                card.update_scale(1.0)
-                # Add the card back to the room temporarily
-                self.room.add_card(card)
-                # Use the standard equip weapon logic
-                self.equip_weapon(card)
-            elif card.type == "potion":
-                # Use the potion effect directly
-                self.change_health(card.value)
-                # Discard the potion
-                self.animate_card_to_discard(card)
-                
-            return True
-        return False
+    def animate_card_movement(self, card, target_pos, duration=0.3, easing=None, on_complete=None):
+        """Forward card movement animation to animation controller."""
+        self.animation_controller.animate_card_movement(card, target_pos, duration, easing, on_complete)
     
-    def animate_gold_change(self, is_loss, amount):
-        """Create animation for gold change."""
-        # Load the gold icon to get dimensions
-        gold_icon = ResourceLoader.load_image("ui/gold.png")
-        icon_width = gold_icon.get_width()
-        icon_height = gold_icon.get_height()
-        
-        # Position for the animation - next to the gold display
-        health_display_x = 40
-        gold_display_x = health_display_x + icon_width + 30  # Center over gold amount text
-        gold_display_y = SCREEN_HEIGHT - self.deck.rect.y - 100 + icon_height//2  # Match gold icon position
-        
-        # Create animation
-        gold_anim = GoldChangeAnimation(
-            is_loss,
-            amount,
-            (gold_display_x, gold_display_y),
-            self.body_font
-        )
-        
-        # Add to animation manager
-        self.animation_manager.add_animation(gold_anim)
+    def schedule_delayed_animation(self, delay, callback):
+        """Forward delayed animation to animation controller."""
+        self.animation_controller.schedule_delayed_animation(delay, callback)
     
-    def run_from_room(self):
-        """Run from the current room, moving all cards to the bottom of the deck."""
-        if len(self.room.cards) != 4 or self.animation_manager.is_animating():
-            return
-
-        # Only allow running if all cards are face up
-        for card in self.room.cards:
-            if not card.face_up or card.is_flipping:
-                return
-
-        self.is_running = True
-
-        # Animate cards moving to the bottom of the deck
-        for card in list(self.room.cards):
-            # Calculate target position (bottom of deck)
-            if self.deck.card_stack:
-                target_pos = self.deck.card_stack[0]
-            else:
-                target_pos = self.deck.position
-            
-            # Set z-index and create animation
-            card.z_index = -100
-            
-            # Use standard card movement animation
-            self.animate_card_movement(
-                card,
-                target_pos,
-                duration=0.3
-            )
-            
-            # Add the card data back to the bottom of the deck
-            card_data = {"suit": card.suit, "value": card.value}
-            self.deck.add_to_bottom(card_data)
-        
-        # Update the deck visuals
-        self.deck.initialise_visuals()
+    def start_card_flip(self, card):
+        """Forward card flip to animation controller."""
+        self.animation_controller.start_card_flip(card)
     
-    def on_run_completed(self):
-        """Complete the running action after animations finish."""
-        # Clear the room
-        self.room.clear()
-        self.is_running = False
-        
-        # Update the deck visuals again
-        self.deck.initialise_visuals()
-        
-        # Start a new room
-        self.start_new_room()
-        
-        # Set the ran_last_turn flag
-        self.ran_last_turn = True
+    def position_monster_stack(self):
+        """Forward monster stack positioning to animation controller."""
+        self.animation_controller.position_monster_stack()
     
-    # ===== GAME STATE MANAGEMENT =====
+    def animate_card_to_inventory(self, card):
+        """Forward card inventory animation to animation controller."""
+        self.animation_controller.animate_card_to_inventory(card)
     
-    def transition_to_next_floor(self):
-        """Helper method to transition to the next floor."""
-        # Advance to the next floor
-        self.game_manager.floor_manager.advance_floor()
-        # Change to floor start state
-        self.game_manager.change_state("floor_start")
-    
-    def check_game_over(self):
-        """Check if the game is over due to player death."""
-        if self.life_points <= 0:
-            self.end_game(False)
-    
-    def end_game(self, victory):
-        """End the game with either victory or defeat."""
-        # Save victory state
-        self.game_manager.game_data["victory"] = victory
-        
-        # Change to game over state
-        self.game_manager.change_state("game_over")
+    def show_message(self, message, duration=2.0):
+        """Forward message display to game state controller."""
+        self.game_state_controller.show_message(message, duration)

@@ -24,7 +24,7 @@ class StatusUI:
         self.normal_font = normal_font
     
     def draw(self, surface):
-        """Draw the status UI."""
+        """Draw the status UI with a dungeon-themed panel."""
         # Get current game state info
         floor_manager = self.game_manager.floor_manager
         current_floor = floor_manager.get_current_floor() or "unknown"
@@ -39,21 +39,40 @@ class StatusUI:
             
         total_rooms = floor_manager.FLOOR_STRUCTURE["rooms_per_floor"]
         
-        # Draw semi-transparent background
-        status_panel = pygame.Surface((self.panel_rect.width, self.panel_rect.height))
-        status_panel.fill(WHITE)
-        status_panel.set_alpha(180)
-        surface.blit(status_panel, self.panel_rect)
+        # Create dungeon-themed status panel if it doesn't exist yet
+        if not hasattr(self, 'styled_panel'):
+            from ui.panel import Panel
+            
+            # Create a panel with a parchment/scroll appearance
+            self.styled_panel = Panel(
+                (self.panel_rect.width, self.panel_rect.height),
+                (self.panel_rect.left, self.panel_rect.top),
+                colour=(70, 60, 45),  # Dark parchment color
+                alpha=230,
+                border_radius=8,
+                dungeon_style=True,
+                border_width=3,
+                border_color=(110, 90, 50)  # Darker border for scroll-like appearance
+            )
         
-        # Draw border
-        pygame.draw.rect(surface, GRAY, self.panel_rect, 2)
+        # Draw the styled panel
+        self.styled_panel.draw(surface)
         
-        # Draw floor and room info
-        floor_text = self.header_font.render(f"Floor {current_floor_index}: {current_floor.capitalize()}", True, BLACK)
+        # Draw floor info with a slight glow effect for emphasis
+        floor_text = self.header_font.render(f"Floor {current_floor_index}: {current_floor.capitalize()}", True, WHITE)
         floor_rect = floor_text.get_rect(centerx=self.panel_rect.centerx, top=self.panel_rect.top + 10)
+        
+        # Create a subtle glow behind the text (for magical floors)
+        glow_surface = pygame.Surface((floor_text.get_width() + 10, floor_text.get_height() + 10), pygame.SRCALPHA)
+        glow_color = (230, 220, 170, 30)  # Warm parchment glow
+        pygame.draw.ellipse(glow_surface, glow_color, glow_surface.get_rect())
+        glow_rect = glow_surface.get_rect(center=floor_rect.center)
+        
+        # Apply the glow and text
+        surface.blit(glow_surface, glow_rect)
         surface.blit(floor_text, floor_rect)
     
-        # Just display the current room number without the total
-        room_text = self.normal_font.render(f"Room {current_room}", True, BLACK)
+        # Draw room info with a more subtle appearance
+        room_text = self.normal_font.render(f"Room {current_room}", True, (220, 220, 200))  # Slightly off-white
         room_rect = room_text.get_rect(centerx=self.panel_rect.centerx, top=self.panel_rect.top + floor_rect.height + 10)
         surface.blit(room_text, room_rect)
