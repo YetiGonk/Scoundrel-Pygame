@@ -4,7 +4,36 @@ HUD component for displaying active effects and item/spell information
 import pygame
 import random
 import math
-from constants import WHITE, BLACK, GRAY, BLUE, GREEN, RED, SCREEN_WIDTH, SCREEN_HEIGHT
+from constants import (
+    WHITE, BLACK, GRAY, BLUE, GREEN, RED, SCREEN_WIDTH, SCREEN_HEIGHT,
+    # UI HUD dimensions
+    HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT, HEALTH_BAR_POSITION,
+    GOLD_BAR_WIDTH, GOLD_BAR_HEIGHT, GOLD_BAR_POSITION,
+    EFFECT_ICON_SIZE, EFFECT_ICON_SPACING, EFFECT_START_POSITION,
+    SHIELD_RADIUS, SHIELD_PANEL_WIDTH, SHIELD_PANEL_HEIGHT,
+    # UI styling parameters
+    PANEL_BORDER_RADIUS, PANEL_ALPHA, PANEL_BORDER_WIDTH,
+    # UI Colors
+    GOLD_COLOR, GOLD_HIGHLIGHT, GOLD_BORDER, GOLD_TEXT,
+    HEALTH_COLOR_GOOD, HEALTH_COLOR_WARNING, HEALTH_COLOR_DANGER,
+    HEALTH_GLOW_GOOD, HEALTH_GLOW_WARNING, HEALTH_GLOW_DANGER,
+    SHIELD_COLOR, SHIELD_GLOW, SHIELD_INNER, SHIELD_TEXT,
+    # UI Panel Colors
+    PANEL_DEFAULT_BORDER, PANEL_WOODEN, PANEL_WOODEN_BORDER,
+    PANEL_HEALTH, PANEL_HEALTH_BORDER, PANEL_SHIELD, PANEL_SHIELD_BORDER,
+    # Effect Colors
+    EFFECT_SHIELD_COLOR, EFFECT_SHIELD_PANEL, EFFECT_SHIELD_BORDER,
+    EFFECT_HEALING_COLOR, EFFECT_HEALING_PANEL, EFFECT_HEALING_BORDER,
+    EFFECT_DAMAGE_COLOR, EFFECT_DAMAGE_PANEL, EFFECT_DAMAGE_BORDER,
+    EFFECT_GOLD_COLOR, EFFECT_GOLD_PANEL, EFFECT_GOLD_BORDER,
+    EFFECT_DEFAULT_COLOR, EFFECT_DEFAULT_PANEL, EFFECT_DEFAULT_BORDER,
+    # Animation constants
+    GOLD_CHANGE_DURATION, GOLD_PARTICLE_FADE_SPEED, GOLD_PARTICLE_SPEED,
+    GOLD_PARTICLE_SIZE, GOLD_PARTICLE_SPREAD, SHIELD_PULSE_FREQUENCY,
+    SHIELD_PULSE_AMPLITUDE, SHIELD_EDGE_WIDTH, SHIELD_DASH_LENGTH,
+    SHIELD_DASH_COUNT, SHIELD_SPARK_CHANCE, EFFECT_PULSE_PERMANENT,
+    EFFECT_PULSE_TEMPORARY, EFFECT_EXPIRE_THRESHOLD
+)
 
 class HUD:
     """Heads-up display for showing active effects and status."""
@@ -18,9 +47,9 @@ class HUD:
         self.active_effects = []
         
         # Effect icon positions
-        self.effect_icon_size = 40
-        self.effect_spacing = 10
-        self.effect_start_pos = (SCREEN_WIDTH//2 - 100, 20)
+        self.effect_icon_size = EFFECT_ICON_SIZE
+        self.effect_spacing = EFFECT_ICON_SPACING
+        self.effect_start_pos = EFFECT_START_POSITION
         
         # Resource tracking for animations
         self.last_gold_amount = game_manager.player_gold
@@ -102,31 +131,31 @@ class HUD:
             effect_rect = pygame.Rect(x, y, self.effect_icon_size, self.effect_icon_size)
             
             # Choose color based on effect type
-            effect_color = BLUE  # Default
+            effect_color = EFFECT_DEFAULT_COLOR  # Default
             if effect['type'] == 'shield':
-                effect_color = (60, 120, 200)  # Blue
-                panel_color = (40, 70, 120)
-                border_color = (80, 140, 220)
+                effect_color = EFFECT_SHIELD_COLOR
+                panel_color = EFFECT_SHIELD_PANEL
+                border_color = EFFECT_SHIELD_BORDER
                 icon_symbol = "✦"  # Star/Shield symbol
             elif effect['type'] == 'healing':
-                effect_color = (60, 180, 80)  # Green
-                panel_color = (40, 100, 50)
-                border_color = (70, 190, 90)
+                effect_color = EFFECT_HEALING_COLOR
+                panel_color = EFFECT_HEALING_PANEL
+                border_color = EFFECT_HEALING_BORDER
                 icon_symbol = "+"  # Plus/healing symbol
             elif effect['type'] == 'damage':
-                effect_color = (190, 60, 60)  # Red
-                panel_color = (100, 40, 40)
-                border_color = (200, 70, 70)
+                effect_color = EFFECT_DAMAGE_COLOR
+                panel_color = EFFECT_DAMAGE_PANEL
+                border_color = EFFECT_DAMAGE_BORDER
                 icon_symbol = "⚔"  # Sword symbol
             elif effect['type'] == 'gold':
-                effect_color = (220, 180, 50)  # Gold
-                panel_color = (100, 80, 30)
-                border_color = (230, 190, 60)
+                effect_color = EFFECT_GOLD_COLOR
+                panel_color = EFFECT_GOLD_PANEL
+                border_color = EFFECT_GOLD_BORDER
                 icon_symbol = "⚜"  # Gold symbol
             else:
-                effect_color = (100, 100, 160)  # Default blue
-                panel_color = (50, 50, 80)
-                border_color = (120, 120, 180)
+                effect_color = EFFECT_DEFAULT_COLOR
+                panel_color = EFFECT_DEFAULT_PANEL
+                border_color = EFFECT_DEFAULT_BORDER
                 icon_symbol = "◆"  # Default diamond symbol
             
             # Draw effect icon with panel if available
@@ -136,10 +165,10 @@ class HUD:
                     (self.effect_icon_size, self.effect_icon_size),
                     (x, y),
                     colour=panel_color,
-                    alpha=230,
-                    border_radius=6,
+                    alpha=PANEL_ALPHA,
+                    border_radius=PANEL_BORDER_RADIUS - 2,  # Slightly smaller for effect panels
                     dungeon_style=True,
-                    border_width=2,
+                    border_width=PANEL_BORDER_WIDTH,
                     border_color=border_color
                 )
                 effect_panel.draw(surface)
@@ -150,10 +179,12 @@ class HUD:
                     # Calculate how much time has passed (0.0 to 1.0)
                     elapsed = (current_time - effect['start_time']) / effect['duration']
                     # Create a pulsating effect that gets faster as time runs out
-                    pulse_factor = 0.8 + 0.2 * math.sin(elapsed * 10 + current_time / 200)
+                    base, amplitude, frequency = EFFECT_PULSE_TEMPORARY
+                    pulse_factor = base + amplitude * math.sin(elapsed * 10 + current_time / frequency)
                 else:
                     # For permanent effects, use a slower, subtler pulse
-                    pulse_factor = 0.9 + 0.1 * math.sin(current_time / 800)
+                    base, amplitude, frequency = EFFECT_PULSE_PERMANENT
+                    pulse_factor = base + amplitude * math.sin(current_time / frequency)
                 
                 # Draw a glowing circle as the effect icon
                 glow_radius = int(self.effect_icon_size * 0.3 * pulse_factor)
@@ -207,7 +238,7 @@ class HUD:
                     )
                 
                 # Add urgency visual cues for effects about to expire
-                if remaining < 2000:  # Less than 2 seconds left
+                if remaining < EFFECT_EXPIRE_THRESHOLD:  # Effect is about to expire
                     # Use red text for urgency
                     remaining_text = self.small_font.render(f"{remaining//1000}s", True, (255, 100, 100))
                     
@@ -225,17 +256,15 @@ class HUD:
     
     def draw_gold_indicator(self, surface):
         """Draw gold indicator above the health bar with dungeon styling."""
-        # Health bar parameters - we'll position relative to these
-        bar_width = 200
-        bar_height = 24
-        health_x = 20
-        health_y = SCREEN_HEIGHT - 30
+        # Use constants for positioning and sizing
+        bar_width = HEALTH_BAR_WIDTH
+        bar_height = HEALTH_BAR_HEIGHT
+        health_x, health_y = HEALTH_BAR_POSITION
         
         # Gold indicator parameters
-        gold_bar_width = 120
-        gold_bar_height = 24
-        x = health_x
-        y = health_y - gold_bar_height - 10  # Position above health bar
+        gold_bar_width = GOLD_BAR_WIDTH
+        gold_bar_height = GOLD_BAR_HEIGHT
+        x, y = GOLD_BAR_POSITION
         
         # Create panel if it doesn't exist
         if not self.gold_panel:
@@ -246,12 +275,12 @@ class HUD:
                 self.gold_panel = Panel(
                     (gold_bar_width, gold_bar_height),
                     (x, y),
-                    colour=(80, 60, 30),  # Dark wooden color
-                    alpha=240,
-                    border_radius=8,
+                    colour=PANEL_WOODEN,
+                    alpha=PANEL_ALPHA + 10,  # Slightly more opaque
+                    border_radius=PANEL_BORDER_RADIUS,
                     dungeon_style=True,
-                    border_width=2,
-                    border_color=(130, 100, 40)  # Lighter wooden border
+                    border_width=PANEL_BORDER_WIDTH,
+                    border_color=PANEL_WOODEN_BORDER
                 )
                 
                 # Store gold icon position for particle effects
@@ -278,16 +307,16 @@ class HUD:
             surface.blit(glow_surface, (coin_x - glow_radius, coin_y - glow_radius))
             
             # Draw coin with metallic effect
-            pygame.draw.circle(surface, (255, 223, 0), (coin_x, coin_y), coin_radius)  # Gold fill
-            pygame.draw.circle(surface, (255, 240, 120), (coin_x - 3, coin_y - 3), coin_radius//2)  # Highlight
-            pygame.draw.circle(surface, (184, 134, 11), (coin_x, coin_y), coin_radius, 1)  # Gold border
+            pygame.draw.circle(surface, GOLD_COLOR, (coin_x, coin_y), coin_radius)  # Gold fill
+            pygame.draw.circle(surface, GOLD_HIGHLIGHT, (coin_x - 3, coin_y - 3), coin_radius//2)  # Highlight
+            pygame.draw.circle(surface, GOLD_BORDER, (coin_x, coin_y), coin_radius, 1)  # Gold border
             
             # Update and draw gold particles
             self._update_gold_particles()
             self._draw_gold_particles(surface)
             
             # Draw gold value with golden text
-            gold_text = self.normal_font.render(f"{self.game_manager.player_gold}", True, (255, 230, 150))
+            gold_text = self.normal_font.render(f"{self.game_manager.player_gold}", True, GOLD_TEXT)
             gold_text_rect = gold_text.get_rect(centery=coin_y, x=coin_x + coin_radius + 10)
             surface.blit(gold_text, gold_text_rect)
         else:
@@ -296,27 +325,26 @@ class HUD:
             pygame.draw.rect(surface, GRAY, bg_rect, border_radius=5)
             
             # Draw gold bar
-            gold_color = (255, 215, 0)  # Gold color
             gold_rect = pygame.Rect(x, y, gold_bar_width, gold_bar_height)
-            pygame.draw.rect(surface, gold_color, gold_rect, border_radius=5)
+            pygame.draw.rect(surface, GOLD_COLOR, gold_rect, border_radius=5)
             pygame.draw.rect(surface, BLACK, bg_rect, 2, border_radius=5)
             
             # Draw coin and text
             coin_radius = 8
             coin_x = x + 15
             coin_y = y + gold_bar_height // 2
-            pygame.draw.circle(surface, (255, 223, 0), (coin_x, coin_y), coin_radius)
-            pygame.draw.circle(surface, (184, 134, 11), (coin_x, coin_y), coin_radius, 2)
+            pygame.draw.circle(surface, GOLD_COLOR, (coin_x, coin_y), coin_radius)
+            pygame.draw.circle(surface, GOLD_BORDER, (coin_x, coin_y), coin_radius, 2)
             gold_text = self.normal_font.render(f"{self.game_manager.player_gold}", True, BLACK)
             gold_text_rect = gold_text.get_rect(center=bg_rect.center, x=coin_x + coin_radius + 10)
             surface.blit(gold_text, gold_text_rect)
         
         # Show gold change animation if recent
         current_time = pygame.time.get_ticks()
-        if current_time - self.gold_change_time < 2000 and self.gold_change_amount != 0:
+        if current_time - self.gold_change_time < GOLD_CHANGE_DURATION and self.gold_change_amount != 0:
             # Determine animation properties
-            alpha = 255 - int(255 * (current_time - self.gold_change_time) / 2000)  # Fade out
-            y_offset = int(15 * (current_time - self.gold_change_time) / 2000)  # Float up
+            alpha = 255 - int(255 * (current_time - self.gold_change_time) / GOLD_CHANGE_DURATION)  # Fade out
+            y_offset = int(15 * (current_time - self.gold_change_time) / GOLD_CHANGE_DURATION)  # Float up
             
             # Create change text with appropriate color
             change_prefix = "+" if self.gold_change_amount > 0 else ""
@@ -342,7 +370,9 @@ class HUD:
             
             # Spawn gold particles on gain
             if self.gold_change_amount > 0 and current_time - self.gold_change_time < 200:
-                self._add_gold_particles(min(5, self.gold_change_amount // 2 + 1))
+                # Adjust particle count based on amount of gold gained
+                particle_count = min(5, self.gold_change_amount // 2 + 1)
+                self._add_gold_particles(particle_count)
     
     def _update_gold_particles(self):
         """Update gold particle positions and properties"""
@@ -354,7 +384,8 @@ class HUD:
             # Move particles upward
             particle['y'] -= particle['speed']
             # Fade out gradually
-            particle['alpha'] -= random.uniform(0.5, 1.5)
+            min_fade, max_fade = GOLD_PARTICLE_FADE_SPEED
+            particle['alpha'] -= random.uniform(min_fade, max_fade)
             # Slightly randomize x position for shimmering effect
             particle['x'] += random.uniform(-0.2, 0.2)
     
@@ -395,14 +426,17 @@ class HUD:
             
         coin_x, coin_y = self.gold_icon_pos
         coin_width, coin_height = self.gold_icon_size
+        spread = GOLD_PARTICLE_SPREAD
+        min_size, max_size = GOLD_PARTICLE_SIZE
+        min_speed, max_speed = GOLD_PARTICLE_SPEED
         
         for _ in range(count):
             # Create particles within/around the coin area
             self.gold_particles.append({
-                'x': coin_x + random.uniform(-5, 5),
-                'y': coin_y + random.uniform(-5, 5),
-                'size': random.uniform(1, 2.5),
-                'speed': random.uniform(0.2, 0.6),
+                'x': coin_x + random.uniform(-spread, spread),
+                'y': coin_y + random.uniform(-spread, spread),
+                'size': random.uniform(min_size, max_size),
+                'speed': random.uniform(min_speed, max_speed),
                 'alpha': random.uniform(180, 255)
             })
     
@@ -412,11 +446,10 @@ class HUD:
         if not hasattr(playing_state, 'life_points') or not hasattr(playing_state, 'max_life'):
             return
         
-        # Health bar parameters
-        bar_width = 200
-        bar_height = 24
-        x = 20
-        y = SCREEN_HEIGHT - 30
+        # Health bar parameters from constants
+        bar_width = HEALTH_BAR_WIDTH
+        bar_height = HEALTH_BAR_HEIGHT
+        x, y = HEALTH_BAR_POSITION
         
         # Create panel if it doesn't exist
         if not self.health_panel:
@@ -427,12 +460,12 @@ class HUD:
                 self.health_panel = Panel(
                     (bar_width, bar_height),
                     (x, y),
-                    colour=(60, 30, 30),  # Dark red/brown
-                    alpha=240,
-                    border_radius=8,
+                    colour=PANEL_HEALTH,
+                    alpha=PANEL_ALPHA + 10,  # Slightly more opaque
+                    border_radius=PANEL_BORDER_RADIUS,
                     dungeon_style=True,
-                    border_width=2,
-                    border_color=(100, 50, 50)  # Lighter red border
+                    border_width=PANEL_BORDER_WIDTH,
+                    border_color=PANEL_HEALTH_BORDER
                 )
             except ImportError:
                 # Fallback if Panel isn't available
@@ -444,14 +477,14 @@ class HUD:
         
         # Choose color based on health percentage
         if health_percent > 0.7:
-            health_color = (50, 180, 50)  # Green
-            glow_color = (70, 220, 70, 40)  # Green glow
+            health_color = HEALTH_COLOR_GOOD
+            glow_color = HEALTH_GLOW_GOOD
         elif health_percent > 0.3:
-            health_color = (220, 160, 40)  # Orange
-            glow_color = (240, 180, 60, 40)  # Orange glow
+            health_color = HEALTH_COLOR_WARNING
+            glow_color = HEALTH_GLOW_WARNING
         else:
-            health_color = (200, 50, 50)  # Red
-            glow_color = (240, 90, 90, 40)  # Red glow
+            health_color = HEALTH_COLOR_DANGER
+            glow_color = HEALTH_GLOW_DANGER
             
         # Draw the panel for health bar container
         if self.health_panel:
@@ -502,33 +535,33 @@ class HUD:
         if playing_state.damage_shield <= 0:
             return
         
-        # Shield parameters
-        shield_radius = 150
+        # Shield parameters from constants
+        shield_radius = SHIELD_RADIUS
         center_x = SCREEN_WIDTH // 2
         center_y = SCREEN_HEIGHT // 2
         
         # Create animated time-based effect (pulsating shield)
         time_ms = pygame.time.get_ticks()
-        pulse_factor = 0.1 * (1 + 0.15 * math.sin(time_ms / 500))  # Pulsate every 0.5 seconds
+        pulse_factor = 0.1 * (1 + SHIELD_PULSE_AMPLITUDE * math.sin(time_ms / SHIELD_PULSE_FREQUENCY))
         
         # Draw magical shield effect with multiple layers for depth
         shield_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         
         # Inner core with pulsating size
         inner_radius = int(shield_radius * 0.8 * pulse_factor)
-        pygame.draw.circle(shield_surface, (50, 120, 230, 20), (center_x, center_y), inner_radius)
+        pygame.draw.circle(shield_surface, SHIELD_INNER, (center_x, center_y), inner_radius)
         
         # Main shield layer with arcane-like pattern
         pygame.draw.circle(shield_surface, (70, 140, 255, 40), (center_x, center_y), shield_radius)
         
         # Draw a slightly translucent edge for a magical barrier look
-        edge_width = max(2, int(5 * pulse_factor))
-        pygame.draw.circle(shield_surface, (100, 180, 255, 120), (center_x, center_y), shield_radius, edge_width)
+        edge_width = max(2, int(SHIELD_EDGE_WIDTH * pulse_factor))
+        pygame.draw.circle(shield_surface, SHIELD_COLOR, (center_x, center_y), shield_radius, edge_width)
         
         # Add arcane runes or symbols (simplified as dashed lines)
-        dash_length = 15
+        dash_length = SHIELD_DASH_LENGTH
         dash_gap = 10
-        num_dashes = 16
+        num_dashes = SHIELD_DASH_COUNT
         rune_radius = shield_radius - 10
         
         for i in range(num_dashes):
@@ -545,7 +578,7 @@ class HUD:
             pygame.draw.line(shield_surface, rune_color, (start_x, start_y), (end_x, end_y), 2)
         
         # Draw shield particles for magical effect (occasional sparks)
-        if random.random() < 0.1:  # 10% chance per frame
+        if random.random() < SHIELD_SPARK_CHANCE:  # Random chance per frame
             spark_angle = random.uniform(0, 2 * math.pi)
             spark_distance = shield_radius * random.uniform(0.9, 1.1)
             spark_x = center_x + int(spark_distance * math.cos(spark_angle))
@@ -569,30 +602,29 @@ class HUD:
         from ui.panel import Panel
         
         # Shield panel positioning
-        panel_width = 120
-        panel_height = 30
+        panel_width = SHIELD_PANEL_WIDTH
+        panel_height = SHIELD_PANEL_HEIGHT
         panel_x = center_x - panel_width // 2
         panel_y = center_y - shield_radius - 35
         
         shield_panel = Panel(
             (panel_width, panel_height),
             (panel_x, panel_y),
-            colour=(40, 60, 120),  # Blue/magical color
-            alpha=220,
-            border_radius=10,
+            colour=PANEL_SHIELD,
+            alpha=PANEL_ALPHA,
+            border_radius=PANEL_BORDER_RADIUS,
             dungeon_style=True,
-            border_width=2,
-            border_color=(80, 130, 200)  # Lighter blue border
+            border_width=PANEL_BORDER_WIDTH,
+            border_color=PANEL_SHIELD_BORDER
         )
         shield_panel.draw(surface)
         
         # Draw shield value with magical glow
-        shield_text = self.normal_font.render(f"Shield: {playing_state.damage_shield}", True, (180, 220, 255))
+        shield_text = self.normal_font.render(f"Shield: {playing_state.damage_shield}", True, SHIELD_TEXT)
         
         # Create glow behind text
         glow_surface = pygame.Surface((shield_text.get_width() + 10, shield_text.get_height() + 10), pygame.SRCALPHA)
-        glow_color = (100, 150, 255, 50)
-        pygame.draw.ellipse(glow_surface, glow_color, glow_surface.get_rect())
+        pygame.draw.ellipse(glow_surface, SHIELD_GLOW, glow_surface.get_rect())
         
         # Position and draw
         shield_text_rect = shield_text.get_rect(center=(panel_x + panel_width//2, panel_y + panel_height//2))

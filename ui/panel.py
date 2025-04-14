@@ -3,11 +3,23 @@
 import pygame
 import random
 import math
-from constants import WHITE, GRAY, BLACK, DARK_GRAY
+from constants import (
+    WHITE, GRAY, BLACK, DARK_GRAY,
+    PANEL_DEFAULT_BORDER, PANEL_BORDER_RADIUS, PANEL_ALPHA, PANEL_BORDER_WIDTH
+)
 
 class Panel:
-    def __init__(self, width_height, top_left, colour=DARK_GRAY, alpha=220, border_radius=10, 
-                 dungeon_style=True, border_width=2, border_color=(80, 60, 40)):
+    def __init__(self, width_height, top_left, colour=DARK_GRAY, alpha=None, border_radius=None, 
+                 dungeon_style=True, border_width=None, border_color=None):
+        # Use default values from constants if not provided
+        if alpha is None:
+            alpha = PANEL_ALPHA
+        if border_radius is None:
+            border_radius = PANEL_BORDER_RADIUS
+        if border_width is None:
+            border_width = PANEL_BORDER_WIDTH
+        if border_color is None:
+            border_color = PANEL_DEFAULT_BORDER
         self.width_height = width_height
         self.top_left = top_left
         self.rect = pygame.Rect(self.top_left, self.width_height)

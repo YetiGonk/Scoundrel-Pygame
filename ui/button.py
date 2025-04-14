@@ -2,11 +2,21 @@
 Button UI component for the Scoundrel game with optional dungeon styling.
 """
 import pygame
-from constants import LIGHT_GRAY, BLACK, WHITE
+from constants import (
+    LIGHT_GRAY, BLACK, WHITE,
+    BUTTON_PANEL_COLOR, BUTTON_BORDER_WIDTH, BUTTON_BORDER_RADIUS, 
+    BUTTON_ALPHA, BUTTON_GLOW_SIZE, BUTTON_HOVER_GLOW_WHITE, 
+    BUTTON_HOVER_GLOW_DARK, BUTTON_HOVER_LIGHTEN, BUTTON_ROUND_CORNER
+)
 
 class Button:    
     def __init__(self, rect, text, font, text_color=BLACK, bg_color=LIGHT_GRAY, border_color=BLACK, 
-                dungeon_style=False, panel_color=(60, 45, 35), border_width=3):
+                dungeon_style=False, panel_color=None, border_width=None):
+        # Use constants for defaults
+        if panel_color is None:
+            panel_color = BUTTON_PANEL_COLOR
+        if border_width is None:
+            border_width = BUTTON_BORDER_WIDTH
         self.rect = rect
         self.text = text
         self.font = font
@@ -37,8 +47,8 @@ class Button:
                 (self.rect.width, self.rect.height),
                 (self.rect.left, self.rect.top),
                 colour=self.panel_color,
-                alpha=250,  # More opaque for buttons
-                border_radius=8,
+                alpha=BUTTON_ALPHA,
+                border_radius=BUTTON_BORDER_RADIUS,
                 dungeon_style=True,
                 border_width=self.border_width,
                 border_color=self.border_color
@@ -60,7 +70,7 @@ class Button:
         if previous_hover != self.is_hovered and self.dungeon_style and self.panel:
             if self.is_hovered:
                 # Make border lighter when hovered
-                lighter_border = self._lighten_color(self.border_color, 0.3)
+                lighter_border = self._lighten_color(self.border_color, BUTTON_HOVER_LIGHTEN)
                 self.panel.update_style(True, self.border_width, lighter_border)
             else:
                 # Reset to original border
@@ -68,7 +78,7 @@ class Button:
                 
         return previous_hover != self.is_hovered
     
-    def _lighten_color(self, color, factor=0.3):
+    def _lighten_color(self, color, factor=BUTTON_HOVER_LIGHTEN):
         """Create a lighter version of the color"""
         r, g, b = color[0], color[1], color[2]
         return (min(255, int(r + (255-r) * factor)),
@@ -86,7 +96,7 @@ class Button:
             # Draw the text with glow for emphasis
             if self.is_hovered:
                 # Add glow effect on hover
-                glow_size = 6
+                glow_size = BUTTON_GLOW_SIZE
                 glow_surface = pygame.Surface(
                     (self.text_surface.get_width() + glow_size*2, 
                      self.text_surface.get_height() + glow_size*2), 
@@ -95,9 +105,9 @@ class Button:
                 
                 # Create glow color based on text color
                 if self.text_color == WHITE or sum(self.text_color) > 400:  # Light text
-                    glow_color = (255, 255, 255, 30)  # White glow
+                    glow_color = BUTTON_HOVER_GLOW_WHITE
                 else:  # Dark text
-                    glow_color = (0, 0, 0, 30)  # Dark glow
+                    glow_color = BUTTON_HOVER_GLOW_DARK
                     
                 # Draw radial gradient
                 pygame.draw.ellipse(glow_surface, glow_color, glow_surface.get_rect())
@@ -108,10 +118,10 @@ class Button:
             surface.blit(self.text_surface, self.text_rect)
         else:
             # Draw traditional button background with rounded corners
-            pygame.draw.rect(surface, self.bg_color, self.rect, border_radius=5)
+            pygame.draw.rect(surface, self.bg_color, self.rect, border_radius=BUTTON_ROUND_CORNER)
             
             # Draw button border with rounded corners
-            pygame.draw.rect(surface, self.border_color, self.rect, 2, border_radius=5)
+            pygame.draw.rect(surface, self.border_color, self.rect, 2, border_radius=BUTTON_ROUND_CORNER)
             
             # Draw button text
             surface.blit(self.text_surface, self.text_rect)
