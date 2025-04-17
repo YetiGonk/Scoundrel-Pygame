@@ -1,10 +1,12 @@
 """ Enhanced Game Manager for the Roguelike version of Scoundrel. """
+from states.title_state import TitleState  # Import the new title state
 from states.menu_state import MenuState
 from states.rules_state import RulesState
 from states.playing_state import PlayingState
 from states.game_over_state import GameOverState
 from states.merchant_state import MerchantState
 from states.floor_start_state import FloorStartState
+from states.delving_deck_state import DelvingDeckState  # Import the new delving deck state
 
 # Import roguelike components
 from floor_manager import FloorManager
@@ -27,13 +29,19 @@ class GameManager:
         
         # Initialize game states
         self.states = {
-            "menu": MenuState(self),
+            "title": TitleState(self),  # New title state
+            "menu": MenuState(self),    # Keep menu state for compatibility
             "rules": RulesState(self),
             "playing": PlayingState(self),
             "game_over": GameOverState(self),
             "merchant": MerchantState(self),
-            "floor_start": FloorStartState(self)
+            "floor_start": FloorStartState(self),
+            "delving_deck": DelvingDeckState(self)  # Add delving deck state
         }
+        
+        # Initialize player deck system
+        self.delving_deck = []  # The cards player brings into dungeons
+        self.card_library = []  # All cards player has collected
         
         self.current_state = None
         self.game_data = {
@@ -50,8 +58,8 @@ class GameManager:
         # Flag to track if coming from merchant room
         self.coming_from_merchant = False
         
-        # Start with the menu state
-        self.change_state("menu")
+        # Start with the new title state
+        self.change_state("title")
     
     def change_state(self, state_name):
         if self.current_state:
@@ -62,6 +70,10 @@ class GameManager:
         if state_name != "playing" and (not self.current_state or not isinstance(self.current_state, MerchantState)):
             self.coming_from_merchant = False
             self.last_card_data = None
+            
+        # Initialize floors when going to title screen if they're not set
+        if state_name == "title" and not self.floor_manager.floors:
+            self.floor_manager.initialize_run()
             
         self.current_state = self.states[state_name]
         self.current_state.enter()
@@ -90,6 +102,9 @@ class GameManager:
         # Clear player items and spells
         self.item_manager.player_items = []
         self.spell_manager.player_spells = []
+        
+        # Reset purchased cards for this run
+        self.purchased_cards = []
         
         # Initialize the floor sequence
         self.floor_manager.initialize_run()

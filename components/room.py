@@ -208,6 +208,7 @@ class Room:
             if card.is_hovered and card.face_up and card.name:
                 self._draw_card_name(surface, card)
                 
-                # Draw hover text if card can be added to inventory
-                if hasattr(card, 'can_add_to_inventory') and card.can_add_to_inventory:
+                # Draw hover text if card can be added to inventory or has attack options
+                if (hasattr(card, 'can_add_to_inventory') and card.can_add_to_inventory) or \
+                   (hasattr(card, 'can_show_attack_options') and card.can_show_attack_options):
                     card.draw_hover_text(surface)

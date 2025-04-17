@@ -19,11 +19,20 @@ class Deck:
         self.texture = pygame.transform.scale(self.texture, (CARD_WIDTH, CARD_HEIGHT))
         self.rect = pygame.Rect(self.position[0], self.position[1], CARD_WIDTH, CARD_HEIGHT)
     
-    def initialise_deck(self):
+    def initialise_deck(self, player_deck=None):
         self.cards = []
+        
+        # First add cards from the floor deck configuration
         for suit in SUITS:
             for value in range(DECK_DICT[self.floor][suit]["lower"], DECK_DICT[self.floor][suit]["upper"]+1):
                 self.cards.append({"suit": suit, "value": value})
+        
+        # Add player's delving deck cards if provided
+        if player_deck:
+            for card_data in player_deck:
+                self.cards.append(card_data)
+                
+        # Shuffle the combined deck
         random.shuffle(self.cards)
         self.initialise_visuals()
     

@@ -39,7 +39,8 @@ class RulesState(GameState):
     
     def handle_event(self, event):
         if event.type == MOUSEBUTTONDOWN and event.button == 1: # left click
-            self.game_manager.change_state("floor_start")
+            # Go back to title screen instead of starting game
+            self.game_manager.change_state("title")
     
     def update(self, delta_time):
         pass

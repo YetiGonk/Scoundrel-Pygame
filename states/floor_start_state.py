@@ -42,9 +42,24 @@ class FloorStartState(GameState):
         if self.background.get_width() != SCREEN_WIDTH or self.background.get_height() != SCREEN_HEIGHT:
             self.background = pygame.transform.scale(self.background, (SCREEN_WIDTH, SCREEN_HEIGHT))
         
-        # Load floor
+        # Load floor based on current floor type
         from constants import FLOOR_WIDTH, FLOOR_HEIGHT
-        self.floor = ResourceLoader.load_image("floor.png")
+        
+        # Get current floor info
+        floor_manager = self.game_manager.floor_manager
+        current_floor_type = floor_manager.get_current_floor()
+        
+        # Use the floor image for the current floor type
+        floor_image = f"floors/{current_floor_type}_floor.png"
+            
+        # Try to load the specific floor image, fall back to original if not found
+        try:
+            self.floor = ResourceLoader.load_image(floor_image)
+        except:
+            # Fallback to the original floor image
+            self.floor = ResourceLoader.load_image("floor.png")
+            
+        # Scale the floor to the correct dimensions
         self.floor = pygame.transform.scale(self.floor, (FLOOR_WIDTH, FLOOR_HEIGHT))
         
         # Get available selections
@@ -198,8 +213,8 @@ class FloorStartState(GameState):
             panel.draw(surface)
         
         # Draw floor title
-        floor_type = self.game_manager.floor_manager.get_current_floor() or "unknown"
-        floor_index = self.game_manager.floor_manager.current_floor_index + 1
+        floor_type = self.game_manager.floor_manager.get_current_floor()
+        floor_index = max(1, self.game_manager.floor_manager.current_floor_index + 1)  # Make sure index is at least 1
         title_text = self.header_font.render(f"Floor {floor_index}: {floor_type.capitalize()}", True, WHITE)
         title_rect = title_text.get_rect(centerx=self.panels["main"].rect.centerx, top=self.panels["main"].rect.top + 20)
         surface.blit(title_text, title_rect)

@@ -10,7 +10,7 @@ from constants import (
 
 class Panel:
     def __init__(self, width_height, top_left, colour=DARK_GRAY, alpha=None, border_radius=None, 
-                 dungeon_style=True, border_width=None, border_color=None):
+                 dungeon_style=True, border_width=None, border_colour=None):
         # Use default values from constants if not provided
         if alpha is None:
             alpha = PANEL_ALPHA
@@ -18,8 +18,8 @@ class Panel:
             border_radius = PANEL_BORDER_RADIUS
         if border_width is None:
             border_width = PANEL_BORDER_WIDTH
-        if border_color is None:
-            border_color = PANEL_DEFAULT_BORDER
+        if border_colour is None:
+            border_colour = PANEL_DEFAULT_BORDER
         self.width_height = width_height
         self.top_left = top_left
         self.rect = pygame.Rect(self.top_left, self.width_height)
@@ -28,7 +28,7 @@ class Panel:
         self.border_radius = border_radius
         self.dungeon_style = dungeon_style
         self.border_width = border_width
-        self.border_color = border_color
+        self.border_colour = border_colour
         
         # Create noise texture once for this panel instance
         self.noise_texture = None
@@ -65,8 +65,8 @@ class Panel:
     def _draw_decorative_border(self, surface, rect, border_radius):
         """Draw a decorative border with corner details for a dungeon feel"""
         # Draw main border
-        darker_border = self._darken_color(self.border_color, 0.5)
-        lighter_border = self._lighten_color(self.border_color, 0.3)
+        darker_border = self._darken_colour(self.border_colour, 0.5)
+        lighter_border = self._lighten_colour(self.border_colour, 0.3)
         
         # Draw border with slight 3D effect (dark outer, light inner)
         pygame.draw.rect(surface, darker_border, rect, 
@@ -117,22 +117,22 @@ class Panel:
         # Apply alpha
         self.surface.set_alpha(self.alpha)
     
-    def _darken_color(self, color, factor=0.7):
-        """Create a darker version of the color"""
-        r, g, b = color[0], color[1], color[2]
+    def _darken_colour(self, colour, factor=0.7):
+        """Create a darker version of the colour"""
+        r, g, b = colour[0], colour[1], colour[2]
         return (int(r * factor), int(g * factor), int(b * factor))
     
-    def _lighten_color(self, color, factor=0.3):
-        """Create a lighter version of the color"""
-        r, g, b = color[0], color[1], color[2]
+    def _lighten_colour(self, colour, factor=0.3):
+        """Create a lighter version of the colour"""
+        r, g, b = colour[0], colour[1], colour[2]
         return (min(255, int(r + (255-r) * factor)),
                 min(255, int(g + (255-g) * factor)),
                 min(255, int(b + (255-b) * factor)))
     
-    def _draw_rounded_rect(self, surface, rect, color, border_radius):
+    def _draw_rounded_rect(self, surface, rect, colour, border_radius):
         """Draw a rectangle with rounded corners"""
         rect_surf = pygame.Surface(rect.size, pygame.SRCALPHA)
-        pygame.draw.rect(rect_surf, color, rect_surf.get_rect(), border_radius=border_radius)
+        pygame.draw.rect(rect_surf, colour, rect_surf.get_rect(), border_radius=border_radius)
         surface.blit(rect_surf, rect.topleft)
     
     def update_position(self, pos):
@@ -158,13 +158,13 @@ class Panel:
         self.border_radius = border_radius
         self._create_surface()
     
-    def update_style(self, dungeon_style, border_width=None, border_color=None):
+    def update_style(self, dungeon_style, border_width=None, border_colour=None):
         """Update the styling options"""
         self.dungeon_style = dungeon_style
         if border_width is not None:
             self.border_width = border_width
-        if border_color is not None:
-            self.border_color = border_color
+        if border_colour is not None:
+            self.border_colour = border_colour
         self._create_surface()
     
     def draw(self, surface):

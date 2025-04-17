@@ -27,8 +27,8 @@ class StatusUI:
         """Draw the status UI with a dungeon-themed panel."""
         # Get current game state info
         floor_manager = self.game_manager.floor_manager
-        current_floor = floor_manager.get_current_floor() or "unknown"
-        current_floor_index = floor_manager.current_floor_index + 1
+        current_floor = floor_manager.get_current_floor()  # Now safely returns "unknown" if needed
+        current_floor_index = max(1, floor_manager.current_floor_index + 1)  # Ensure index is at least 1
         
         # For room count, use the completed_rooms from playing state if available
         playing_state = self.game_manager.states["playing"]
@@ -47,12 +47,12 @@ class StatusUI:
             self.styled_panel = Panel(
                 (self.panel_rect.width, self.panel_rect.height),
                 (self.panel_rect.left, self.panel_rect.top),
-                colour=(70, 60, 45),  # Dark parchment color
+                colour=(70, 60, 45),  # Dark parchment colour
                 alpha=230,
                 border_radius=8,
                 dungeon_style=True,
                 border_width=3,
-                border_color=(110, 90, 50)  # Darker border for scroll-like appearance
+                border_colour=(110, 90, 50)  # Darker border for scroll-like appearance
             )
         
         # Draw the styled panel
@@ -64,8 +64,8 @@ class StatusUI:
         
         # Create a subtle glow behind the text (for magical floors)
         glow_surface = pygame.Surface((floor_text.get_width() + 10, floor_text.get_height() + 10), pygame.SRCALPHA)
-        glow_color = (230, 220, 170, 30)  # Warm parchment glow
-        pygame.draw.ellipse(glow_surface, glow_color, glow_surface.get_rect())
+        glow_colour = (230, 220, 170, 30)  # Warm parchment glow
+        pygame.draw.ellipse(glow_surface, glow_colour, glow_surface.get_rect())
         glow_rect = glow_surface.get_rect(center=floor_rect.center)
         
         # Apply the glow and text

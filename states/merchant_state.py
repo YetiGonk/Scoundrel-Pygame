@@ -113,7 +113,7 @@ class MerchantCharacter:
                 'speed': random.uniform(13, 20),
                 'life': 0,
                 'max_life': random.uniform(3.0, 9.0),
-                'color': (255, 215, random.randint(0, 100), 200)  # Gold-ish with alpha
+                'colour': (255, 215, random.randint(0, 100), 200)  # Gold-ish with alpha
             })
                 
         # Update particles
@@ -135,11 +135,11 @@ class MerchantCharacter:
         for particle in self.particles:
             # Calculate alpha based on life
             alpha = 255 * (1 - particle['life'] / particle['max_life'])
-            color = (particle['color'][0], particle['color'][1], particle['color'][2], alpha)
+            colour = (particle['colour'][0], particle['colour'][1], particle['colour'][2], alpha)
             
             # Create a temporary surface for the particle with alpha
             particle_surf = pygame.Surface((particle['size']*2, particle['size']*2), pygame.SRCALPHA)
-            pygame.draw.circle(particle_surf, color, (particle['size'], particle['size']), particle['size'])
+            pygame.draw.circle(particle_surf, colour, (particle['size'], particle['size']), particle['size'])
             
             # Draw the particle
             surface.blit(particle_surf, (particle['x'] - particle['size'], particle['y'] - particle['size']))
@@ -208,7 +208,7 @@ class MerchantCharacter:
         
         # Draw flame glow (multiple circles with decreasing opacity)
         flame_sizes = [5, 3, 2]
-        flame_colors = [
+        flame_colours = [
             (255, 200, 50, 30),  # outer glow
             (255, 220, 80, 60),  # middle glow
             (255, 240, 120, 120)  # inner glow
@@ -220,7 +220,7 @@ class MerchantCharacter:
             
             # Create a surface with alpha for the glow
             glow_surf = pygame.Surface((int(current_size*2), int(current_size*2)), pygame.SRCALPHA)
-            pygame.draw.circle(glow_surf, flame_colors[i], (int(current_size), int(current_size)), int(current_size))
+            pygame.draw.circle(glow_surf, flame_colours[i], (int(current_size), int(current_size)), int(current_size))
             
             # Draw at the lantern position
             surface.blit(glow_surf, (flame_x - current_size, flame_y - current_size))
@@ -269,9 +269,28 @@ class MerchantState(GameState):
         if self.background.get_width() != SCREEN_WIDTH or self.background.get_height() != SCREEN_HEIGHT:
             self.background = pygame.transform.scale(self.background, (SCREEN_WIDTH, SCREEN_HEIGHT))
         
-        # Load floor
+        # Load floor based on current floor type
         from constants import FLOOR_WIDTH, FLOOR_HEIGHT
-        self.floor = ResourceLoader.load_image("floor.png")
+        
+        # Get current floor info
+        floor_manager = self.game_manager.floor_manager
+        current_floor_type = floor_manager.get_current_floor()
+        
+        # For merchant rooms, use merchant floor image
+        floor_image = "floors/merchant_floor.png"
+            
+        # Try to load the merchant floor image, fall back to floor type or original
+        try:
+            self.floor = ResourceLoader.load_image(floor_image)
+        except:
+            try:
+                # Try loading the current floor type image
+                self.floor = ResourceLoader.load_image(f"floors/{current_floor_type}_floor.png")
+            except:
+                # Fallback to the original floor image
+                self.floor = ResourceLoader.load_image("floor.png")
+            
+        # Scale the floor to the correct dimensions
         self.floor = pygame.transform.scale(self.floor, (FLOOR_WIDTH, FLOOR_HEIGHT))
 
         # Load shade
@@ -341,8 +360,8 @@ class MerchantState(GameState):
             rarity_weights
         )
         
-        # TODO: Implement special cards for sale
-        self.cards_for_sale = []
+        # Generate cards for sale - potions and weapons with higher values
+        self.cards_for_sale = self.generate_cards_for_sale(MERCHANT_INVENTORY["cards"])
     
     def get_rarity_weights_for_floor(self, floor_index):
         """Get adjusted rarity weights based on floor progress."""
@@ -451,9 +470,21 @@ class MerchantState(GameState):
                 70
             )
             
+            # Determine card name based on suit and value
+            suit = card.get('suit', '')
+            value = card.get('value', 0)
+            
+            card_name = ""
+            if suit == "hearts":
+                card_name = f"Healing {value}"
+            elif suit == "diamonds":
+                card_name = f"Weapon {value}"
+            else:
+                card_name = f"Card {value}"
+            
             self.card_buttons.append({
                 "card": card,
-                "button": Button(button_rect, f"Card: {card.get('name', 'Unknown')}", self.normal_font)
+                "button": Button(button_rect, card_name, self.normal_font)
             })
     
     def handle_event(self, event):
@@ -519,12 +550,72 @@ class MerchantState(GameState):
                 # Refresh UI
                 self.create_spell_buttons()
     
+    def generate_cards_for_sale(self, count):
+        """Generate cards for sale in the merchant shop.
+        
+        Args:
+            count: Number of cards to generate
+            
+        Returns:
+            List of card data dictionaries with suit, value, and price
+        """
+        cards = []
+        
+        # Get current floor index to determine card rarity/value
+        floor_index = self.game_manager.floor_manager.current_floor_index
+        
+        # For each card slot:
+        for _ in range(count):
+            # Decide if it's a weapon or potion (50/50 chance)
+            if random.random() < 0.5:
+                # Generate a weapon card (diamonds)
+                suit = "diamonds"
+                # Higher floor index means access to better cards
+                # Values 8-13 (face cards are stronger)
+                min_value = min(8 + floor_index, 12)  # Cap at Queen (12)
+                max_value = min(13, min_value + 3)    # Cap at King (13)
+                value = random.randint(min_value, max_value)
+            else:
+                # Generate a potion card (hearts)
+                suit = "hearts"
+                # Higher floor index means access to better cards
+                # Values 8-13 (face cards heal more)
+                min_value = min(8 + floor_index, 12)  # Cap at Queen (12)
+                max_value = min(14, min_value + 3)    # Cap at Ace (14)
+                value = random.randint(min_value, max_value)
+            
+            # Calculate price based on value (higher value = more expensive)
+            # Base price of 10 gold, +10 per value point above 7
+            price = 10 + ((value - 7) * 10)
+            
+            # Create card data
+            card_data = {
+                "suit": suit,
+                "value": value,
+                "price": price
+            }
+            
+            # Add card to list
+            cards.append(card_data)
+        
+        return cards
+        
     def purchase_card(self, card):
         """Purchase a special card if the player has enough gold."""
         if self.game_manager.player_gold >= card.get("price", 0):
-            # TODO: Implement card purchasing
+            # Deduct gold
             self.game_manager.player_gold -= card.get("price", 0)
+            
+            # Add to player's temporary card collection
+            # This will be added to their library when they complete the floor
+            if not hasattr(self.game_manager, 'purchased_cards'):
+                self.game_manager.purchased_cards = []
+            
+            self.game_manager.purchased_cards.append(card)
+            
+            # Remove from sale
             self.cards_for_sale.remove(card)
+            
             # Refresh UI
             self.create_card_buttons()
             
@@ -566,13 +657,13 @@ class MerchantState(GameState):
         health_percent = playing_state.life_points / playing_state.max_life
         health_width = int(health_bar_width * health_percent)
         
-        # Choose color based on health percentage
+        # Choose colour based on health percentage
         if health_percent > 0.7:
-            health_color = (0, 200, 0)  # Green
+            health_colour = (0, 200, 0)  # Green
         elif health_percent > 0.3:
-            health_color = (255, 165, 0)  # Orange
+            health_colour = (255, 165, 0)  # Orange
         else:
-            health_color = (255, 40, 40)  # Red
+            health_colour = (255, 40, 40)  # Red
         
         # Draw health bar
         if health_width > 0:
@@ -582,7 +673,7 @@ class MerchantState(GameState):
                 health_width,
                 health_bar_height
             )
-            pygame.draw.rect(surface, health_color, health_rect, border_radius=5)
+            pygame.draw.rect(surface, health_colour, health_rect, border_radius=5)
         
         # Add a subtle inner shadow at the top
         shadow_rect = pygame.Rect(
@@ -642,7 +733,7 @@ class MerchantState(GameState):
         icon_width = self.gold_icon.get_width()
         icon_height = self.gold_icon.get_height()
         
-        # Draw gold amount with gold-colored text
+        # Draw gold amount with gold-coloured text
         gold_text = self.body_font.render(f"{self.game_manager.player_gold}", True, (255, 223, 0))  # Gold text
         gold_text_rect = gold_text.get_rect(left=gold_display_x + icon_width + 15, 
             centery=gold_display_y + icon_height//2)

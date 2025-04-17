@@ -83,13 +83,21 @@ class Card:
         self.hover_scale_target = 1.12  # Target scale when hovered (more pronounced)
         self.hover_lift_amount = 15.0  # How much to lift card when hovered (more pronounced)
         
-        # Inventory selection properties (for potions and weapons)
+        # Selection properties (for potions, weapons, and monsters)
         self.can_add_to_inventory = self.type in ["potion", "weapon"]
-        self.hover_selection = None  # "top" for inventory, "bottom" for use
-        self.inventory_color = (128, 0, 128, 100)  # Purple with transparency
-        self.use_color = (255, 165, 0, 100)  # Orange with transparency
+        self.can_show_attack_options = self.type in ["monster"]
+        self.hover_selection = None  # "top" for inventory/weapon, "bottom" for use/bare-handed
+        self.inventory_colour = (128, 0, 128, 100)  # Purple with transparency
+        self.use_colour = (255, 165, 0, 100)  # Orange with transparency
+        self.equip_colour = (0, 255, 0, 100)  # Green with transparency
+        self.weapon_attack_colour = (0, 100, 200, 100)  # Blue with transparency (weapon attack)
+        self.bare_hands_colour = (200, 50, 50, 100)  # Red with transparency (bare-handed attack)
         self.is_selected = False  # Track if the card has been clicked/selected
         self.icon_size = 50  # Size of the selection icons
+        
+        # Flags to track state (will be updated by the playing state)
+        self.weapon_available = False     # For monsters: is weapon equipped?
+        self.inventory_available = True   # For potions/weapons: is there inventory space?
         
         # Special handling for arrow cards (ranged ammo)
         if self.type == "weapon" and self.value == 2:  # 2 of Diamonds is an arrow
@@ -170,20 +178,20 @@ class Card:
         new_surface = pygame.Surface((card_width, card_height), pygame.SRCALPHA)
         new_surface.blit(card_surface, (0, 0))
                 
-        # Load, resize, and recolor monster image
+        # Load, resize, and recolour monster image
         monster_img = ResourceLoader.load_image(monster_image_path, cache=False)
         
         # Scale monster from 32x32 to 96x96
         monster_size = 96
         monster_img = pygame.transform.scale(monster_img, (monster_size, monster_size))
         
-        # Recolor the monster using pygame surfaces
+        # Recolour the monster using pygame surfaces
         monster_surface = pygame.Surface((monster_size, monster_size), pygame.SRCALPHA)
         for y in range(monster_size):
             for x in range(monster_size):
-                color = monster_img.get_at((x, y))
-                # If not transparent (alpha > 0) and not white, apply the suit color
-                if color.r == 255 and color.g == 255 and color.b == 255 and color.a > 0:
+                colour = monster_img.get_at((x, y))
+                # If not transparent (alpha > 0) and not white, apply the suit colour
+                if colour.r == 255 and colour.g == 255 and colour.b == 255 and colour.a > 0:
                     monster_surface.set_at((x, y), pygame.Color(0, 0, 0, 255))
 
         # Calculate center position to place the monster
@@ -439,8 +447,8 @@ class Card:
                 # Convert scaled texture to greyscale and with transparency
                 for x in range(scaled_shadow.get_width()):
                     for y in range(scaled_shadow.get_height()):
-                        color = scaled_shadow.get_at((x, y))
-                        grey = (color[0] + color[1] + color[2]) // 3
+                        colour = scaled_shadow.get_at((x, y))
+                        grey = (colour[0] + colour[1] + colour[2]) // 3
                         scaled_shadow.set_at((x, y), (30, 30, 30, shadow_alpha))  # Dark grey with transparency
                 
                 # Adjust x position to keep shadow centered during scaling
@@ -519,59 +527,138 @@ class Card:
             # Draw the card at the calculated position
             surface.blit(current_texture, (pos_x, pos_y))
             
-            # Draw inventory selection overlay for potion and weapon cards when hovered
-            # Only show split colors if the card hasn't been selected yet
-            if self.face_up and self.can_add_to_inventory and self.is_hovered and not self.is_selected:
-                # Create overlay surfaces for top (inventory) and bottom (use) sections
+            # Draw selection overlay for cards when hovered
+            # Only show split colours if the card hasn't been selected yet
+            if self.face_up and self.is_hovered and not self.is_selected:
+                # Create overlay surfaces for top and bottom sections
                 overlay_width = current_texture.get_width()
                 overlay_height = current_texture.get_height() // 2  # Half height for each section
                 
-                # Create top overlay (purple for inventory)
-                top_overlay = pygame.Surface((overlay_width, overlay_height), pygame.SRCALPHA)
-                top_overlay.fill(self.inventory_color)
+                # Handle inventory/use overlay for potions and weapons
+                if self.can_add_to_inventory:
+                    if hasattr(self, 'inventory_available') and self.inventory_available:
+                        # When inventory has space - show both options
+                        # Create top overlay (purple for inventory)
+                        top_overlay = pygame.Surface((overlay_width, overlay_height), pygame.SRCALPHA)
+                        top_overlay.fill(self.inventory_colour)
+                        
+                        # Create bottom overlay (orange for potions use, green for weapon equip)
+                        bottom_overlay = pygame.Surface((overlay_width, overlay_height), pygame.SRCALPHA)
+                        if self.type == "weapon":
+                            bottom_overlay.fill(self.equip_colour)  # Green for weapon equipping
+                        else:
+                            bottom_overlay.fill(self.use_colour)  # Orange for potion use
+                        
+                        # Highlight the currently hovered section more intensely
+                        top_alpha = 100
+                        bottom_alpha = 100
+                        if self.hover_selection == "top":
+                            # Make the top overlay more opaque
+                            top_alpha = 150
+                            bottom_alpha = 100
+                        elif self.hover_selection == "bottom":
+                            # Make the bottom overlay more opaque
+                            top_alpha = 100
+                            bottom_alpha = 150
+                        
+                        top_overlay.set_alpha(top_alpha)
+                        bottom_overlay.set_alpha(bottom_alpha)
+                        
+                        # Draw the overlays
+                        surface.blit(top_overlay, (pos_x, pos_y))
+                        surface.blit(bottom_overlay, (pos_x, pos_y + overlay_height))
+                        
+                        # Draw icons for inventory and use options
+                        font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 14)
+                        
+                        # 1. Draw inventory bag icon in the top half
+                        bag_icon = pygame.transform.scale(ResourceLoader.load_image("ui/inv.png"), (self.icon_size, self.icon_size))
+                        bag_icon_x = pos_x + (overlay_width - self.icon_size) // 2
+                        bag_icon_y = pos_y + (overlay_height - self.icon_size) // 2
+                        surface.blit(bag_icon, (bag_icon_x, bag_icon_y))
+                        
+                        # 2. Draw hand icon in the bottom half
+                        hand_icon = pygame.transform.scale(ResourceLoader.load_image("ui/hand.png"), (self.icon_size, self.icon_size))
+                        hand_icon_x = pos_x + (overlay_width - self.icon_size) // 2
+                        hand_icon_y = pos_y + overlay_height + (overlay_height - self.icon_size) // 2
+                        surface.blit(hand_icon, (hand_icon_x, hand_icon_y))
+                    else:
+                        # When inventory is full - only show use/equip option
+                        # Create full card overlay for use/equip only
+                        full_overlay = pygame.Surface((overlay_width, overlay_height*2), pygame.SRCALPHA)
+                        
+                        # Choose color based on card type
+                        if self.type == "weapon":
+                            full_overlay.fill(self.equip_colour)  # Green for weapon equipping
+                        else:
+                            full_overlay.fill(self.use_colour)  # Orange for potion use
+                        
+                        # Set opacity
+                        full_overlay.set_alpha(130)
+                        
+                        # Draw the overlay
+                        surface.blit(full_overlay, (pos_x, pos_y))
+                        
+                        # Draw appropriate text centered on card
+                        font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 18)
+                        action_text = "EQUIP" if self.type == "weapon" else "USE"
+                        text = font.render(action_text, True, WHITE)
+                        text_x = pos_x + (overlay_width - text.get_width()) // 2
+                        text_y = pos_y + overlay_height - text.get_height() // 2
+                        surface.blit(text, (text_x, text_y))
+                        
+                        # Draw hand icon centered on card
+                        hand_icon = pygame.transform.scale(ResourceLoader.load_image("ui/hand.png"), (self.icon_size, self.icon_size))
+                        hand_icon_x = pos_x + (overlay_width - self.icon_size) // 2
+                        hand_icon_y = pos_y + overlay_height - self.icon_size - 8
+                        surface.blit(hand_icon, (hand_icon_x, hand_icon_y))
                 
-                # Create bottom overlay (orange for use)
-                bottom_overlay = pygame.Surface((overlay_width, overlay_height), pygame.SRCALPHA)
-                bottom_overlay.fill(self.use_color)
-                
-                # Highlight the currently hovered section more intensely
-                top_alpha = 100
-                bottom_alpha = 100
-                if self.hover_selection == "top":
-                    # Make the top overlay more opaque
-                    top_alpha = 150
-                    bottom_alpha = 100
-                elif self.hover_selection == "bottom":
-                    # Make the bottom overlay more opaque
-                    top_alpha = 100
-                    bottom_alpha = 150
-                
-                top_overlay.set_alpha(top_alpha)
-                bottom_overlay.set_alpha(bottom_alpha)
-                
-                # Draw the overlays
-                surface.blit(top_overlay, (pos_x, pos_y))
-                surface.blit(bottom_overlay, (pos_x, pos_y + overlay_height))
-                
-                # Draw icons for inventory and use options
-                font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 14)
-                
-                # 1. Draw inventory bag icon in the top half
-                bag_icon = pygame.transform.scale(ResourceLoader.load_image("ui/inv.png"), (self.icon_size, self.icon_size))
-                bag_icon_x = pos_x + (overlay_width - self.icon_size) // 2
-                bag_icon_y = pos_y + (overlay_height - self.icon_size) // 2
-                surface.blit(bag_icon, (bag_icon_x, bag_icon_y))
-                
-                # 2. Draw hand icon in the bottom half
-                hand_icon = pygame.transform.scale(ResourceLoader.load_image("ui/hand.png"), (self.icon_size, self.icon_size))
-                hand_icon_x = pos_x + (overlay_width - self.icon_size) // 2
-                hand_icon_y = pos_y + overlay_height + (overlay_height - self.icon_size) // 2
-                surface.blit(hand_icon, (hand_icon_x, hand_icon_y))
+                # Handle weapon/bare-handed attack overlay for monsters
+                elif self.can_show_attack_options:
+                    # If we have a weapon equipped, show both options
+                    if self.weapon_available:
+                        # Create top overlay (blue for weapon attack)
+                        top_overlay = pygame.Surface((overlay_width, overlay_height), pygame.SRCALPHA)
+                        top_overlay.fill(self.weapon_attack_colour)
+                        
+                        # Create bottom overlay (red for bare-handed attack)
+                        bottom_overlay = pygame.Surface((overlay_width, overlay_height), pygame.SRCALPHA)
+                        bottom_overlay.fill(self.bare_hands_colour)
+                        
+                        # Highlight the currently hovered section more intensely
+                        top_alpha = 100
+                        bottom_alpha = 100
+                        if self.hover_selection == "top":
+                            # Make the top overlay more opaque
+                            top_alpha = 150
+                            bottom_alpha = 100
+                        elif self.hover_selection == "bottom":
+                            # Make the bottom overlay more opaque
+                            top_alpha = 100
+                            bottom_alpha = 150
+                        
+                        top_overlay.set_alpha(top_alpha)
+                        bottom_overlay.set_alpha(bottom_alpha)
+                        
+                        # Draw the overlays
+                        surface.blit(top_overlay, (pos_x, pos_y))
+                        surface.blit(bottom_overlay, (pos_x, pos_y + overlay_height))
+                    else:
+                        # No weapon equipped - show only bare hands option on the entire card
+                        full_overlay = pygame.Surface((overlay_width, overlay_height*2), pygame.SRCALPHA)
+                        full_overlay.fill(self.bare_hands_colour)
+                        full_overlay.set_alpha(120)  # Slightly more transparent
+                        
+                        # Draw the overlay
+                        surface.blit(full_overlay, (pos_x, pos_y))
 
     def draw_hover_text(self, surface):
         """Draw hover action text to the right of the card"""
         # Don't show the hover text for cards in inventory
-        if not self.face_up or not self.can_add_to_inventory or not self.is_hovered or not self.hover_selection or (hasattr(self, 'in_inventory') and self.in_inventory):
+        show_for_inventory = self.face_up and self.can_add_to_inventory and self.is_hovered and self.hover_selection
+        show_for_monster = self.face_up and self.can_show_attack_options and self.is_hovered and self.hover_selection
+        
+        if not (show_for_inventory or show_for_monster) or (hasattr(self, 'in_inventory') and self.in_inventory):
             return
             
         font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 14)
@@ -590,38 +677,115 @@ class Card:
         pos_y = center_y - current_texture.get_height() / 2 - total_float_offset
             
         # Draw text and background based on hover selection
-        if self.hover_selection == "top":
-            # Show "INVENTORY" text
-            bag_text = font.render("INVENTORY", True, WHITE)
-            
-            # Create background for the text
-            text_bg = pygame.Surface((bag_text.get_width() + 10, bag_text.get_height() + 6), pygame.SRCALPHA)
-            text_bg.fill((0, 0, 0, 220))  # More opaque black background to stand out
-            
-            # Position text to the right of the card
-            text_bg_x = pos_x + overlay_width + 5
-            text_bg_y = pos_y + (self.height // 4) - (text_bg.get_height() // 2)
-            
-            # Draw background and text
-            surface.blit(text_bg, (text_bg_x, text_bg_y))
-            surface.blit(bag_text, (text_bg_x + 5, text_bg_y + 3))
-            
-        elif self.hover_selection == "bottom":
-            # Show appropriate action text
-            action_text = "EQUIP" if self.type == "weapon" else "USE"
-            hand_text = font.render(action_text, True, WHITE)
-            
-            # Create background for the text
-            text_bg = pygame.Surface((hand_text.get_width() + 10, hand_text.get_height() + 6), pygame.SRCALPHA)
-            text_bg.fill((0, 0, 0, 220))  # More opaque black background
-            
-            # Position text to the right of the card
-            text_bg_x = pos_x + overlay_width + 5
-            text_bg_y = pos_y + (self.height * 3 // 4) - (text_bg.get_height() // 2)
-            
-            # Draw background and text
-            surface.blit(text_bg, (text_bg_x, text_bg_y))
-            surface.blit(hand_text, (text_bg_x + 5, text_bg_y + 3))
+        if self.can_add_to_inventory:
+            # Handle inventory/use labels for potions and weapons
+            if hasattr(self, 'inventory_available') and self.inventory_available:
+                # When inventory has space, show both options depending on hover position
+                if self.hover_selection == "top":
+                    # Show "INVENTORY" text
+                    bag_text = font.render("INVENTORY", True, WHITE)
+                    
+                    # Create background for the text
+                    text_bg = pygame.Surface((bag_text.get_width() + 10, bag_text.get_height() + 6), pygame.SRCALPHA)
+                    text_bg.fill((0, 0, 0, 220))  # More opaque black background to stand out
+                    
+                    # Position text to the right of the card
+                    text_bg_x = pos_x + overlay_width + 5
+                    text_bg_y = pos_y + (self.height // 4) - (text_bg.get_height() // 2)
+                    
+                    # Draw background and text
+                    surface.blit(text_bg, (text_bg_x, text_bg_y))
+                    surface.blit(bag_text, (text_bg_x + 5, text_bg_y + 3))
+    
+                elif self.hover_selection == "bottom":
+                    # Show appropriate action text
+                    action_text = "EQUIP" if self.type == "weapon" else "USE"
+                    hand_text = font.render(action_text, True, WHITE)
+                    
+                    # Create background for the text
+                    text_bg = pygame.Surface((hand_text.get_width() + 10, hand_text.get_height() + 6), pygame.SRCALPHA)
+                    if self.type == "weapon":
+                        text_bg.fill((0, 120, 0, 220))  # Green background for equipping
+                    else:
+                        text_bg.fill((0, 0, 0, 220))  # More opaque black background
+                    
+                    # Position text to the right of the card
+                    text_bg_x = pos_x + overlay_width + 5
+                    text_bg_y = pos_y + (self.height * 3 // 4) - (text_bg.get_height() // 2)
+                    
+                    # Draw background and text
+                    surface.blit(text_bg, (text_bg_x, text_bg_y))
+                    surface.blit(hand_text, (text_bg_x + 5, text_bg_y + 3))
+            else:
+                # When inventory is full, show only use/equip option
+                action_text = "EQUIP" if self.type == "weapon" else "USE"
+                hand_text = font.render(action_text, True, WHITE)
+                
+                # Create background for the text
+                text_bg = pygame.Surface((hand_text.get_width() + 10, hand_text.get_height() + 6), pygame.SRCALPHA)
+                if self.type == "weapon":
+                    text_bg.fill((0, 120, 0, 220))  # Green background for equipping
+                else:
+                    text_bg.fill((0, 0, 0, 220))  # More opaque black background
+                
+                # Position text to the right of the card
+                text_bg_x = pos_x + overlay_width + 5
+                text_bg_y = pos_y + (self.height // 2) - (text_bg.get_height() // 2)  # Center vertically
+                
+                # Draw background and text
+                surface.blit(text_bg, (text_bg_x, text_bg_y))
+                surface.blit(hand_text, (text_bg_x + 5, text_bg_y + 3))
+                
+        elif self.can_show_attack_options:
+            # Handle attack option labels for monsters
+            if self.weapon_available:
+                # With weapon available, show both options
+                if self.hover_selection == "top":
+                    # Show "WEAPON ATTACK" text
+                    weapon_text = font.render("WEAPON ATTACK", True, WHITE)
+                    
+                    # Create background for the text
+                    text_bg = pygame.Surface((weapon_text.get_width() + 10, weapon_text.get_height() + 6), pygame.SRCALPHA)
+                    text_bg.fill((0, 0, 0, 220))  # More opaque black background
+                    
+                    # Position text to the right of the card
+                    text_bg_x = pos_x + overlay_width + 5
+                    text_bg_y = pos_y + (self.height // 4) - (text_bg.get_height() // 2)
+                    
+                    # Draw background and text
+                    surface.blit(text_bg, (text_bg_x, text_bg_y))
+                    surface.blit(weapon_text, (text_bg_x + 5, text_bg_y + 3))
+                    
+                elif self.hover_selection == "bottom":
+                    # Show "BARE HANDS" text
+                    bare_text = font.render("BARE HANDS", True, WHITE)
+                    
+                    # Create background for the text with warning
+                    text_bg = pygame.Surface((bare_text.get_width() + 10, bare_text.get_height() + 6), pygame.SRCALPHA)
+                    text_bg.fill((160, 0, 0, 220))  # Red background for warning
+                    
+                    # Position text to the right of the card
+                    text_bg_x = pos_x + overlay_width + 5
+                    text_bg_y = pos_y + (self.height * 3 // 4) - (text_bg.get_height() // 2)
+                    
+                    # Draw background and text
+                    surface.blit(text_bg, (text_bg_x, text_bg_y))
+                    surface.blit(bare_text, (text_bg_x + 5, text_bg_y + 3))
+            else:
+                # No weapon available - show only bare hands option
+                bare_text = font.render("BARE HANDS ONLY", True, WHITE)
+                
+                # Create background for the text with warning
+                text_bg = pygame.Surface((bare_text.get_width() + 10, bare_text.get_height() + 6), pygame.SRCALPHA)
+                text_bg.fill((160, 0, 0, 220))  # Red background for warning
+                
+                # Position text to the right of the card (centered vertically)
+                text_bg_x = pos_x + overlay_width + 5
+                text_bg_y = pos_y + (self.height // 2) - (text_bg.get_height() // 2)
+                
+                # Draw background and text
+                surface.blit(text_bg, (text_bg_x, text_bg_y))
+                surface.blit(bare_text, (text_bg_x + 5, text_bg_y + 3))
     
     def check_hover(self, mouse_pos):
         previous_hover = self.is_hovered
@@ -651,15 +815,33 @@ class Card:
             self.is_hovered = self.rect.collidepoint(mouse_pos)
         
         # Determine which part of the card is being hovered (top or bottom)
-        if self.is_hovered and self.face_up and self.can_add_to_inventory:
+        if self.is_hovered and self.face_up:
             # Calculate the mid-point of the card height
             card_midpoint_y = self.rect.y + self.rect.height / 2
             
             # Check if mouse is in top or bottom half
-            if mouse_pos[1] < card_midpoint_y:
-                self.hover_selection = "top"  # Inventory (purple)
-            else:
-                self.hover_selection = "bottom"  # Use (orange)
+            if self.can_add_to_inventory:
+                # For potions and weapons
+                if hasattr(self, 'inventory_available') and self.inventory_available:
+                    # When inventory has space, show both options
+                    if mouse_pos[1] < card_midpoint_y:
+                        self.hover_selection = "top"  # Inventory (purple)
+                    else:
+                        self.hover_selection = "bottom"  # Use (orange)
+                else:
+                    # When inventory is full, always use "bottom" (use/equip)
+                    self.hover_selection = "bottom"  # Always use/equip
+            elif self.can_show_attack_options:
+                # For monsters
+                if self.weapon_available:
+                    # When weapon is available, show both options
+                    if mouse_pos[1] < card_midpoint_y:
+                        self.hover_selection = "top"  # Weapon attack (blue)
+                    else:
+                        self.hover_selection = "bottom"  # Bare hands (red)
+                else:
+                    # When no weapon is available, always use "bottom" (bare hands)
+                    self.hover_selection = "bottom"  # Always bare hands
             
         # Return true if either the hover state or the selection changed
         return previous_hover != self.is_hovered or previous_selection != self.hover_selection

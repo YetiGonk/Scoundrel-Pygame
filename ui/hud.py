@@ -130,32 +130,32 @@ class HUD:
             # Effect rect
             effect_rect = pygame.Rect(x, y, self.effect_icon_size, self.effect_icon_size)
             
-            # Choose color based on effect type
-            effect_color = EFFECT_DEFAULT_COLOR  # Default
+            # Choose colour based on effect type
+            effect_colour = EFFECT_DEFAULT_COLOR  # Default
             if effect['type'] == 'shield':
-                effect_color = EFFECT_SHIELD_COLOR
-                panel_color = EFFECT_SHIELD_PANEL
-                border_color = EFFECT_SHIELD_BORDER
+                effect_colour = EFFECT_SHIELD_COLOR
+                panel_colour = EFFECT_SHIELD_PANEL
+                border_colour = EFFECT_SHIELD_BORDER
                 icon_symbol = "✦"  # Star/Shield symbol
             elif effect['type'] == 'healing':
-                effect_color = EFFECT_HEALING_COLOR
-                panel_color = EFFECT_HEALING_PANEL
-                border_color = EFFECT_HEALING_BORDER
+                effect_colour = EFFECT_HEALING_COLOR
+                panel_colour = EFFECT_HEALING_PANEL
+                border_colour = EFFECT_HEALING_BORDER
                 icon_symbol = "+"  # Plus/healing symbol
             elif effect['type'] == 'damage':
-                effect_color = EFFECT_DAMAGE_COLOR
-                panel_color = EFFECT_DAMAGE_PANEL
-                border_color = EFFECT_DAMAGE_BORDER
+                effect_colour = EFFECT_DAMAGE_COLOR
+                panel_colour = EFFECT_DAMAGE_PANEL
+                border_colour = EFFECT_DAMAGE_BORDER
                 icon_symbol = "⚔"  # Sword symbol
             elif effect['type'] == 'gold':
-                effect_color = EFFECT_GOLD_COLOR
-                panel_color = EFFECT_GOLD_PANEL
-                border_color = EFFECT_GOLD_BORDER
+                effect_colour = EFFECT_GOLD_COLOR
+                panel_colour = EFFECT_GOLD_PANEL
+                border_colour = EFFECT_GOLD_BORDER
                 icon_symbol = "⚜"  # Gold symbol
             else:
-                effect_color = EFFECT_DEFAULT_COLOR
-                panel_color = EFFECT_DEFAULT_PANEL
-                border_color = EFFECT_DEFAULT_BORDER
+                effect_colour = EFFECT_DEFAULT_COLOR
+                panel_colour = EFFECT_DEFAULT_PANEL
+                border_colour = EFFECT_DEFAULT_BORDER
                 icon_symbol = "◆"  # Default diamond symbol
             
             # Draw effect icon with panel if available
@@ -164,12 +164,12 @@ class HUD:
                 effect_panel = Panel(
                     (self.effect_icon_size, self.effect_icon_size),
                     (x, y),
-                    colour=panel_color,
+                    colour=panel_colour,
                     alpha=PANEL_ALPHA,
                     border_radius=PANEL_BORDER_RADIUS - 2,  # Slightly smaller for effect panels
                     dungeon_style=True,
                     border_width=PANEL_BORDER_WIDTH,
-                    border_color=border_color
+                    border_colour=border_colour
                 )
                 effect_panel.draw(surface)
                 
@@ -194,7 +194,7 @@ class HUD:
                 # Draw outer glow
                 for r in range(glow_radius, 0, -1):
                     alpha = max(0, 150 - (glow_radius - r) * 20)
-                    pygame.draw.circle(surface, (*effect_color, alpha), 
+                    pygame.draw.circle(surface, (*effect_colour, alpha), 
                                      (center_x, center_y), r)
                                      
                 # Draw icon symbol in the center
@@ -204,7 +204,7 @@ class HUD:
                 surface.blit(symbol_text, symbol_rect)
             else:
                 # Fallback to simple rectangles if Panel isn't available
-                pygame.draw.rect(surface, effect_color, effect_rect)
+                pygame.draw.rect(surface, effect_colour, effect_rect)
                 pygame.draw.rect(surface, BLACK, effect_rect, 2)
             
             # Draw value if available
@@ -271,7 +271,7 @@ class HUD:
             try:
                 from ui.panel import Panel
                 
-                # Use a treasure chest color scheme
+                # Use a treasure chest colour scheme
                 self.gold_panel = Panel(
                     (gold_bar_width, gold_bar_height),
                     (x, y),
@@ -280,7 +280,7 @@ class HUD:
                     border_radius=PANEL_BORDER_RADIUS,
                     dungeon_style=True,
                     border_width=PANEL_BORDER_WIDTH,
-                    border_color=PANEL_WOODEN_BORDER
+                    border_colour=PANEL_WOODEN_BORDER
                 )
                 
                 # Store gold icon position for particle effects
@@ -346,12 +346,12 @@ class HUD:
             alpha = 255 - int(255 * (current_time - self.gold_change_time) / GOLD_CHANGE_DURATION)  # Fade out
             y_offset = int(15 * (current_time - self.gold_change_time) / GOLD_CHANGE_DURATION)  # Float up
             
-            # Create change text with appropriate color
+            # Create change text with appropriate colour
             change_prefix = "+" if self.gold_change_amount > 0 else ""
-            change_color = (50, 205, 50) if self.gold_change_amount > 0 else (220, 20, 60)
+            change_colour = (50, 205, 50) if self.gold_change_amount > 0 else (220, 20, 60)
             
             # Create a text surface
-            change_text = self.normal_font.render(f"{change_prefix}{self.gold_change_amount}", True, change_color)
+            change_text = self.normal_font.render(f"{change_prefix}{self.gold_change_amount}", True, change_colour)
             
             # Create a surface with per-pixel alpha
             text_surface = pygame.Surface(change_text.get_size(), pygame.SRCALPHA)
@@ -398,23 +398,23 @@ class HUD:
             if particle['alpha'] <= 0:
                 continue
                 
-            # Calculate particle color with alpha
-            gold_color = (255, 223, 0, min(255, int(particle['alpha'])))
+            # Calculate particle colour with alpha
+            gold_colour = (255, 223, 0, min(255, int(particle['alpha'])))
             
             # Draw the particle
             pygame.draw.circle(
                 surface, 
-                gold_color, 
+                gold_colour, 
                 (int(particle['x']), int(particle['y'])), 
                 particle['size']
             )
             
             # Add highlight to some particles for sparkle effect
             if random.random() < 0.3:  # 30% chance
-                highlight_color = (255, 255, 230, min(200, int(particle['alpha'])))
+                highlight_colour = (255, 255, 230, min(200, int(particle['alpha'])))
                 pygame.draw.circle(
                     surface, 
-                    highlight_color, 
+                    highlight_colour, 
                     (int(particle['x'] - 1), int(particle['y'] - 1)), 
                     max(1, particle['size'] // 2)
                 )
@@ -456,7 +456,7 @@ class HUD:
             try:
                 from ui.panel import Panel
                 
-                # Use a blood/potion themed color scheme
+                # Use a blood/potion themed colour scheme
                 self.health_panel = Panel(
                     (bar_width, bar_height),
                     (x, y),
@@ -465,7 +465,7 @@ class HUD:
                     border_radius=PANEL_BORDER_RADIUS,
                     dungeon_style=True,
                     border_width=PANEL_BORDER_WIDTH,
-                    border_color=PANEL_HEALTH_BORDER
+                    border_colour=PANEL_HEALTH_BORDER
                 )
             except ImportError:
                 # Fallback if Panel isn't available
@@ -475,16 +475,16 @@ class HUD:
         health_percent = playing_state.life_points / playing_state.max_life
         health_width = int((bar_width - 10) * health_percent)  # Leave margin for styling
         
-        # Choose color based on health percentage
+        # Choose colour based on health percentage
         if health_percent > 0.7:
-            health_color = HEALTH_COLOR_GOOD
-            glow_color = HEALTH_GLOW_GOOD
+            health_colour = HEALTH_COLOR_GOOD
+            glow_colour = HEALTH_GLOW_GOOD
         elif health_percent > 0.3:
-            health_color = HEALTH_COLOR_WARNING
-            glow_color = HEALTH_GLOW_WARNING
+            health_colour = HEALTH_COLOR_WARNING
+            glow_colour = HEALTH_GLOW_WARNING
         else:
-            health_color = HEALTH_COLOR_DANGER
-            glow_color = HEALTH_GLOW_DANGER
+            health_colour = HEALTH_COLOR_DANGER
+            glow_colour = HEALTH_GLOW_DANGER
             
         # Draw the panel for health bar container
         if self.health_panel:
@@ -495,17 +495,17 @@ class HUD:
             
             # Draw glow effect for health bar
             glow_surface = pygame.Surface((health_width + 10, bar_height), pygame.SRCALPHA)
-            pygame.draw.rect(glow_surface, glow_color, 
+            pygame.draw.rect(glow_surface, glow_colour, 
                           (5, 0, health_width, bar_height - 10), border_radius=4)
             surface.blit(glow_surface, (x, y))
             
             # Draw the actual health bar
-            pygame.draw.rect(surface, health_color, health_rect, border_radius=4)
+            pygame.draw.rect(surface, health_colour, health_rect, border_radius=4)
             
             # Add highlight to top of health bar for 3D effect
             if health_width > 4:
-                highlight_color = self._lighten_color(health_color, 0.3)
-                pygame.draw.rect(surface, highlight_color, 
+                highlight_colour = self._lighten_colour(health_colour, 0.3)
+                pygame.draw.rect(surface, highlight_colour, 
                               (x + 5, y + 5, health_width, 2), border_radius=2)
         else:
             # Fallback to simpler rendering
@@ -513,18 +513,18 @@ class HUD:
             pygame.draw.rect(surface, GRAY, bg_rect, border_radius=5)
             
             health_rect = pygame.Rect(x, y, health_width, bar_height)
-            pygame.draw.rect(surface, health_color, health_rect, border_radius=5)
+            pygame.draw.rect(surface, health_colour, health_rect, border_radius=5)
             pygame.draw.rect(surface, BLACK, bg_rect, 2, border_radius=5)
         
-        # Draw health value with appropriate color based on health status
-        text_color = WHITE
-        health_text = self.normal_font.render(f"{playing_state.life_points}/{playing_state.max_life}", True, text_color)
+        # Draw health value with appropriate colour based on health status
+        text_colour = WHITE
+        health_text = self.normal_font.render(f"{playing_state.life_points}/{playing_state.max_life}", True, text_colour)
         health_text_rect = health_text.get_rect(center=(x + bar_width//2, y + bar_height//2))
         surface.blit(health_text, health_text_rect)
     
-    def _lighten_color(self, color, factor=0.3):
-        """Create a lighter version of the color"""
-        r, g, b = color[0], color[1], color[2]
+    def _lighten_colour(self, colour, factor=0.3):
+        """Create a lighter version of the colour"""
+        r, g, b = colour[0], colour[1], colour[2]
         return (min(255, int(r + (255-r) * factor)),
                 min(255, int(g + (255-g) * factor)),
                 min(255, int(b + (255-b) * factor)))
@@ -571,11 +571,11 @@ class HUD:
             end_x = center_x + int((rune_radius - dash_length) * math.cos(angle))
             end_y = center_y + int((rune_radius - dash_length) * math.sin(angle))
             
-            # Vary color slightly for visual interest
+            # Vary colour slightly for visual interest
             rune_alpha = 150 + int(50 * math.sin((time_ms / 200) + i))
-            rune_color = (180, 200, 255, rune_alpha)
+            rune_colour = (180, 200, 255, rune_alpha)
             
-            pygame.draw.line(shield_surface, rune_color, (start_x, start_y), (end_x, end_y), 2)
+            pygame.draw.line(shield_surface, rune_colour, (start_x, start_y), (end_x, end_y), 2)
         
         # Draw shield particles for magical effect (occasional sparks)
         if random.random() < SHIELD_SPARK_CHANCE:  # Random chance per frame
@@ -615,7 +615,7 @@ class HUD:
             border_radius=PANEL_BORDER_RADIUS,
             dungeon_style=True,
             border_width=PANEL_BORDER_WIDTH,
-            border_color=PANEL_SHIELD_BORDER
+            border_colour=PANEL_SHIELD_BORDER
         )
         shield_panel.draw(surface)
         

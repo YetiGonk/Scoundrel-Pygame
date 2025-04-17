@@ -98,7 +98,7 @@ class DestructionAnimation(Animation):
             self.slash_angle = random.randint(25, 65)
             self.slash_direction = 1 if random.random() > 0.5 else -1
             self.slash_width = 4
-            self.slash_color = (200, 200, 200)  # Silver/grey color for sword
+            self.slash_colour = (200, 200, 200)  # Silver/grey colour for sword
             
         elif effect_type == "burn":
             # Create particles for burning effect
@@ -108,7 +108,7 @@ class DestructionAnimation(Animation):
                     'y': random.randint(0, target_object.rect.height),
                     'size': random.randint(3, 8),
                     'speed_y': -random.random() * 2 - 1,
-                    'color': (
+                    'colour': (
                         random.randint(200, 255),  # Red
                         random.randint(50, 150),   # Green
                         0                          # Blue
@@ -125,7 +125,7 @@ class DestructionAnimation(Animation):
                     'speed_x': (random.random() - 0.5) * 6,
                     'speed_y': (random.random() - 0.5) * 6,
                     'rotation': random.randint(0, 360),
-                    'color': (100, 200, 255)  # Light blue for shatter
+                    'colour': (100, 200, 255)  # Light blue for shatter
                 })
     
     def draw(self, surface):
@@ -166,7 +166,7 @@ class DestructionAnimation(Animation):
                 # Draw the slash line
                 pygame.draw.line(
                     surface, 
-                    self.slash_color,
+                    self.slash_colour,
                     (start_x, start_y),
                     (end_x, end_y),
                     self.slash_width
@@ -285,7 +285,7 @@ class DestructionAnimation(Animation):
                     if size > 0:
                         pygame.draw.circle(
                             surface,
-                            particle['color'],
+                            particle['colour'],
                             (
                                 int(self.target_object.rect.x + particle['x']),
                                 int(self.target_object.rect.y + particle['y'] + progress * 40 * particle['speed_y'])
@@ -308,7 +308,7 @@ class DestructionAnimation(Animation):
                     if size > 0:
                         pygame.draw.circle(
                             surface,
-                            particle['color'],
+                            particle['colour'],
                             (
                                 int(self.target_object.rect.x + particle['x']),
                                 int(self.target_object.rect.y + particle['y'] - burn_progress * 60)
@@ -323,10 +323,10 @@ class DestructionAnimation(Animation):
                     alpha = int(255 * (1 - fade_progress))
                     if alpha > 0:
                         particle_surface = pygame.Surface((particle['size']*2, particle['size']*2), pygame.SRCALPHA)
-                        color_with_alpha = (particle['color'][0], particle['color'][1], particle['color'][2], alpha)
+                        colour_with_alpha = (particle['colour'][0], particle['colour'][1], particle['colour'][2], alpha)
                         pygame.draw.circle(
                             particle_surface,
-                            color_with_alpha,
+                            colour_with_alpha,
                             (particle['size'], particle['size']),
                             particle['size']
                         )
@@ -376,7 +376,7 @@ class DestructionAnimation(Animation):
                         fragment = pygame.Surface((size, size), pygame.SRCALPHA)
                         pygame.draw.rect(
                             fragment,
-                            particle['color'],
+                            particle['colour'],
                             pygame.Rect(0, 0, size, size)
                         )
                         
@@ -429,7 +429,7 @@ class MaterializeAnimation(Animation):
                     'size': random.randint(2, 5),
                     'speed': random.random() * 2 + 1,
                     'angle': random.random() * 360,
-                    'color': (
+                    'colour': (
                         random.randint(200, 255),  # R
                         random.randint(200, 255),  # G
                         random.randint(100, 200)   # B
@@ -475,7 +475,7 @@ class MaterializeAnimation(Animation):
                 if size > 0:
                     pygame.draw.circle(
                         surface,
-                        particle['color'],
+                        particle['colour'],
                         (int(x), int(y)),
                         int(size)
                     )
@@ -531,16 +531,16 @@ class HealthChangeAnimation(Animation):
             scale = 1.2 - fade_progress * 0.2
             alpha = int(255 * (1 - fade_progress))
         
-        # Choose color based on damage/healing
+        # Choose colour based on damage/healing
         if self.is_damage:
-            color = (255, 80, 80)  # Red for damage
+            colour = (255, 80, 80)  # Red for damage
             text_prefix = "-"
         else:
-            color = (80, 255, 80)  # Green for healing
+            colour = (80, 255, 80)  # Green for healing
             text_prefix = "+"
             
         # Render text with proper prefix
-        text = self.font.render(f"{text_prefix}{abs(self.amount)}", True, color)
+        text = self.font.render(f"{text_prefix}{abs(self.amount)}", True, colour)
         
         # Scale text
         if scale != 1.0:
@@ -578,9 +578,9 @@ class HealthChangeAnimation(Animation):
                 continue
                 
             # Draw particle
-            particle_color = color + (particle_alpha,)  # Add alpha as 4th component
+            particle_colour = colour + (particle_alpha,)  # Add alpha as 4th component
             particle_surface = pygame.Surface((particle_size*2, particle_size*2), pygame.SRCALPHA)
-            pygame.draw.circle(particle_surface, particle_color, (particle_size, particle_size), particle_size)
+            pygame.draw.circle(particle_surface, particle_colour, (particle_size, particle_size), particle_size)
             surface.blit(particle_surface, (particle_x - particle_size, particle_y - particle_size))
 
 
@@ -624,16 +624,16 @@ class GoldChangeAnimation(Animation):
             scale = 1.2 - fade_progress * 0.2
             alpha = int(255 * (1 - fade_progress))
         
-        # Choose color based on loss/gain
+        # Choose colour based on loss/gain
         if self.is_loss:
-            color = (255, 80, 80)  # Red for loss
+            colour = (255, 80, 80)  # Red for loss
             text_prefix = "-"
         else:
-            color = (255, 215, 0)  # Gold color for gain
+            colour = (255, 215, 0)  # Gold colour for gain
             text_prefix = "+"
             
         # Render text with proper prefix
-        text = self.font.render(f"{text_prefix}{abs(self.amount)}", True, color)
+        text = self.font.render(f"{text_prefix}{abs(self.amount)}", True, colour)
         
         # Scale text
         if scale != 1.0:
@@ -673,17 +673,17 @@ class GoldChangeAnimation(Animation):
             # Draw gold coin particle
             if not self.is_loss:
                 # Draw gold coin
-                particle_color = (255, 215, 0, particle_alpha)  # Gold with alpha
-                border_color = (184, 134, 11, particle_alpha)  # Darker gold border with alpha
+                particle_colour = (255, 215, 0, particle_alpha)  # Gold with alpha
+                border_colour = (184, 134, 11, particle_alpha)  # Darker gold border with alpha
                 
                 particle_surface = pygame.Surface((particle_size*2, particle_size*2), pygame.SRCALPHA)
-                pygame.draw.circle(particle_surface, particle_color, (particle_size, particle_size), particle_size)
-                pygame.draw.circle(particle_surface, border_color, (particle_size, particle_size), particle_size, 1)
+                pygame.draw.circle(particle_surface, particle_colour, (particle_size, particle_size), particle_size)
+                pygame.draw.circle(particle_surface, border_colour, (particle_size, particle_size), particle_size, 1)
             else:
                 # For loss, use simple red particles
-                particle_color = color + (particle_alpha,)  # Add alpha as 4th component
+                particle_colour = colour + (particle_alpha,)  # Add alpha as 4th component
                 particle_surface = pygame.Surface((particle_size*2, particle_size*2), pygame.SRCALPHA)
-                pygame.draw.circle(particle_surface, particle_color, (particle_size, particle_size), particle_size)
+                pygame.draw.circle(particle_surface, particle_colour, (particle_size, particle_size), particle_size)
                 
             surface.blit(particle_surface, (particle_x - particle_size, particle_y - particle_size))
 

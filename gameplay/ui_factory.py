@@ -16,7 +16,7 @@ class UIFactory:
     
     def create_item_spell_panels(self):
         """Create panels for displaying items and spells."""
-        # Dungeon-themed colors
+        # Dungeon-themed colours
         dark_parchment = (60, 45, 35)  # For panel backgrounds
         wood_border = (95, 65, 35)     # For panel borders
         
@@ -30,22 +30,22 @@ class UIFactory:
             border_radius=8,
             dungeon_style=True,
             border_width=3,
-            border_color=wood_border
+            border_colour=wood_border
         )
 
         # Spell panel (right side) - slightly more blue tint for magical feel
         spell_panel_rect = pygame.Rect(SPELL_PANEL_POSITION, (SPELL_PANEL_WIDTH, SPELL_PANEL_HEIGHT))
-        spell_bg_color = (50, 50, 65)  # Slightly blueish for magical theme
+        spell_bg_colour = (50, 50, 65)  # Slightly blueish for magical theme
         spell_border = (65, 65, 95)    # Slightly blue-tinted border
         self.playing_state.spell_panel = Panel(
             (spell_panel_rect.width, spell_panel_rect.height),
             (spell_panel_rect.left, spell_panel_rect.top),
-            colour=spell_bg_color,
+            colour=spell_bg_colour,
             alpha=210,
             border_radius=8,
             dungeon_style=True,
             border_width=3,
-            border_color=spell_border
+            border_colour=spell_border
         )
 
         # Create item and spell buttons
@@ -113,8 +113,8 @@ class UIFactory:
             run_button_rect, 
             "RUN", 
             self.playing_state.body_font,
-            text_color=WHITE,  # White text for better visibility
+            text_colour=WHITE,  # White text for better visibility
             dungeon_style=True,  # Enable dungeon styling
-            panel_color=(70, 20, 20),  # Dark red for urgency
-            border_color=(120, 40, 40)  # Red border for danger/action
+            panel_colour=(70, 20, 20),  # Dark red for urgency
+            border_colour=(120, 40, 40)  # Red border for danger/action
         )

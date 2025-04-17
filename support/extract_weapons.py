@@ -7,9 +7,9 @@ def extract_weapons():
     output_dir = "/Users/maximolopez/scoundrel/PyGame/assets/weapons/individual"
     os.makedirs(output_dir, exist_ok=True)
     
-    # Define color parameters
-    dark_color = (171, 82, 54)
-    light_color = (214, 123, 86)
+    # Define colour parameters
+    dark_colour = (171, 82, 54)
+    light_colour = (214, 123, 86)
     
     # Function to process a weapon
     def process_weapon(source_img, x, y, width, height, index):
@@ -25,7 +25,7 @@ def extract_weapons():
                 # Get original pixel
                 pixel = weapon.getpixel((px, py))
                 
-                # Skip processing background pixels (brownish color)
+                # Skip processing background pixels (brownish colour)
                 # Weapons1.png background
                 if (120 < pixel[0] < 160 and 
                     100 < pixel[1] < 140 and 
@@ -46,15 +46,15 @@ def extract_weapons():
                 brightness = sum(pixel[:3]) / 3
                 
                 if brightness > 180:  # Lighter parts (gold/yellow)
-                    new_color = light_color
+                    new_colour = light_colour
                 else:  # Darker parts (brown/black)
-                    new_color = dark_color
+                    new_colour = dark_colour
                 
                 # Set alpha to match original or full opacity
                 alpha = pixel[3] if len(pixel) == 4 else 255
                 
                 # Set the pixel in the new image
-                new_weapon.putpixel((px, py), (*new_color, alpha))
+                new_weapon.putpixel((px, py), (*new_colour, alpha))
         
         # Save the weapon
         output_path = os.path.join(output_dir, f"weapon{index}.png")

@@ -137,9 +137,28 @@ class PlayingState(GameState):
         if self.background.get_width() != SCREEN_WIDTH or self.background.get_height() != SCREEN_HEIGHT:
             self.background = pygame.transform.scale(self.background, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
-        # Load floor
+        # Load floor based on current floor type
         from constants import FLOOR_WIDTH, FLOOR_HEIGHT
-        self.floor = ResourceLoader.load_image("floor.png")
+        
+        # Get current floor info
+        floor_manager = self.game_manager.floor_manager
+        current_floor_type = floor_manager.get_current_floor()
+        is_merchant = floor_manager.is_merchant_room()
+        
+        # Choose the appropriate floor image
+        if is_merchant:
+            floor_image = "floors/merchant_floor.png"
+        else:
+            floor_image = f"floors/{current_floor_type}_floor.png"
+            
+        # Try to load the specific floor image, fall back to original if not found
+        try:
+            self.floor = ResourceLoader.load_image(floor_image)
+        except:
+            # Fallback to the original floor image
+            self.floor = ResourceLoader.load_image("floor.png")
+            
+        # Scale the floor to the correct dimensions
         self.floor = pygame.transform.scale(self.floor, (FLOOR_WIDTH, FLOOR_HEIGHT))
 
         # Initialize game components
@@ -183,7 +202,11 @@ class PlayingState(GameState):
         
         # Initialize the deck if needed
         if not coming_from_merchant:
-            self.deck.initialise_deck()
+            # Get player's delving deck if it exists
+            player_deck = self.game_manager.delving_deck if hasattr(self.game_manager, 'delving_deck') else None
+            
+            # Initialize deck with player cards shuffled in
+            self.deck.initialise_deck(player_deck)
             
             # Also clear the discard pile when starting a new floor (not from merchant)
             if self.discard_pile:
@@ -263,7 +286,18 @@ class PlayingState(GameState):
         
         if event.type == MOUSEMOTION:
             # Check hover for cards in the room
+            inventory_is_full = len(self.inventory) >= self.MAX_INVENTORY_SIZE
+            
             for card in self.room.cards:
+                # For monster cards, set the weapon_available flag based on equipped weapon
+                if hasattr(card, 'can_show_attack_options') and card.can_show_attack_options:
+                    card.weapon_available = bool(self.equipped_weapon)
+                
+                # For cards that can be added to inventory, check if inventory is full
+                if hasattr(card, 'can_add_to_inventory') and card.can_add_to_inventory:
+                    card.inventory_available = not inventory_is_full
+                
+                # Check hover status for all cards
                 card.check_hover(event.pos)
             
             # Check hover for inventory cards
@@ -288,6 +322,7 @@ class PlayingState(GameState):
             # Check hover for spell buttons
             for spell_data in self.spell_buttons:
                 spell_data["button"].check_hover(event.pos)
+                
         
         elif event.type == MOUSEBUTTONDOWN and event.button == 1:  # Left click
             if self.life_points <= 0:
@@ -333,6 +368,25 @@ class PlayingState(GameState):
         
         # Check if animations just finished
         animations_just_finished = previous_animating and not current_animating
+        
+        # Update any active message fade animation
+        if hasattr(self, 'message') and self.message and 'alpha' in self.message:
+            # Update fade-in/fade-out animation
+            if self.message['fade_in']:
+                # Fading in
+                self.message['alpha'] = min(255, self.message['alpha'] + self.message['fade_speed'] * delta_time)
+                # Check if fade-in is complete
+                if self.message['alpha'] >= 255:
+                    self.message['fade_in'] = False
+            else:
+                # Update timer
+                self.message['time_remaining'] -= delta_time
+                # If timer expired, start fading out
+                if self.message['time_remaining'] <= 0:
+                    self.message['alpha'] = max(0, self.message['alpha'] - self.message['fade_speed'] * delta_time)
+                    # Clear message when fully transparent
+                    if self.message['alpha'] <= 0:
+                        self.message = None
         
         # Update card animations
         for card in self.room.cards:
@@ -399,11 +453,17 @@ class PlayingState(GameState):
                         # Check if this is the last floor
                         if self.game_manager.floor_manager.current_floor_index >= len(self.game_manager.floor_manager.floors) - 1:
                             # Last floor completed - victory!
+                            # Add any purchased cards to the player's permanent collection
+                            self._add_purchased_cards_to_library()
+                            
                             self.game_manager.game_data["victory"] = True
                             self.game_manager.game_data["run_complete"] = True
                             self.game_manager.change_state("game_over")
                         else:
                             # Not the last floor, show a brief message and advance to next floor
+                            # Add any purchased cards to the player's permanent collection
+                            self._add_purchased_cards_to_library()
+                            
                             floor_type = self.game_manager.floor_manager.get_current_floor()
                             next_floor_index = self.game_manager.floor_manager.current_floor_index + 1
                             next_floor_type = self.game_manager.floor_manager.floors[next_floor_index]
@@ -520,17 +580,17 @@ class PlayingState(GameState):
         
         # Create the inventory panel using the Panel class
         if not hasattr(self, 'inventory_panel'):
-            # Define a slightly more brown color for the inventory panel to look more like aged parchment
-            parchment_color = (60, 45, 35)
+            # Define a slightly more brown colour for the inventory panel to look more like aged parchment
+            parchment_colour = (60, 45, 35)
             self.inventory_panel = Panel(
                 (inv_width, inv_height), 
                 (inv_x, inv_y),
-                colour=parchment_color,
+                colour=parchment_colour,
                 alpha=230,
                 border_radius=8,
                 dungeon_style=True,
                 border_width=3,
-                border_color=(95, 75, 45)  # Slightly lighter brown for border
+                border_colour=(95, 75, 45)  # Slightly lighter brown for border
             )
         
         # Draw the panel
@@ -543,8 +603,8 @@ class PlayingState(GameState):
         inv_title = self.body_font.render("Inventory", True, WHITE)
         # Create a subtle glow
         glow_surface = pygame.Surface((inv_title.get_width() + 10, inv_title.get_height() + 10), pygame.SRCALPHA)
-        glow_color = (255, 240, 200, 50)  # Soft golden glow
-        pygame.draw.ellipse(glow_surface, glow_color, glow_surface.get_rect())
+        glow_colour = (255, 240, 200, 50)  # Soft golden glow
+        pygame.draw.ellipse(glow_surface, glow_colour, glow_surface.get_rect())
         
         # Position the glow and title text
         glow_rect = glow_surface.get_rect(centerx=inv_rect.centerx, top=inv_rect.top - 35)
@@ -621,20 +681,29 @@ class PlayingState(GameState):
             button_text_rect = button_text.get_rect(center=button_rect.center)
             surface.blit(button_text, button_text_rect)
             
-        # Draw any active message with dungeon styling
+        # Draw any active message with fade effect
         if hasattr(self, 'message') and self.message:
-            if "panel" in self.message:
-                # Draw the styled panel
-                self.message["panel"].draw(surface)
+            # Handle new fade-in/fade-out message style
+            if "alpha" in self.message:
+                # Create a temporary copy of the message for this frame with current alpha value
+                current_alpha = self.message["alpha"]
+                text_with_alpha = self.message["text"].copy()
+                text_with_alpha.set_alpha(current_alpha)
                 
-                # Draw the glow effect
-                if "glow" in self.message and "glow_rect" in self.message:
-                    surface.blit(self.message["glow"], self.message["glow_rect"])
+                # Create a semi-transparent background
+                bg_surface = pygame.Surface((self.message["bg_rect"].width, self.message["bg_rect"].height), pygame.SRCALPHA)
+                bg_colour = (0, 0, 0, int(current_alpha * 0.7))  # Background slightly more transparent than text
+                pygame.draw.rect(bg_surface, bg_colour, bg_surface.get_rect(), border_radius=8)
                 
-                # Draw the message text
-                surface.blit(self.message["text"], self.message["rect"])
+                # Create a very subtle border
+                border_colour = (200, 200, 200, int(current_alpha * 0.5))
+                pygame.draw.rect(bg_surface, border_colour, bg_surface.get_rect(), 1, border_radius=8)
+                
+                # Draw the message
+                surface.blit(bg_surface, self.message["bg_rect"])
+                surface.blit(text_with_alpha, self.message["rect"])
             else:
-                # Fallback for old message format
+                # Fallback for old message format (just in case)
                 pygame.draw.rect(surface, BLACK, self.message["bg_rect"], border_radius=8)
                 pygame.draw.rect(surface, WHITE, self.message["bg_rect"], 2, border_radius=8)
                 surface.blit(self.message["text"], self.message["rect"])
@@ -660,6 +729,7 @@ class PlayingState(GameState):
         # Draw spell buttons
         for spell_data in self.spell_buttons:
             spell_data["button"].draw(surface)
+        
         
         # Draw status UI
         self.status_ui.draw(surface)
@@ -708,3 +778,25 @@ class PlayingState(GameState):
     def show_message(self, message, duration=2.0):
         """Forward message display to game state controller."""
         self.game_state_controller.show_message(message, duration)
+        
+    def _add_purchased_cards_to_library(self):
+        """Add any cards purchased from merchants to the player's card library."""
+        # Check if there are any purchased cards to add
+        if hasattr(self.game_manager, 'purchased_cards') and self.game_manager.purchased_cards:
+            # Make sure card_library exists
+            if not hasattr(self.game_manager, 'card_library'):
+                self.game_manager.card_library = []
+                
+            # Add each purchased card to the library
+            for card in self.game_manager.purchased_cards:
+                self.game_manager.card_library.append(card)
+                
+            # Show a message about the cards being added
+            card_count = len(self.game_manager.purchased_cards)
+            self.game_state_controller.show_message(
+                f"Added {card_count} purchased cards to your collection!",
+                duration=3.0
+            )
+            
+            # Clear the purchased cards list
+            self.game_manager.purchased_cards = []

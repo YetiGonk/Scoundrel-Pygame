@@ -40,7 +40,7 @@ class UIRenderer:
                 border_radius=8,
                 dungeon_style=True,
                 border_width=3,
-                border_color=(90, 60, 35)  # Medium brown border
+                border_colour=(90, 60, 35)  # Medium brown border
             )
         
         # Draw the styled health panel
@@ -63,8 +63,8 @@ class UIRenderer:
             for y in range(0, bar_bg_rect.height, 3):
                 # Random stone texture
                 noise = random.randint(0, 25)
-                stone_color = (50 + noise, 50 + noise, 55 + noise, 255)
-                pygame.draw.rect(stone_bg, stone_color, (x, y, 3, 3))
+                stone_colour = (50 + noise, 50 + noise, 55 + noise, 255)
+                pygame.draw.rect(stone_bg, stone_colour, (x, y, 3, 3))
         
         # Draw the stone background
         surface.blit(stone_bg, bar_bg_rect.topleft)
@@ -73,16 +73,16 @@ class UIRenderer:
         health_percent = self.playing_state.life_points / self.playing_state.max_life
         health_width = int(health_bar_width * health_percent)
         
-        # Choose color based on health percentage with a more magical/fantasy glow
+        # Choose colour based on health percentage with a more magical/fantasy glow
         if health_percent > 0.7:
-            health_color = (50, 220, 100)  # Vibrant green with magical tint
-            glow_color = (100, 255, 150, 40)  # Green glow
+            health_colour = (50, 220, 100)  # Vibrant green with magical tint
+            glow_colour = (100, 255, 150, 40)  # Green glow
         elif health_percent > 0.3:
-            health_color = (255, 155, 20)  # Warmer orange
-            glow_color = (255, 180, 50, 40)  # Orange glow
+            health_colour = (255, 155, 20)  # Warmer orange
+            glow_colour = (255, 180, 50, 40)  # Orange glow
         else:
-            health_color = (255, 30, 30)  # Bright red
-            glow_color = (255, 70, 70, 40)  # Red glow
+            health_colour = (255, 30, 30)  # Bright red
+            glow_colour = (255, 70, 70, 40)  # Red glow
         
         # Draw health bar with inner glow effect
         if health_width > 0:
@@ -94,11 +94,11 @@ class UIRenderer:
             )
             
             # Main health bar
-            pygame.draw.rect(surface, health_color, health_rect, border_radius=5)
+            pygame.draw.rect(surface, health_colour, health_rect, border_radius=5)
             
             # Create a glow effect
             glow_surf = pygame.Surface((health_width, health_bar_height), pygame.SRCALPHA)
-            pygame.draw.rect(glow_surf, glow_color, pygame.Rect(0, 0, health_width, health_bar_height), border_radius=5)
+            pygame.draw.rect(glow_surf, glow_colour, pygame.Rect(0, 0, health_width, health_bar_height), border_radius=5)
             
             # Apply the glow
             surface.blit(glow_surf, health_rect.topleft)
@@ -164,16 +164,16 @@ class UIRenderer:
             panel_height = max(icon_height, gold_text.get_height()) + 20
             
             from ui.panel import Panel
-            # Create a special panel with gold/treasure colors
+            # Create a special panel with gold/treasure colours
             self.gold_panel = Panel(
                 (panel_width, panel_height),
                 (gold_display_x - 10, gold_display_y - 10),
-                colour=(60, 40, 20),  # Dark wood/treasure chest color
+                colour=(60, 40, 20),  # Dark wood/treasure chest colour
                 alpha=220,
                 border_radius=8,
                 dungeon_style=True,
                 border_width=3,
-                border_color=(150, 120, 40)  # Gold-colored border
+                border_colour=(150, 120, 40)  # Gold-coloured border
             )
             
             # Store the position for the icon
@@ -225,7 +225,7 @@ class UIRenderer:
             # Draw the particle
             pygame.draw.circle(
                 surface, 
-                (255, 215, 0, particle['alpha']),  # Gold color
+                (255, 215, 0, particle['alpha']),  # Gold colour
                 (int(particle['x']), int(particle['y'])), 
                 particle['size']
             )
@@ -233,7 +233,7 @@ class UIRenderer:
         # Draw the gold coin icon
         surface.blit(gold_icon, self.gold_icon_pos)
         
-        # Draw gold amount with gold-colored text
+        # Draw gold amount with gold-coloured text
         gold_text = self.playing_state.body_font.render(f"{self.playing_state.game_manager.player_gold}", True, (255, 223, 0))  # Gold text
         gold_text_rect = gold_text.get_rect(
             left=self.gold_icon_pos[0] + icon_width + 15, 

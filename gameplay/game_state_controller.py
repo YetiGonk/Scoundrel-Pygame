@@ -24,59 +24,33 @@ class GameStateController:
         # Change to game over state
         self.playing_state.game_manager.change_state("game_over")
     
-    def show_message(self, message, duration=2.0):
-        """Display a temporary message on screen with a dungeon-themed panel."""
-        # Create the message text
-        message_text = self.playing_state.header_font.render(message, True, self.playing_state.WHITE)
-        message_rect = message_text.get_rect(center=(self.playing_state.SCREEN_WIDTH//2, self.playing_state.SCREEN_HEIGHT//2 - 50))
+    def show_message(self, message, duration=1.2):
+        """Display a small, non-blocking notification above the room cards."""
+        # Use smaller font for less intrusive messages
+        message_text = self.playing_state.body_font.render(message, True, self.playing_state.WHITE)
         
-        # Calculate panel size based on text (with padding)
-        padding_x, padding_y = 40, 20
-        panel_width = message_rect.width + padding_x * 2
-        panel_height = message_rect.height + padding_y * 2
-        panel_pos = (
-            self.playing_state.SCREEN_WIDTH//2 - panel_width//2,
-            self.playing_state.SCREEN_HEIGHT//2 - 50 - panel_height//2
+        # Position above the room cards (centered horizontally, fixed position vertically)
+        room_top = self.playing_state.SCREEN_HEIGHT//2 - 120  # Approximate room cards position
+        message_rect = message_text.get_rect(center=(self.playing_state.SCREEN_WIDTH//2, room_top - 25))
+        
+        # Create a small, semi-transparent background for the text
+        padding_x, padding_y = 15, 8
+        bg_rect = pygame.Rect(
+            message_rect.left - padding_x,
+            message_rect.top - padding_y,
+            message_rect.width + padding_x * 2,
+            message_rect.height + padding_y * 2
         )
         
-        # Create a dungeon-style message panel
-        from ui.panel import Panel
-        message_panel = Panel(
-            (panel_width, panel_height),
-            panel_pos,
-            colour=(50, 40, 30),  # Dark wooden appearance
-            alpha=230,
-            border_radius=10,
-            dungeon_style=True,
-            border_width=3,
-            border_color=(100, 80, 60)  # Brown border
-        )
-        
-        # Create a subtle glow effect around the text for emphasis
-        glow_size = 20
-        glow_surface = pygame.Surface((message_rect.width + glow_size*2, message_rect.height + glow_size*2), pygame.SRCALPHA)
-        
-        # Draw a radial gradient for the glow
-        glow_color = (255, 240, 200, 40)  # Warm glow color
-        center = (glow_surface.get_width()//2, glow_surface.get_height()//2)
-        max_radius = glow_size * 2
-        
-        for radius in range(max_radius, 0, -2):
-            alpha = int(40 * (radius / max_radius))
-            current_color = (glow_color[0], glow_color[1], glow_color[2], alpha)
-            pygame.draw.circle(glow_surface, current_color, center, radius)
-        
-        # Store all the message components
+        # Store the message with fade animation props
         self.playing_state.message = {
-            "panel": message_panel,
             "text": message_text,
             "rect": message_rect,
-            "glow": glow_surface,
-            "glow_rect": glow_surface.get_rect(center=message_rect.center),
-            "time_remaining": duration
+            "bg_rect": bg_rect,
+            "alpha": 0,  # Start fully transparent
+            "fade_in": True,  # Initially fading in
+            "time_remaining": duration,
+            "fade_speed": 510  # How fast to fade in/out (total alpha over X frames)
         }
         
-        # Schedule a delay to clear the message
-        from utils.animation import Animation
-        timer = Animation(duration, on_complete=lambda: setattr(self.playing_state, 'message', None))
-        self.playing_state.animation_manager.add_animation(timer)
+        # No need to block input - these notifications are non-blocking

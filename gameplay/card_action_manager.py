@@ -1,7 +1,7 @@
 """Card Action Manager for processing card actions in the Scoundrel game."""
 import random
 import pygame
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT
+from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT, WHITE
 
 
 class CardActionManager:
@@ -21,11 +21,15 @@ class CardActionManager:
         # Reset the ran_last_turn flag
         self.playing_state.ran_last_turn = False
         
-        # Mark the card as selected to remove split colors
+        # Mark the card as selected to remove split colours
         card.is_selected = True
         
-        # For cards that can be added to inventory, determine which part was clicked
+        # For inventory cards, determine which part was clicked
         if card.can_add_to_inventory and event_pos:
+            # Check if inventory is available
+            inventory_is_full = len(self.playing_state.inventory) >= self.playing_state.MAX_INVENTORY_SIZE
+            card.inventory_available = not inventory_is_full
+            
             # Calculate position of the card's visual midpoint
             # This takes into account the card's current drawing position 
             # including floating and scaling effects
@@ -41,23 +45,94 @@ class CardActionManager:
             # Calculate center Y with float offset
             center_y = card.rect.centery - total_float_offset
             
-            # Check if click is above or below midpoint
-            if event_pos[1] < center_y:
-                # Top half clicked - add to inventory
+            # Check if inventory is available and if click is above midpoint
+            if not inventory_is_full and event_pos[1] < center_y:
+                # Top half clicked with available inventory - add to inventory
                 self.add_to_inventory(card)
                 return
-            # Bottom half clicked - continue to use the card normally
+            # Bottom half clicked or inventory full - continue to use the card normally
         
-        # Process card effects based on type
+        # For monster cards, determine attack method
+        elif card.can_show_attack_options and event_pos:
+            # Calculate position of the card's visual midpoint
+            center_x = card.rect.centerx 
+            
+            # For the Y position, we need to account for the float offset
+            total_float_offset = 0
+            if hasattr(card, 'idle_float_offset') and hasattr(card, 'hover_float_offset'):
+                total_float_offset = card.idle_float_offset + card.hover_float_offset
+            
+            # Calculate center Y with float offset
+            center_y = card.rect.centery - total_float_offset
+            
+            # Check if weapon is available
+            if card.weapon_available:
+                # With weapon available, check which half was clicked
+                if event_pos[1] < center_y:
+                    # Top half clicked - attack with weapon
+                    self.attack_monster(card)
+                    return
+                else:
+                    # Bottom half clicked - attack bare-handed
+                    self.attack_barehanded(card)
+                    return
+            else:
+                # No weapon available - always attack bare-handed
+                self.attack_barehanded(card)
+                return
+        
+        # Process card effects based on type (if no specific half was clicked)
         if card.type == "monster":
-            self.attack_monster(card)
+            # Default to bare-handed if no specific half was clicked
+            self.attack_barehanded(card)
         elif card.type == "weapon":
             self.equip_weapon(card)
         elif card.type == "potion":
             self.use_potion(card)
     
+    
+    def attack_barehanded(self, monster):
+        """Process player attacking a monster card with bare hands (takes full damage)."""
+        # Calculate monster value - apply any effect from items or spells
+        monster_value = monster.value
+        
+        # Use damage shield if available
+        damage_reduction = 0
+        if self.playing_state.damage_shield > 0:
+            damage_reduction = min(self.playing_state.damage_shield, monster_value)
+            monster_value -= damage_reduction
+            self.playing_state.damage_shield -= damage_reduction
+        
+        # First ensure the monster is removed from the room before animations start
+        self.playing_state.room.remove_card(monster)
+        
+        # Take full damage from monster
+        if monster_value > 0:
+            self.playing_state.change_health(-monster_value)
+        
+        # Animate to discard pile
+        self.playing_state.animate_card_to_discard(monster)
+        
+        # Show message about bare-handed attack
+        self.playing_state.show_message(f"Attacked {monster.name} bare-handed! Took full damage.")
+        
+        # After processing the monster, reposition remaining room cards
+        if len(self.playing_state.room.cards) > 0:
+            # Add a slight delay before repositioning room cards
+            self.playing_state.schedule_delayed_animation(
+                0.1,
+                lambda: self.playing_state.room.position_cards(
+                    animate=True, 
+                    animation_manager=self.playing_state.animation_manager
+                )
+            )
+        
+        # After attack is complete, update interface
+        self.playing_state.ui_factory.create_item_buttons()
+        self.playing_state.ui_factory.create_spell_buttons()
+    
     def attack_monster(self, monster):
-        """Process player attacking a monster card."""
+        """Process player attacking a monster card with equipped weapon."""
         # Calculate monster value - apply any effect from items or spells
         monster_value = monster.value
         
@@ -283,7 +358,7 @@ class CardActionManager:
             # Inventory is full, can't add more cards
             return False
         
-        # Mark the card as selected to remove split colors
+        # Mark the card as selected to remove split colours
         card.is_selected = True
         
         # Mark the card as being in inventory to reduce animation
@@ -313,7 +388,7 @@ class CardActionManager:
     def use_inventory_card(self, card):
         """Use a card from the inventory."""
         if card in self.playing_state.inventory:
-            # Mark the card as selected to ensure no split colors
+            # Mark the card as selected to ensure no split colours
             card.is_selected = True
             
             # Reset inventory flag since it's being removed

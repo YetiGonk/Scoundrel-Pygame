@@ -22,6 +22,8 @@ class FloorManager:
     
     def get_current_floor(self):
         """Get the current floor type."""
+        if not self.floors or self.current_floor_index >= len(self.floors):
+            return "unknown"  # Return a default value if no floors exist
         return self.floors[self.current_floor_index]
     
     def advance_room(self):
