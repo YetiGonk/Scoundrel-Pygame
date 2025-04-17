@@ -346,8 +346,8 @@ class DelvingDeckState(GameState):
             current_x += self.catalog_card_width + card_spacing_x
             row_card_count += 1
             
-        # Add diamonds 2-10
-        for value in range(2, 11):
+        # Add diamonds 2-10, but skip values 2 and 3 which are arrows
+        for value in range(4, 11):  # Start at 4 to avoid duplicate arrow cards
             if row_card_count >= cards_per_row:
                 # Start new row
                 current_y += self.catalog_card_height + card_spacing_y
@@ -361,7 +361,7 @@ class DelvingDeckState(GameState):
             current_x += self.catalog_card_width + card_spacing_x
             row_card_count += 1
         
-        # 2. UNCOMMON CARDS (Hearts & Diamonds J-A + placeholders)
+        # 2. UNCOMMON CARDS (Arrows + Hearts & Diamonds J-A)
         
         # Start new row for uncommon cards
         current_y += self.catalog_card_height + card_spacing_y + 20  # Less extra space for section
@@ -403,20 +403,25 @@ class DelvingDeckState(GameState):
             row_card_count += 1
 
         # Add 10 uncommon card placeholders
-        for j in ["diamonds", "hearts"]:
-            for i in range(5):
-                if row_card_count >= cards_per_row:
-                    # Start new row
-                    current_y += self.catalog_card_height + card_spacing_y
-                    current_x = start_x
-                    row_card_count = 0
-                
-                position = (current_x, current_y)
-                add_card_slot(j, i, "uncommon", position)
-                
-                # Move to next slot
-                current_x += self.catalog_card_width + card_spacing_x
-                row_card_count += 1
+        for i in range(10):
+            if row_card_count >= cards_per_row:
+                # Start new row
+                current_y += self.catalog_card_height + card_spacing_y
+                current_x = start_x
+                row_card_count = 0
+            
+            position = (current_x, current_y)
+            # Add placeholder
+            self.card_catalog.append({
+                "type": "unknown",
+                "rarity": "uncommon",
+                "position": position,
+                "small": True  # Flag that this is a catalog item (smaller size)
+            })
+            
+            # Move to next slot
+            current_x += self.catalog_card_width + card_spacing_x
+            row_card_count += 1
         
         # 3. RARE CARDS (Placeholders)
         
@@ -441,7 +446,7 @@ class DelvingDeckState(GameState):
             
             # Add placeholder
             self.card_catalog.append({
-                "type": "placeholder",
+                "type": "unknown",
                 "rarity": "rare",
                 "position": position,
                 "small": True  # Flag that this is a catalog item (smaller size)
@@ -474,7 +479,7 @@ class DelvingDeckState(GameState):
             
             # Add placeholder
             self.card_catalog.append({
-                "type": "placeholder",
+                "type": "unknown",
                 "rarity": "exotic",
                 "position": position,
                 "small": True  # Flag that this is a catalog item (smaller size)
@@ -621,7 +626,7 @@ class DelvingDeckState(GameState):
                         elif item.get("type") == "card" and not item.get("owned"):
                             # Hovering over unowned card slot
                             self.hovered_item = item
-                        elif item.get("type") == "placeholder":
+                        elif item.get("type") == "unknown":
                             # Hovering over placeholder
                             self.hovered_item = item
                     elif item.get("type") == "card" and item.get("owned") and item.get("card"):
@@ -770,7 +775,7 @@ class DelvingDeckState(GameState):
                         
                         # Draw the placeholder
                         surface.blit(placeholder_surface, card_rect)
-                elif item["type"] == "placeholder":
+                elif item["type"] == "unknown":
                     position = item["position"]
                     
                     # Draw card border based on rarity - use catalog card size
@@ -854,7 +859,7 @@ class DelvingDeckState(GameState):
                 # For owned cards, show detailed info
                 self._draw_card_info(surface, self.hovered_item["card"])
             elif ((self.hovered_item.get("type") == "card" and not self.hovered_item.get("owned")) or
-                  self.hovered_item.get("type") == "placeholder"):
+                  self.hovered_item.get("type") == "unknown"):
                 # For unowned cards or placeholders, show mystery info
                 self._draw_mystery_info(surface, self.hovered_item)
         
@@ -866,51 +871,46 @@ class DelvingDeckState(GameState):
         """Draw detailed card info for an owned card"""
         # Calculate info box position relative to the hovered card
         info_width = 300
-        info_height = 120
+        info_height = 110
         
         # Get the card position and dimensions
         card_center_x = card.rect.centerx
         card_top = card.rect.top
         card_bottom = card.rect.bottom
+        card_left = card.rect.left
+        card_right = card.rect.right
         
-        # Position info panel in an optimal location based on space available
-        panel_middle_y = self.main_panel.rect.top + self.main_panel.rect.height // 2
-        panel_middle_x = self.main_panel.rect.left + self.main_panel.rect.width // 2
+        # Check if this is a catalog card (smaller size)
+        is_catalog_card = hasattr(card, 'is_catalog_card') and card.is_catalog_card
         
-        # Check if card is in bottom half of panel - prefer showing above
-        # But also check if there's enough space above
-        if card_top > panel_middle_y and card_top - info_height - 20 > self.main_panel.rect.top + 10:
-            # Card is in bottom half and there's space above, show info above
-            info_y = card_top - info_height - 20
-        elif card_bottom + info_height + 20 < self.main_panel.rect.bottom - 10:
-            # There's space below, show info below
-            info_y = card_bottom + 20
+        # For catalog view, use a simplified positioning strategy
+        if self.show_library or is_catalog_card:
+            # In library view, always position info to the right of the card
+            # This is simpler and more predictable
+            info_x = card_right + 5
+            info_y = card_top
+            
+            # But if it would go off-screen to the right, position left of card
+            if info_x + info_width > self.main_panel.rect.right - 10:
+                info_x = card_left - info_width - 5
+            
+            # Ensure it stays within vertical bounds
+            if info_y + info_height > self.main_panel.rect.bottom - 10:
+                info_y = self.main_panel.rect.bottom - info_height - 10
         else:
-            # No good space above or below, show to the side if possible
-            if card_center_x > panel_middle_x:
-                # Card is in right half, show info to the left if there's space
-                if card.rect.left - info_width - 20 > self.main_panel.rect.left + 10:
-                    info_y = card_top
-                    info_x = card.rect.left - info_width - 20
-                else:
-                    # Default to showing above with clamping
-                    info_y = max(self.main_panel.rect.top + 10, card_top - info_height - 20)
-                    info_x = card_center_x - (info_width // 2)
+            # In delving deck view, position based on card location
+            panel_middle_y = self.main_panel.rect.top + self.main_panel.rect.height // 2
+            
+            # In bottom half of screen, show above
+            if card_top > panel_middle_y:
+                info_y = card_top - info_height - 20
+                info_x = card_center_x - (info_width // 2)
             else:
-                # Card is in left half, show info to the right if there's space
-                if card.rect.right + info_width + 20 < self.main_panel.rect.right - 10:
-                    info_y = card_top
-                    info_x = card.rect.right + 20
-                else:
-                    # Default to showing above with clamping
-                    info_y = max(self.main_panel.rect.top + 10, card_top - info_height - 20)
-                    info_x = card_center_x - (info_width // 2)
+                # In top half of screen, show below
+                info_y = card_bottom + 20
+                info_x = card_center_x - (info_width // 2)
         
-        # Default to center positioning if not already set in the side-positioning logic
-        if not 'info_x' in locals() or info_x is None:
-            info_x = card_center_x - (info_width // 2)
-        
-        # Make sure panel stays within screen bounds
+        # Final safety check - ensure panel stays within bounds
         info_x = max(self.main_panel.rect.left + 10, min(info_x, self.main_panel.rect.right - info_width - 10))
         info_y = max(self.main_panel.rect.top + 10, min(info_y, self.main_panel.rect.bottom - info_height - 10))
         
@@ -974,60 +974,54 @@ class DelvingDeckState(GameState):
             return
             
         # Calculate info box position relative to the hovered item
-        info_width = 220
-        info_height = 80
+        info_width = 200  # Slightly smaller info panel
+        info_height = 70
         
         # Get the item position - adjust for catalog card size if needed
         position = item["position"]
         
         # Set up positioning based on card size
         if item.get("small", False):
-            item_center_x = position[0] + self.catalog_card_width // 2
+            item_width = self.catalog_card_width
+            item_height = self.catalog_card_height
+            item_center_x = position[0] + item_width // 2
             item_top = position[1]
-            item_bottom = position[1] + self.catalog_card_height
+            item_bottom = position[1] + item_height
         else:
-            item_center_x = position[0] + CARD_WIDTH // 2
+            item_width = CARD_WIDTH
+            item_height = CARD_HEIGHT
+            item_center_x = position[0] + item_width // 2
             item_top = position[1]
-            item_bottom = position[1] + CARD_HEIGHT
+            item_bottom = position[1] + item_height
             
-        # Position info panel in an optimal location based on space available
-        panel_middle_y = self.main_panel.rect.top + self.main_panel.rect.height // 2
-        panel_middle_x = self.main_panel.rect.left + self.main_panel.rect.width // 2
-        
-        # Check if card is in bottom half of panel - prefer showing above
-        # But also check if there's enough space above
-        if item_top > panel_middle_y and item_top - info_height - 10 > self.main_panel.rect.top + 10:
-            # Item is in bottom half and there's space above, show info above
-            info_y = item_top - info_height - 10
-        elif item_bottom + info_height + 10 < self.main_panel.rect.bottom - 10:
-            # There's space below, show info below
-            info_y = item_bottom + 10
+        # For catalog view, use a simplified positioning strategy - fixed offset from card
+        if self.show_library:
+            # In library view, always position info to the right of the card
+            # This is simpler and more predictable
+            info_x = position[0] + item_width + 5
+            info_y = position[1]
+            
+            # But if it would go off-screen to the right, position left of card
+            if info_x + info_width > self.main_panel.rect.right - 10:
+                info_x = position[0] - info_width - 5
+            
+            # Ensure it stays within vertical bounds
+            if info_y + info_height > self.main_panel.rect.bottom - 10:
+                info_y = self.main_panel.rect.bottom - info_height - 10
         else:
-            # No good space above or below, show to the side if possible
-            if item_center_x > panel_middle_x:
-                # Item is in right half, show info to the left if there's space
-                if position[0] - info_width - 10 > self.main_panel.rect.left + 10:
-                    info_y = item_top
-                    info_x = position[0] - info_width - 10
-                else:
-                    # Default to showing above with clamping
-                    info_y = max(self.main_panel.rect.top + 10, item_top - info_height - 10)
-                    info_x = item_center_x - (info_width // 2)
+            # In delving deck view, use more complex positioning
+            panel_middle_y = self.main_panel.rect.top + self.main_panel.rect.height // 2
+            
+            # In bottom half of screen, show above
+            if item_top > panel_middle_y:
+                info_y = item_top - info_height - 10
+                info_x = item_center_x - (info_width // 2)
             else:
-                # Item is in left half, show info to the right if there's space
-                if position[0] + self.catalog_card_width + info_width + 10 < self.main_panel.rect.right - 10:
-                    info_y = item_top
-                    info_x = position[0] + self.catalog_card_width + 10
-                else:
-                    # Default to showing above with clamping
-                    info_y = max(self.main_panel.rect.top + 10, item_top - info_height - 10)
-                    info_x = item_center_x - (info_width // 2)
+                # In top half of screen, show below
+                info_y = item_bottom + 10
+                info_x = item_center_x - (info_width // 2)
         
-        # Default to center positioning if not already set in the side-positioning logic
-        if not 'info_x' in locals() or info_x is None:
-            info_x = item_center_x - (info_width // 2)
-        
-        # Make sure panel stays within screen bounds
+        # Final safety check - ensure panel stays within bounds
         info_x = max(self.main_panel.rect.left + 10, min(info_x, self.main_panel.rect.right - info_width - 10))
         info_y = max(self.main_panel.rect.top + 10, min(info_y, self.main_panel.rect.bottom - info_height - 10))
         
