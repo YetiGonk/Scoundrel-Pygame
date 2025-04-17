@@ -113,9 +113,13 @@ class DelvingDeckState(GameState):
             button_width,
             button_height
         )
+        
+        # Set the proper button text based on current view
+        toggle_text = "SHOW DELVING DECK" if self.show_library else "SHOW CARD LIBRARY"
+        
         self.toggle_button = Button(
             toggle_button_rect,
-            "SHOW CARD LIBRARY",
+            toggle_text,
             self.body_font,
             text_colour=WHITE,
             dungeon_style=True,
@@ -536,11 +540,13 @@ class DelvingDeckState(GameState):
             if self.toggle_button.is_clicked(mouse_pos):
                 self.show_library = not self.show_library
                 
-                # Update button text
+                # Update button text based on which view we're switching to
                 if self.show_library:
-                    self.toggle_button.text = "SHOW DELVING DECK"
+                    # We are now in library view, so button should show option to go back to delving deck
+                    self.toggle_button.update_text("SHOW DELVING DECK")
                 else:
-                    self.toggle_button.text = "SHOW CARD LIBRARY"
+                    # We are now in delving deck view, so button should show option to go to library
+                    self.toggle_button.update_text("SHOW CARD LIBRARY")
                 
                 # Reposition cards for the new view
                 self._position_cards()
@@ -871,7 +877,7 @@ class DelvingDeckState(GameState):
         """Draw detailed card info for an owned card"""
         # Calculate info box position relative to the hovered card
         info_width = 300
-        info_height = 110
+        info_height = 125  # Increased height to better fit text
         
         # Get the card position and dimensions
         card_center_x = card.rect.centerx
@@ -925,13 +931,22 @@ class DelvingDeckState(GameState):
         )
         info_panel.draw(surface)
         
-        # Card name
-        name_text = self.header_font.render(card.name, True, WHITE)
-        name_rect = name_text.get_rect(centerx=info_x + info_width//2, top=info_y + 10)
-        surface.blit(name_text, name_rect)
+        # Calculate vertical center positioning for better alignment
+        panel_center_y = info_y + info_height // 2
         
-        # Card type and details
         if card.type == "weapon":
+            # For weapon cards, we have 3 lines of text (name, type, damage)
+            # Calculate total text height with spacing
+            total_text_height = self.header_font.get_height() + (self.body_font.get_height() * 2) + 30  # 30px for spacing
+            # Position first text line so all three will be centered
+            start_y = panel_center_y - (total_text_height // 2) + 5
+            
+            # Card name
+            name_text = self.header_font.render(card.name, True, WHITE)
+            name_rect = name_text.get_rect(centerx=info_x + info_width//2, top=start_y)
+            surface.blit(name_text, name_rect)
+            
+            # Weapon type text
             type_text = f"Weapon - "
             if hasattr(card, 'weapon_type') and card.weapon_type:
                 if card.weapon_type == "ranged":
@@ -940,27 +955,39 @@ class DelvingDeckState(GameState):
                     type_text += "Melee"
                 elif card.weapon_type == "arrow":
                     type_text += "Arrow (Ammo)"
-            
-            damage_text = f"Damage: {card.value}"
-            
+                    
             type_render = self.body_font.render(type_text, True, GOLD_COLOR)
             type_rect = type_render.get_rect(centerx=info_x + info_width//2, top=name_rect.bottom + 10)
             surface.blit(type_render, type_rect)
             
+            # Damage text
+            damage_text = f"Damage: {card.value}"
             damage_render = self.body_font.render(damage_text, True, WHITE)
-            damage_rect = damage_render.get_rect(centerx=info_x + info_width//2, top=type_rect.bottom + 5)
+            damage_rect = damage_render.get_rect(centerx=info_x + info_width//2, top=type_rect.bottom + 10)
             surface.blit(damage_render, damage_rect)
             
         elif card.type == "potion":
-            type_text = "Potion - Healing"
-            heal_text = f"Restores {card.value} health"
+            # For potion cards, we have 3 lines of text (name, type, effect)
+            # Calculate total text height with spacing
+            total_text_height = self.header_font.get_height() + (self.body_font.get_height() * 2) + 30  # 30px for spacing
+            # Position first text line so all three will be centered
+            start_y = panel_center_y - (total_text_height // 2) + 5
             
+            # Card name
+            name_text = self.header_font.render(card.name, True, WHITE)
+            name_rect = name_text.get_rect(centerx=info_x + info_width//2, top=start_y)
+            surface.blit(name_text, name_rect)
+            
+            # Potion type text
+            type_text = "Potion - Healing"
             type_render = self.body_font.render(type_text, True, GOLD_COLOR)
             type_rect = type_render.get_rect(centerx=info_x + info_width//2, top=name_rect.bottom + 10)
             surface.blit(type_render, type_rect)
             
+            # Healing effect text
+            heal_text = f"Restores {card.value} health"
             heal_render = self.body_font.render(heal_text, True, WHITE)
-            heal_rect = heal_render.get_rect(centerx=info_x + info_width//2, top=type_rect.bottom + 5)
+            heal_rect = heal_render.get_rect(centerx=info_x + info_width//2, top=type_rect.bottom + 10)
             surface.blit(heal_render, heal_rect)
     
     def _draw_mystery_info(self, surface, item):
@@ -975,7 +1002,7 @@ class DelvingDeckState(GameState):
             
         # Calculate info box position relative to the hovered item
         info_width = 200  # Slightly smaller info panel
-        info_height = 70
+        info_height = 130  # Increased height to better fit text
         
         # Get the item position - adjust for catalog card size if needed
         position = item["position"]
@@ -1036,32 +1063,69 @@ class DelvingDeckState(GameState):
         )
         info_panel.draw(surface)
         
-        # Draw mystery text
-        if item.get("type") == "card" and not item.get("owned"):
-            # For uncollected actual cards, show a hint
+        # Determine the item type for all cards and placeholders
+        type_hint = "Unknown"
+        
+        # For actual card slots, determine type based on suit
+        if item.get("type") == "card":
             if item.get("suit") == "hearts":
                 type_hint = "Potion"
             elif item.get("suit") == "diamonds":
-                type_hint = "Weapon" 
-            else:
-                type_hint = "Unknown"
-                
-            # Show hint text
-            hint_text = self.header_font.render("???", True, WHITE)
-            hint_rect = hint_text.get_rect(centerx=info_x + info_width//2, top=info_y + 10)
-            surface.blit(hint_text, hint_rect)
-            
-            # Show type hint
-            type_render = self.body_font.render(f"Type: {type_hint}", True, (150, 150, 150))
-            type_rect = type_render.get_rect(centerx=info_x + info_width//2, top=hint_rect.bottom + 10)
-            surface.blit(type_render, type_rect)
+                type_hint = "Weapon"
+            elif item.get("suit") == "spades" or item.get("suit") == "clubs":
+                type_hint = "Monster"
+        
+        # For rare and exotic placeholders, make a reasonable guess based on section
+        elif item.get("type") == "placeholder":
+            # If it's in the rare or exotic section, show a more specific type hint
+            rarity = item.get("rarity", "")
+            if rarity == "rare":
+                # Distribute types evenly for rare cards
+                # Use the card's position to deterministically assign a type
+                # This ensures the same card always shows the same type
+                pos = item.get("position", (0, 0))
+                idx = (pos[0] * 31 + pos[1] * 17) % 4  # Simple hash for consistency
+                if idx == 0:
+                    type_hint = "Weapon"
+                elif idx == 1:
+                    type_hint = "Potion"
+                elif idx == 2:
+                    type_hint = "Spell"
+                else:
+                    type_hint = "Artifact"
+            elif rarity == "exotic":
+                # For exotic cards, they're special items
+                type_hint = "Artifact"
+        
+        # Calculate vertical center positioning
+        panel_center_y = info_y + info_height // 2
+        
+        # Determine how many lines of text to display (2 or 3 depending on whether rarity is available)
+        has_rarity = "rarity" in item
+        
+        # Calculate total text height with spacing
+        if has_rarity:
+            # Name + type + rarity (3 lines)
+            total_text_height = self.header_font.get_height() + (self.body_font.get_height() * 2) + 24  # 24px for spacing
         else:
-            # For placeholders, just show question marks
-            mystery_text = self.header_font.render("???", True, WHITE)
-            mystery_rect = mystery_text.get_rect(centerx=info_x + info_width//2, top=info_y + 10)
-            surface.blit(mystery_text, mystery_rect)
+            # Just name + type (2 lines) 
+            total_text_height = self.header_font.get_height() + self.body_font.get_height() + 12  # 12px for spacing
             
-            # Show rarity text
+        # Position first text line so all will be centered
+        start_y = panel_center_y - (total_text_height // 2)
+        
+        # Draw mystery card name (???)
+        mystery_text = self.header_font.render("???", True, WHITE)
+        mystery_rect = mystery_text.get_rect(centerx=info_x + info_width//2, top=start_y)
+        surface.blit(mystery_text, mystery_rect)
+        
+        # Show type info for ALL unknown cards
+        type_render = self.body_font.render(f"Type: {type_hint}", True, (180, 180, 180))
+        type_rect = type_render.get_rect(centerx=info_x + info_width//2, top=mystery_rect.bottom + 12)
+        surface.blit(type_render, type_rect)
+        
+        # Show rarity text if available
+        if has_rarity:
             rarity_render = self.body_font.render(f"{item['rarity'].capitalize()}", True, self.rarity_colors[item["rarity"]])
-            rarity_rect = rarity_render.get_rect(centerx=info_x + info_width//2, top=mystery_rect.bottom + 10)
+            rarity_rect = rarity_render.get_rect(centerx=info_x + info_width//2, top=type_rect.bottom + 12)
             surface.blit(rarity_render, rarity_rect)
