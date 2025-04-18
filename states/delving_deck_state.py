@@ -173,14 +173,32 @@ class DelvingDeckState(GameState):
         if hasattr(self.game_manager, 'card_library') and self.game_manager.card_library:
             self.card_library = []
             
-            # Convert dictionary format to Card objects
+            # Count duplicates of each card
+            card_counts = {}
             for card_data in self.game_manager.card_library:
-                new_card = Card(card_data["suit"], card_data["value"])
-                new_card.face_up = True
-                # Disable split button functionality in this state
-                new_card.can_add_to_inventory = False
-                new_card.can_show_attack_options = False
-                self.card_library.append(new_card)
+                card_key = f"{card_data['suit']}_{card_data['value']}"
+                if card_key in card_counts:
+                    card_counts[card_key] += 1
+                else:
+                    card_counts[card_key] = 1
+            
+            # Create unique Card objects and store counts
+            unique_cards = {}
+            for card_data in self.game_manager.card_library:
+                card_key = f"{card_data['suit']}_{card_data['value']}"
+                
+                # Only add each unique card once
+                if card_key not in unique_cards:
+                    new_card = Card(card_data["suit"], card_data["value"])
+                    new_card.face_up = True
+                    # Disable split button functionality in this state
+                    new_card.can_add_to_inventory = False
+                    new_card.can_show_attack_options = False
+                    # Store count of duplicates
+                    new_card.count = card_counts[card_key]
+                    
+                    unique_cards[card_key] = new_card
+                    self.card_library.append(new_card)
     
     def _initialize_default_deck(self):
         """Initialize the default starter deck for a new player"""
@@ -205,6 +223,16 @@ class DelvingDeckState(GameState):
             lib_card.can_add_to_inventory = False
             lib_card.can_show_attack_options = False
             self.card_library.append(lib_card)
+            
+            # Add duplicate cards for certain values (for testing)
+            if value == 3 or value == 5:
+                # Add 2 more copies of hearts 3 and 5
+                for _ in range(2):
+                    dup_card = Card("hearts", value)
+                    dup_card.face_up = True
+                    dup_card.can_add_to_inventory = False
+                    dup_card.can_show_attack_options = False
+                    self.card_library.append(dup_card)
         
         # Add 5 weapon cards (diamonds) of values 3, 4, 5, 7, 9
         weapon_values = [3, 4, 5, 7, 9]
@@ -224,6 +252,42 @@ class DelvingDeckState(GameState):
             lib_card.can_add_to_inventory = False
             lib_card.can_show_attack_options = False
             self.card_library.append(lib_card)
+            
+            # Add duplicate diamond cards for certain values (for testing)
+            if value == 4 or value == 7:
+                # Add 3 more copies of diamonds 4 and 1 more copy of diamonds 7
+                for _ in range(3 if value == 4 else 1):
+                    dup_card = Card("diamonds", value)
+                    dup_card.face_up = True
+                    dup_card.can_add_to_inventory = False
+                    dup_card.can_show_attack_options = False
+                    self.card_library.append(dup_card)
+        
+        # Count duplicates and create unique card list with counts
+        card_counts = {}
+        for card in self.card_library:
+            card_key = f"{card.suit}_{card.value}"
+            if card_key in card_counts:
+                card_counts[card_key] += 1
+            else:
+                card_counts[card_key] = 1
+        
+        # Create a new library with unique cards and counts
+        unique_library = []
+        processed_keys = set()
+        
+        for card in self.card_library:
+            card_key = f"{card.suit}_{card.value}"
+            if card_key not in processed_keys:
+                # This is the first time we're seeing this card
+                processed_keys.add(card_key)
+                # Set the count property
+                card.count = card_counts[card_key]
+                # Add to our new unique library
+                unique_library.append(card)
+        
+        # Replace the library with our deduplicated version
+        self.card_library = unique_library
         
         # Save both collections to game manager
         self._save_delving_deck()
@@ -415,11 +479,17 @@ class DelvingDeckState(GameState):
         """Save the card library to the game manager"""
         # Convert Card objects to dictionary format for storage
         library_data = []
+        
         for card in self.card_library:
-            library_data.append({
-                "suit": card.suit,
-                "value": card.value
-            })
+            # If card has a count property, duplicate it in the saved data
+            count = getattr(card, 'count', 1)
+            
+            # Add multiple copies of the card based on the count
+            for _ in range(count):
+                library_data.append({
+                    "suit": card.suit,
+                    "value": card.value
+                })
         
         # Save to game manager
         self.game_manager.card_library = library_data
@@ -684,6 +754,46 @@ class DelvingDeckState(GameState):
                                 # Draw the card at its catalog size
                                 item["card"].draw(surface)
                                 
+                                # Draw count overlay if card count > 1
+                                if hasattr(item["card"], 'count') and item["card"].count > 1:
+                                    # Position in bottom left corner of card
+                                    count_x = position[0] + 10
+                                    count_y = position[1] + self.catalog_card_height - 9
+                                    
+                                    # Draw a small curved box background for count
+                                    count_width = 22  # Width of box
+                                    count_height = 18  # Height of box
+                                    
+                                    # Create rounded rect for count badge
+                                    count_rect = pygame.Rect(
+                                        count_x - count_width//2, 
+                                        count_y - count_height//2,
+                                        count_width, 
+                                        count_height
+                                    )
+                                    
+                                    # Draw grey background with rounded corners
+                                    pygame.draw.rect(
+                                        surface, 
+                                        (60, 60, 60),  # Dark grey background
+                                        count_rect,
+                                        0,  # Filled
+                                        5  # Border radius
+                                    )
+                                    pygame.draw.rect(
+                                        surface, 
+                                        (100, 100, 100),  # Light grey border
+                                        count_rect,
+                                        1,  # Border width
+                                        5  # Border radius
+                                    )
+                                    
+                                    # Draw count number
+                                    small_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 16)
+                                    count_text = small_font.render(f"{item['card'].count}", True, WHITE)
+                                    count_text_rect = count_text.get_rect(center=(count_x, count_y))
+                                    surface.blit(count_text, count_text_rect)
+                                
                                 # Restore idle animation settings
                                 item["card"].idle_float_amount = original_idle_float_amount
                                 item["card"].idle_float_offset = original_idle_offset
@@ -822,6 +932,46 @@ class DelvingDeckState(GameState):
                 # Draw the card at its enlarged size
                 self.hovered_item["card"].draw(surface)
                 
+                # Draw count overlay if card count > 1
+                if hasattr(self.hovered_item["card"], 'count') and self.hovered_item["card"].count > 1:
+                    # Position in bottom left corner of card
+                    count_x = enlarged_x + 10
+                    count_y = enlarged_y + enlarged_height - 22
+                    
+                    # Draw a larger curved box background for count (proportional to enlarged card)
+                    count_width = 30  # Width of box
+                    count_height = 24  # Height of box
+                    
+                    # Create rounded rect for count badge
+                    count_rect = pygame.Rect(
+                        count_x - count_width//2, 
+                        count_y - count_height//2,
+                        count_width, 
+                        count_height
+                    )
+                    
+                    # Draw grey background with rounded corners
+                    pygame.draw.rect(
+                        surface, 
+                        (60, 60, 60),  # Dark grey background
+                        count_rect,
+                        0,  # Filled
+                        8  # Border radius
+                    )
+                    pygame.draw.rect(
+                        surface, 
+                        (100, 100, 100),  # Light grey border
+                        count_rect,
+                        2,  # Border width
+                        8  # Border radius
+                    )
+                    
+                    # Draw count number
+                    small_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 20)
+                    count_text = small_font.render(f"{self.hovered_item['card'].count}", True, WHITE)
+                    count_text_rect = count_text.get_rect(center=(count_x, count_y))
+                    surface.blit(count_text, count_text_rect)
+                
                 # Restore idle animation settings
                 self.hovered_item["card"].idle_float_amount = original_idle_float_amount
                 self.hovered_item["card"].idle_float_offset = original_idle_offset
@@ -849,9 +999,24 @@ class DelvingDeckState(GameState):
     
     def _draw_card_info(self, surface, card):
         """Draw detailed card info for an owned card"""
-        # Calculate info box position relative to the hovered card
+        # Determine if we need to display count
+        has_count = hasattr(card, 'count') and card.count > 1
+        
+        # Calculate text heights
+        header_height = self.header_font.get_height()
+        body_height = self.body_font.get_height()
+        
+        # Calculate info box dimensions
         info_width = 300
-        info_height = 125  # Increased height to better fit text
+        
+        # Calculate height based on number of text lines plus padding
+        # Top padding (10px) + header + (spacing + body) * N + bottom padding (10px)
+        if has_count:
+            # 4 lines: name, type, damage/heal, count
+            info_height = 10 + header_height + 5 + (body_height + 5) * 3 + 5
+        else:
+            # 3 lines: name, type, damage/heal
+            info_height = 10 + header_height + 5 + (body_height + 5) * 2 + 5
         
         # Get the card position and dimensions
         card_center_x = card.rect.centerx
@@ -906,21 +1071,18 @@ class DelvingDeckState(GameState):
         )
         info_panel.draw(surface)
         
-        # Calculate vertical center positioning for better alignment
-        panel_center_y = info_y + info_height // 2
+        # Start vertical position with top padding
+        current_y = info_y + 10  # 10px top padding
         
         if card.type == "weapon" or card.suit == "diamonds":  # Check by both type and suit
-            # For weapon cards, we have 3 lines of text (name, type, damage)
-            # Calculate total text height with spacing
-            total_text_height = self.header_font.get_height() + (self.body_font.get_height() * 2) + 30  # 30px for spacing
-            # Position first text line so all three will be centered
-            start_y = panel_center_y - (total_text_height // 2) + 5
-            
             # Card name - use card name property if available
             card_name = card.name if hasattr(card, 'name') and card.name else f"Weapon {card.value}"
             name_text = self.header_font.render(card_name, True, WHITE)
-            name_rect = name_text.get_rect(centerx=info_x + info_width//2, top=start_y)
+            name_rect = name_text.get_rect(centerx=info_x + info_width//2, top=current_y)
             surface.blit(name_text, name_rect)
+            
+            # Update current_y for next line (add header height + 5px spacing)
+            current_y = name_rect.bottom + 5
             
             # Determine weapon type based on value if not already set
             weapon_type = None
@@ -946,39 +1108,62 @@ class DelvingDeckState(GameState):
                 type_text += "Arrow (Ammo)"
                     
             type_render = self.body_font.render(type_text, True, GOLD_COLOR)
-            type_rect = type_render.get_rect(centerx=info_x + info_width//2, top=name_rect.bottom + 10)
+            type_rect = type_render.get_rect(centerx=info_x + info_width//2, top=current_y)
             surface.blit(type_render, type_rect)
+            
+            # Update current_y for next line
+            current_y = type_rect.bottom + 5
             
             # Damage text
             damage_text = f"Damage: {card.value}"
             damage_render = self.body_font.render(damage_text, True, WHITE)
-            damage_rect = damage_render.get_rect(centerx=info_x + info_width//2, top=type_rect.bottom + 10)
+            damage_rect = damage_render.get_rect(centerx=info_x + info_width//2, top=current_y)
             surface.blit(damage_render, damage_rect)
             
-        elif card.type == "potion" or card.suit == "hearts":  # Check by both type and suit
-            # For potion cards, we have 3 lines of text (name, type, effect)
-            # Calculate total text height with spacing
-            total_text_height = self.header_font.get_height() + (self.body_font.get_height() * 2) + 30  # 30px for spacing
-            # Position first text line so all three will be centered
-            start_y = panel_center_y - (total_text_height // 2) + 5
+            # Update current_y for next line
+            current_y = damage_rect.bottom + 5
             
+            # Add count line if multiple copies exist
+            if has_count:
+                count_text = f"Owned: {card.count}"
+                count_render = self.body_font.render(count_text, True, GOLD_COLOR)
+                count_rect = count_render.get_rect(centerx=info_x + info_width//2, top=current_y)
+                surface.blit(count_render, count_rect)
+            
+        elif card.type == "potion" or card.suit == "hearts":  # Check by both type and suit
             # Card name - use card name property if available
             card_name = card.name if hasattr(card, 'name') and card.name else f"Potion {card.value}"
             name_text = self.header_font.render(card_name, True, WHITE)
-            name_rect = name_text.get_rect(centerx=info_x + info_width//2, top=start_y)
+            name_rect = name_text.get_rect(centerx=info_x + info_width//2, top=current_y)
             surface.blit(name_text, name_rect)
+            
+            # Update current_y for next line (add header height + 5px spacing)
+            current_y = name_rect.bottom + 5
             
             # Potion type text
             type_text = "Potion - Healing"
             type_render = self.body_font.render(type_text, True, GOLD_COLOR)
-            type_rect = type_render.get_rect(centerx=info_x + info_width//2, top=name_rect.bottom + 10)
+            type_rect = type_render.get_rect(centerx=info_x + info_width//2, top=current_y)
             surface.blit(type_render, type_rect)
+            
+            # Update current_y for next line
+            current_y = type_rect.bottom + 5
             
             # Healing effect text
             heal_text = f"Restores {card.value} health"
             heal_render = self.body_font.render(heal_text, True, WHITE)
-            heal_rect = heal_render.get_rect(centerx=info_x + info_width//2, top=type_rect.bottom + 10)
+            heal_rect = heal_render.get_rect(centerx=info_x + info_width//2, top=current_y)
             surface.blit(heal_render, heal_rect)
+            
+            # Update current_y for next line
+            current_y = heal_rect.bottom + 5
+            
+            # Add count line if multiple copies exist
+            if has_count:
+                count_text = f"Owned: {card.count}"
+                count_render = self.body_font.render(count_text, True, GOLD_COLOR)
+                count_rect = count_render.get_rect(centerx=info_x + info_width//2, top=current_y)
+                surface.blit(count_render, count_rect)
     
     def _draw_mystery_info(self, surface, item):
         """Draw mystery info for an unowned card or placeholder"""
@@ -990,9 +1175,24 @@ class DelvingDeckState(GameState):
         if "position" not in item:
             return
             
-        # Calculate info box position relative to the hovered item
+        # Determine if we have rarity info
+        has_rarity = "rarity" in item
+        
+        # Calculate text heights
+        header_height = self.header_font.get_height()
+        body_height = self.body_font.get_height()
+        
+        # Calculate info box dimensions
         info_width = 200  # Slightly smaller info panel
-        info_height = 130  # Increased height to better fit text
+        
+        # Calculate height based on number of text lines plus padding
+        # Top padding (10px) + header + (spacing + body) * N + bottom padding (10px)
+        if has_rarity:
+            # 3 lines: name, type, rarity
+            info_height = 10 + header_height + 5 + (body_height + 5) * 2 + 5
+        else:
+            # 2 lines: name, type
+            info_height = 10 + header_height + 5 + (body_height + 5) + 5
         
         # Get the item position - adjust for catalog card size if needed
         position = item["position"]
@@ -1092,35 +1292,27 @@ class DelvingDeckState(GameState):
                 # For relic cards, they're special items
                 type_hint = "Artifact"
         
-        # Calculate vertical center positioning
-        panel_center_y = info_y + info_height // 2
-        
-        # Determine how many lines of text to display (2 or 3 depending on whether rarity is available)
-        has_rarity = "rarity" in item
-        
-        # Calculate total text height with spacing
-        if has_rarity:
-            # Name + type + rarity (3 lines)
-            total_text_height = self.header_font.get_height() + (self.body_font.get_height() * 2) + 24  # 24px for spacing
-        else:
-            # Just name + type (2 lines) 
-            total_text_height = self.header_font.get_height() + self.body_font.get_height() + 12  # 12px for spacing
-            
-        # Position first text line so all will be centered
-        start_y = panel_center_y - (total_text_height // 2)
+        # Start vertical position with top padding
+        current_y = info_y + 10  # 10px top padding
         
         # Draw mystery card name (???)
         mystery_text = self.header_font.render("???", True, WHITE)
-        mystery_rect = mystery_text.get_rect(centerx=info_x + info_width//2, top=start_y)
+        mystery_rect = mystery_text.get_rect(centerx=info_x + info_width//2, top=current_y)
         surface.blit(mystery_text, mystery_rect)
+        
+        # Update current_y for next line
+        current_y = mystery_rect.bottom + 5
         
         # Show type info for ALL unknown cards
         type_render = self.body_font.render(f"Type: {type_hint}", True, (180, 180, 180))
-        type_rect = type_render.get_rect(centerx=info_x + info_width//2, top=mystery_rect.bottom + 12)
+        type_rect = type_render.get_rect(centerx=info_x + info_width//2, top=current_y)
         surface.blit(type_render, type_rect)
+        
+        # Update current_y for next line
+        current_y = type_rect.bottom + 5
         
         # Show rarity text if available
         if has_rarity:
             rarity_render = self.body_font.render(f"{item['rarity'].capitalize()}", True, self.rarity_colors[item["rarity"]])
-            rarity_rect = rarity_render.get_rect(centerx=info_x + info_width//2, top=type_rect.bottom + 12)
+            rarity_rect = rarity_render.get_rect(centerx=info_x + info_width//2, top=current_y)
             surface.blit(rarity_render, rarity_rect)
