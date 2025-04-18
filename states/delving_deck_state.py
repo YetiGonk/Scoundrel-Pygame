@@ -37,9 +37,9 @@ class DelvingDeckState(GameState):
         # Rarity colors
         self.rarity_colors = {
             "common": (255, 255, 255),        # White
-            "uncommon": (120, 255, 120),      # Green
-            "rare": (120, 120, 255),          # Blue
-            "exotic": (255, 120, 255)         # Purple
+            "rare": (120, 255, 120),      # Green
+            "epic": (120, 120, 255),          # Blue
+            "relic": (255, 120, 255)         # Purple
         }
         
         # Interaction tracking
@@ -266,7 +266,7 @@ class DelvingDeckState(GameState):
             self._setup_card_catalog()
     
     def _setup_card_catalog(self):
-        """Sets up the full card catalog view with owned and placeholder cards"""
+        """Sets up the full card catalog view with owned and placeholder cards in a 4-column layout"""
         # Clear any existing catalog before rebuilding
         if hasattr(self, 'card_catalog'):
             self.card_catalog = []
@@ -279,33 +279,32 @@ class DelvingDeckState(GameState):
             key = f"{card.suit}_{card.value}"
             owned_cards[key] = card
             
-        # Define a smaller card size for catalog view (70% of normal size)
-        self.catalog_card_width = int(CARD_WIDTH * 0.7)
-        self.catalog_card_height = int(CARD_HEIGHT * 0.7)
+        # Make cards much smaller for catalog view (40% of normal size)
+        self.catalog_card_width = int(CARD_WIDTH * 0.4)
+        self.catalog_card_height = int(CARD_HEIGHT * 0.4)
         
-        # Card grid layout - more compact
-        card_spacing_x = 12  # Reduced spacing
-        card_spacing_y = 40  # Reduced space between rows but still room for headers
-        cards_per_row = 12   # More cards per row
+        # Grid layout - 4 columns side by side
+        card_spacing_x = 8   # Minimal spacing between cards
+        card_spacing_y = 12  # Reduced space between rows
+        cards_per_row = 3    # Cards per row in each column
+        column_spacing = 30  # Spacing between rarity columns
         
-        # Calculate start position (centered in the panel)
-        total_width = (self.catalog_card_width * cards_per_row) + (card_spacing_x * (cards_per_row - 1))
+        # Calculate total width of all columns
+        column_width = (self.catalog_card_width * cards_per_row) + (card_spacing_x * (cards_per_row - 1))
+        total_width = (column_width * 4) + (column_spacing * 3)
+        
+        # Starting position (centered in the panel)
         start_x = (SCREEN_WIDTH - total_width) // 2
-        start_y = self.main_panel.rect.top + 100  # Less space for title
-        
-        # Position marker
-        current_x = start_x
-        current_y = start_y
-        row_card_count = 0
+        start_y = self.main_panel.rect.top + 100  # Space for title
         
         # Helper function to add a header for a section
-        def add_header(title, rarity, y_pos):
+        def add_header(title, rarity, position):
             # Add to catalog so we can render it later
             self.card_catalog.append({
                 "type": "header",
                 "title": title,
                 "rarity": rarity,
-                "position": (SCREEN_WIDTH // 2, y_pos - 20)  # Less space above header
+                "position": position
             })
             
         # Helper function to add a card to the catalog
@@ -328,170 +327,68 @@ class DelvingDeckState(GameState):
                 "position": position,
                 "small": True  # Flag that this is a catalog card (smaller size)
             })
-        
-        # 1. COMMON CARDS (Hearts & Diamonds 2-10)
-        
-        # Add common cards header
-        add_header("COMMON CARDS", "common", current_y)
-        current_y += 15  # Adjust for header space
-        
-        # Add hearts 2-10
-        for value in range(2, 11):
-            if row_card_count >= cards_per_row:
-                # Start new row
-                current_y += self.catalog_card_height + card_spacing_y
-                current_x = start_x
-                row_card_count = 0
             
-            position = (current_x, current_y)
-            add_card_slot("hearts", value, "common", position)
-            
-            # Move to next slot
-            current_x += self.catalog_card_width + card_spacing_x
-            row_card_count += 1
-            
-        # Add diamonds 2-10, but skip values 2 and 3 which are arrows
-        for value in range(4, 11):  # Start at 4 to avoid duplicate arrow cards
-            if row_card_count >= cards_per_row:
-                # Start new row
-                current_y += self.catalog_card_height + card_spacing_y
-                current_x = start_x
-                row_card_count = 0
-            
-            position = (current_x, current_y)
-            add_card_slot("diamonds", value, "common", position)
-            
-            # Move to next slot
-            current_x += self.catalog_card_width + card_spacing_x
-            row_card_count += 1
-        
-        # 2. UNCOMMON CARDS (Arrows + Hearts & Diamonds J-A)
-        
-        # Start new row for uncommon cards
-        current_y += self.catalog_card_height + card_spacing_y + 20  # Less extra space for section
-        current_x = start_x
-        row_card_count = 0
-        
-        # Add uncommon cards header
-        add_header("UNCOMMON CARDS", "uncommon", current_y)
-        current_y += 15  # Adjust for header space
-        
-        # Add hearts J-A
-        for value in range(11, 15):
-            if row_card_count >= cards_per_row:
-                # Start new row
-                current_y += self.catalog_card_height + card_spacing_y
-                current_x = start_x
-                row_card_count = 0
-            
-            position = (current_x, current_y)
-            add_card_slot("hearts", value, "uncommon", position)
-            
-            # Move to next slot
-            current_x += self.catalog_card_width + card_spacing_x
-            row_card_count += 1
-            
-        # Add diamonds J-A
-        for value in range(11, 15):
-            if row_card_count >= cards_per_row:
-                # Start new row
-                current_y += self.catalog_card_height + card_spacing_y
-                current_x = start_x
-                row_card_count = 0
-            
-            position = (current_x, current_y)
-            add_card_slot("diamonds", value, "uncommon", position)
-            
-            # Move to next slot
-            current_x += self.catalog_card_width + card_spacing_x
-            row_card_count += 1
-
-        # Add 10 uncommon card placeholders
-        for i in range(10):
-            if row_card_count >= cards_per_row:
-                # Start new row
-                current_y += self.catalog_card_height + card_spacing_y
-                current_x = start_x
-                row_card_count = 0
-            
-            position = (current_x, current_y)
-            # Add placeholder
+        # Helper to add placeholder
+        def add_placeholder(rarity, position):
             self.card_catalog.append({
                 "type": "unknown",
-                "rarity": "uncommon",
+                "rarity": rarity,
                 "position": position,
                 "small": True  # Flag that this is a catalog item (smaller size)
             })
             
-            # Move to next slot
-            current_x += self.catalog_card_width + card_spacing_x
-            row_card_count += 1
-        
-        # 3. RARE CARDS (Placeholders)
-        
-        # Start new row for rare cards
-        current_y += self.catalog_card_height + card_spacing_y + 20  # Less extra space for section
-        current_x = start_x
-        row_card_count = 0
-        
-        # Add rare cards header
-        add_header("RARE CARDS", "rare", current_y)
-        current_y += 15  # Adjust for header space
-        
-        # Add 20 rare card placeholders
-        for i in range(20):
-            if row_card_count >= cards_per_row:
-                # Start new row
-                current_y += self.catalog_card_height + card_spacing_y
-                current_x = start_x
-                row_card_count = 0
+        # Helper function to position a column of cards
+        def position_column(column_index, rarity, title, card_count, add_func):
+            # Calculate column position
+            column_x = start_x + (column_width + column_spacing) * column_index
+            column_y = start_y
             
-            position = (current_x, current_y)
+            # Add header for this column centered above the cards
+            header_x = column_x + column_width // 2
+            add_header(title, rarity, (header_x, column_y))
+            column_y += 30  # Space after header
             
-            # Add placeholder
-            self.card_catalog.append({
-                "type": "unknown",
-                "rarity": "rare",
-                "position": position,
-                "small": True  # Flag that this is a catalog item (smaller size)
-            })
-            
-            # Move to next slot
-            current_x += self.catalog_card_width + card_spacing_x
-            row_card_count += 1
-            
-        # 4. EXOTIC CARDS (Placeholders)
+            # Setup card grid (filling by rows)
+            for i in range(card_count):
+                row = i // cards_per_row  # Move down after filling a row
+                col = i % cards_per_row   # Position within a row
+                
+                card_x = column_x + col * (self.catalog_card_width + card_spacing_x)
+                card_y = column_y + row * (self.catalog_card_height + card_spacing_y)
+                
+                # Call appropriate add function with position and index
+                add_func(card_x, card_y, i)
         
-        # Start new row for exotic cards
-        current_y += self.catalog_card_height + card_spacing_y + 20  # Less extra space for section
-        current_x = start_x
-        row_card_count = 0
+        # 1. COMMON CARDS (Hearts & Diamonds 2-10) - 18 cards total
+        def add_common(x, y, i):
+            if i < 9:  # Hearts 2-10
+                add_card_slot("hearts", i+2, "common", (x, y))
+            elif i < 18:  # Diamonds 2-10
+                add_card_slot("diamonds", i-7, "common", (x, y))
+            # Leave any extra slots empty
+                
+        position_column(0, "common", "COMMON", 18, add_common)
         
-        # Add exotic cards header
-        add_header("EXOTIC CARDS", "exotic", current_y)
-        current_y += 15  # Adjust for header space
+        # 2. RARE CARDS (Hearts & Diamonds J-A) - 18 cards
+        def add_rare(x, y, i):
+            if i < 4:  # Hearts J-A
+                add_card_slot("hearts", i+11, "rare", (x, y))
+            elif i < 8:  # Diamonds J-A
+                add_card_slot("diamonds", i+7, "rare", (x, y))
+            elif i < 18:  # Placeholders for remaining rare slots
+                add_placeholder("rare", (x, y))
+                
+        position_column(1, "rare", "RARE", 18, add_rare)
         
-        # Add 10 exotic card placeholders
-        for i in range(10):
-            if row_card_count >= cards_per_row:
-                # Start new row
-                current_y += self.catalog_card_height + card_spacing_y
-                current_x = start_x
-                row_card_count = 0
+        # 3. EPIC CARDS (Placeholders) - 18 cards
+        position_column(2, "epic", "EPIC", 18, 
+            lambda x, y, i: add_placeholder("epic", (x, y))
+        )
             
-            position = (current_x, current_y)
-            
-            # Add placeholder
-            self.card_catalog.append({
-                "type": "unknown",
-                "rarity": "exotic",
-                "position": position,
-                "small": True  # Flag that this is a catalog item (smaller size)
-            })
-            
-            # Move to next slot
-            current_x += self.catalog_card_width + card_spacing_x
-            row_card_count += 1
+        # 4. RELIC CARDS (Placeholders) - 12 cards
+        position_column(3, "relic", "RELIC", 12, 
+            lambda x, y, i: add_placeholder("relic", (x, y))
+        )
         
         # After building the catalog, update all position for owned cards to match catalog positions
         for catalog_item in self.card_catalog:
@@ -597,7 +494,16 @@ class DelvingDeckState(GameState):
                     card.hover_selection = None
                     
                     if card.is_hovered:
-                        self.hovered_item = {"type": "card", "card": card}
+                        # Create a more complete hover item that includes all needed properties
+                        self.hovered_item = {
+                            "type": "card", 
+                            "card": card,
+                            "suit": card.suit,
+                            "value": card.value,
+                            "owned": True,
+                            "position": card.rect.topleft,
+                            "rarity": "common" if card.value < 11 else "rare"
+                        }
             else:
                 # Library view - check for hovering over catalog items
                 self.hovered_item = None
@@ -642,17 +548,31 @@ class DelvingDeckState(GameState):
     def update(self, delta_time):
         # Update card animations
         if not self.show_library:
-            # Delving deck view - update all cards
+            # Delving deck view - update all cards with full animations
             for card in self.delving_deck_cards:
                 card.update(delta_time)
                 
                 if card.is_flipping:
                     card.update_flip(delta_time)
         else:
-            # Library view - only update owned cards in the catalog
+            # Library view - only update hover effects for owned cards in the catalog
+            # but disable idle floating animation
             for item in self.card_catalog:
                 if item.get("type") == "card" and item.get("owned") and item.get("card"):
+                    # Store original idle settings
+                    original_idle_float_amount = item["card"].idle_float_amount
+                    original_idle_float_speed = item["card"].idle_float_speed
+                    
+                    # Disable idle floating by setting amount to 0
+                    item["card"].idle_float_amount = 0
+                    item["card"].idle_float_speed = 0
+                    
+                    # Update only hover effects, not idle animations
                     item["card"].update(delta_time)
+                    
+                    # Restore original idle settings after update
+                    item["card"].idle_float_amount = original_idle_float_amount
+                    item["card"].idle_float_speed = original_idle_float_speed
                     
                     if item["card"].is_flipping:
                         item["card"].update_flip(delta_time)
@@ -683,7 +603,9 @@ class DelvingDeckState(GameState):
             surface.blit(subtitle_render, subtitle_rect)
         else:
             # For library view, place the card count in top right corner
-            collection_text = f"{len(self.card_library)}/{len(self.card_catalog) - len([i for i in self.card_catalog if i.get('type') == 'header' or i.get('type') == 'placeholder'])}"
+            # Calculate total collectible cards by counting all types except headers and unknowns
+            total_collectible = len([i for i in self.card_catalog if i.get("type") == "card" or i.get("type") == "unknown"])
+            collection_text = f"{len(self.card_library)}/{total_collectible}"
             collection_render = self.body_font.render(f"Cards: {collection_text}", True, WHITE)
             collection_rect = collection_render.get_rect(topright=(self.main_panel.rect.right - 20, self.main_panel.rect.top + 20))
             surface.blit(collection_render, collection_rect)
@@ -708,18 +630,18 @@ class DelvingDeckState(GameState):
             for item in self.card_catalog:
                 if item["type"] == "header":
                     # Draw section header
-                    header_text = self.header_font.render(item["title"], True, self.rarity_colors[item["rarity"]])
+                    header_text = self.body_font.render(item["title"], True, self.rarity_colors[item["rarity"]])
                     header_rect = header_text.get_rect(center=item["position"])
                     surface.blit(header_text, header_rect)
                 elif item["type"] == "card":
                     position = item["position"]
                     
-                    # Draw card border based on rarity - use catalog card size
+                    # Draw card border based on rarity - use catalog card size with thinner borders
                     border_rect = pygame.Rect(
-                        position[0] - 2, position[1] - 2,
-                        self.catalog_card_width + 4, self.catalog_card_height + 4
+                        position[0] - 1, position[1] - 1,
+                        self.catalog_card_width + 2, self.catalog_card_height + 2
                     )
-                    pygame.draw.rect(surface, self.rarity_colors[item["rarity"]], border_rect, 2, border_radius=6)
+                    pygame.draw.rect(surface, self.rarity_colors[item["rarity"]], border_rect, 1, border_radius=4)
                     
                     if item["owned"]:
                         # If the card is owned, we'll draw the card object itself later
@@ -729,35 +651,48 @@ class DelvingDeckState(GameState):
                             # First check if card isn't being hovered or dragged (those are drawn separately)
                             if not item.get("card").is_hovered and item.get("card") != self.dragging_card:
                                 # Draw the card at the catalog size - scale it down from the original
-                                # Store original rect
+                                # Store original properties
+                                original_texture = item["card"].texture
                                 original_rect = item["card"].rect
                                 
                                 # Calculate scale factor
                                 scale_factor = self.catalog_card_width / CARD_WIDTH
                                 
-                                # Temporarily update card's rect for drawing at smaller size
+                                # Create scaled version of the texture
+                                scaled_texture = pygame.transform.scale(
+                                    original_texture, 
+                                    (self.catalog_card_width, self.catalog_card_height)
+                                )
+                                
+                                # Temporarily update card's rect and texture for drawing at smaller size
                                 item["card"].rect = pygame.Rect(
                                     position[0], 
                                     position[1], 
                                     self.catalog_card_width, 
                                     self.catalog_card_height
                                 )
+                                item["card"].texture = scaled_texture
+                                item["card"].width = self.catalog_card_width
+                                item["card"].height = self.catalog_card_height
                                 
-                                # Create a temporary flag to indicate this is a small catalog card
-                                item["card"].is_catalog_card = True
-                                item["card"].scale_factor = scale_factor
+                                # Disable idle animation in catalog view
+                                original_idle_float_amount = item["card"].idle_float_amount
+                                original_idle_offset = item["card"].idle_float_offset
+                                item["card"].idle_float_amount = 0
+                                item["card"].idle_float_offset = 0
                                 
-                                # Draw the card
+                                # Draw the card at its catalog size
                                 item["card"].draw(surface)
                                 
-                                # Remove the temporary flag
-                                if hasattr(item["card"], 'is_catalog_card'):
-                                    delattr(item["card"], 'is_catalog_card')
-                                if hasattr(item["card"], 'scale_factor'):
-                                    delattr(item["card"], 'scale_factor')
+                                # Restore idle animation settings
+                                item["card"].idle_float_amount = original_idle_float_amount
+                                item["card"].idle_float_offset = original_idle_offset
                                 
-                                # Restore original rect
+                                # Restore original properties
+                                item["card"].texture = original_texture
                                 item["card"].rect = original_rect
+                                item["card"].width = CARD_WIDTH
+                                item["card"].height = CARD_HEIGHT
                     else:
                         # Draw placeholder for unowned card - with catalog size
                         card_rect = pygame.Rect(
@@ -784,12 +719,12 @@ class DelvingDeckState(GameState):
                 elif item["type"] == "unknown":
                     position = item["position"]
                     
-                    # Draw card border based on rarity - use catalog card size
+                    # Draw card border based on rarity - use catalog card size with thinner borders
                     border_rect = pygame.Rect(
-                        position[0] - 2, position[1] - 2,
-                        self.catalog_card_width + 4, self.catalog_card_height + 4
+                        position[0] - 1, position[1] - 1,
+                        self.catalog_card_width + 2, self.catalog_card_height + 2
                     )
-                    pygame.draw.rect(surface, self.rarity_colors[item["rarity"]], border_rect, 2, border_radius=6)
+                    pygame.draw.rect(surface, self.rarity_colors[item["rarity"]], border_rect, 1, border_radius=4)
                     
                     # Draw placeholder for unknown card - with catalog size
                     card_rect = pygame.Rect(
@@ -815,48 +750,87 @@ class DelvingDeckState(GameState):
                 # Draw the card at catalog size with subtle hover effect
                 position = self.hovered_item.get("position")
                 
-                # Draw a subtle highlight border
+                # Draw a subtle highlight border - thinner for smaller cards
                 border_rect = pygame.Rect(
-                    position[0] - 2, position[1] - 2,
-                    self.catalog_card_width + 4, self.catalog_card_height + 4
+                    position[0] - 1, position[1] - 1,
+                    self.catalog_card_width + 2, self.catalog_card_height + 2
                 )
                 # Use a slightly dimmer version of the rarity color for a more subtle effect
                 rarity_color = self.rarity_colors[self.hovered_item["rarity"]]
                 hover_color = (int(rarity_color[0] * 0.8), int(rarity_color[1] * 0.8), int(rarity_color[2] * 0.8))
-                pygame.draw.rect(surface, hover_color, border_rect, 2, border_radius=6)
+                pygame.draw.rect(surface, hover_color, border_rect, 1, border_radius=4)
                 
-                # Store original rect
+                # Store original properties
+                original_texture = self.hovered_item["card"].texture
                 original_rect = self.hovered_item["card"].rect
                 
                 # Calculate scale factor
                 scale_factor = self.catalog_card_width / CARD_WIDTH
                 
-                # Temporarily update card's rect for drawing at smaller size
+                # Create scaled version of the texture
+                scaled_texture = pygame.transform.scale(
+                    original_texture, 
+                    (self.catalog_card_width, self.catalog_card_height)
+                )
+                
+                # Temporarily update card's properties for drawing at smaller size
                 self.hovered_item["card"].rect = pygame.Rect(
                     position[0], 
                     position[1], 
                     self.catalog_card_width, 
                     self.catalog_card_height
                 )
+                self.hovered_item["card"].texture = scaled_texture
+                self.hovered_item["card"].width = self.catalog_card_width
+                self.hovered_item["card"].height = self.catalog_card_height
                 
-                # Create a temporary flag to indicate this is a small catalog card
-                self.hovered_item["card"].is_catalog_card = True
-                self.hovered_item["card"].scale_factor = scale_factor
-                # Mark this as a hovered catalog card - need both flags for proper drawing
+                # Mark this as a hovered card for proper drawing
                 self.hovered_item["card"].is_hovered = True
-                self.hovered_item["card"].is_catalog_card = True
                 
-                # Draw the card
+                # Disable idle animation in catalog view
+                original_idle_float_amount = self.hovered_item["card"].idle_float_amount
+                original_idle_offset = self.hovered_item["card"].idle_float_offset
+                self.hovered_item["card"].idle_float_amount = 0
+                self.hovered_item["card"].idle_float_offset = 0
+                
+                # For hovered cards in library view, scale them up significantly (80% of original)
+                # to make them clearly visible
+                enlarged_width = int(CARD_WIDTH * 0.8)
+                enlarged_height = int(CARD_HEIGHT * 0.8)
+                
+                # Create enlarged version of the texture
+                enlarged_texture = pygame.transform.scale(
+                    original_texture, 
+                    (enlarged_width, enlarged_height)
+                )
+                
+                # Calculate centered position for enlarged card
+                enlarged_x = position[0] - (enlarged_width - self.catalog_card_width) // 2
+                enlarged_y = position[1] - (enlarged_height - self.catalog_card_height) // 2
+                
+                # Update card's rect and texture for drawing at enlarged size
+                self.hovered_item["card"].rect = pygame.Rect(
+                    enlarged_x, 
+                    enlarged_y, 
+                    enlarged_width, 
+                    enlarged_height
+                )
+                self.hovered_item["card"].texture = enlarged_texture
+                self.hovered_item["card"].width = enlarged_width
+                self.hovered_item["card"].height = enlarged_height
+                
+                # Draw the card at its enlarged size
                 self.hovered_item["card"].draw(surface)
                 
-                # Remove the temporary flags
-                if hasattr(self.hovered_item["card"], 'is_catalog_card'):
-                    delattr(self.hovered_item["card"], 'is_catalog_card')
-                if hasattr(self.hovered_item["card"], 'scale_factor'):
-                    delattr(self.hovered_item["card"], 'scale_factor')
+                # Restore idle animation settings
+                self.hovered_item["card"].idle_float_amount = original_idle_float_amount
+                self.hovered_item["card"].idle_float_offset = original_idle_offset
                 
-                # Restore original rect
+                # Restore original properties
+                self.hovered_item["card"].texture = original_texture
                 self.hovered_item["card"].rect = original_rect
+                self.hovered_item["card"].width = CARD_WIDTH
+                self.hovered_item["card"].height = CARD_HEIGHT
         
         # Draw card info for hovered item
         if self.hovered_item:
@@ -889,32 +863,33 @@ class DelvingDeckState(GameState):
         # Check if this is a catalog card (smaller size)
         is_catalog_card = hasattr(card, 'is_catalog_card') and card.is_catalog_card
         
-        # For catalog view, use a simplified positioning strategy
-        if self.show_library or is_catalog_card:
-            # In library view, always position info to the right of the card
-            # This is simpler and more predictable
-            info_x = card_right + 5
-            info_y = card_top
+        # Always use a consistent and simple positioning strategy for all card views
+        # Start with the right side position (most readable position)
+        info_x = card_right + 10
+        info_y = card_top
+        
+        # If it would go off-screen to the right, position left of card
+        if info_x + info_width > self.main_panel.rect.right - 10:
+            info_x = card_left - info_width - 10
             
-            # But if it would go off-screen to the right, position left of card
-            if info_x + info_width > self.main_panel.rect.right - 10:
-                info_x = card_left - info_width - 5
-            
-            # Ensure it stays within vertical bounds
-            if info_y + info_height > self.main_panel.rect.bottom - 10:
-                info_y = self.main_panel.rect.bottom - info_height - 10
-        else:
-            # In delving deck view, position based on card location
-            panel_middle_y = self.main_panel.rect.top + self.main_panel.rect.height // 2
-            
-            # In bottom half of screen, show above
-            if card_top > panel_middle_y:
-                info_y = card_top - info_height - 20
+        # If it's still off-screen (very wide card or panel edge), 
+        # position below or above the card instead
+        if info_x < self.main_panel.rect.left + 10:
+            # Position below or above based on available space
+            if card_top + card.rect.height + info_height + 10 <= self.main_panel.rect.bottom - 10:
+                # Position below
                 info_x = card_center_x - (info_width // 2)
+                info_y = card_bottom + 10
             else:
-                # In top half of screen, show below
-                info_y = card_bottom + 20
+                # Position above
                 info_x = card_center_x - (info_width // 2)
+                info_y = card_top - info_height - 10
+            
+        # Final check - ensure it stays within vertical bounds
+        if info_y + info_height > self.main_panel.rect.bottom - 10:
+            info_y = self.main_panel.rect.bottom - info_height - 10
+        if info_y < self.main_panel.rect.top + 10:
+            info_y = self.main_panel.rect.top + 10
         
         # Final safety check - ensure panel stays within bounds
         info_x = max(self.main_panel.rect.left + 10, min(info_x, self.main_panel.rect.right - info_width - 10))
@@ -934,27 +909,41 @@ class DelvingDeckState(GameState):
         # Calculate vertical center positioning for better alignment
         panel_center_y = info_y + info_height // 2
         
-        if card.type == "weapon":
+        if card.type == "weapon" or card.suit == "diamonds":  # Check by both type and suit
             # For weapon cards, we have 3 lines of text (name, type, damage)
             # Calculate total text height with spacing
             total_text_height = self.header_font.get_height() + (self.body_font.get_height() * 2) + 30  # 30px for spacing
             # Position first text line so all three will be centered
             start_y = panel_center_y - (total_text_height // 2) + 5
             
-            # Card name
-            name_text = self.header_font.render(card.name, True, WHITE)
+            # Card name - use card name property if available
+            card_name = card.name if hasattr(card, 'name') and card.name else f"Weapon {card.value}"
+            name_text = self.header_font.render(card_name, True, WHITE)
             name_rect = name_text.get_rect(centerx=info_x + info_width//2, top=start_y)
             surface.blit(name_text, name_rect)
             
+            # Determine weapon type based on value if not already set
+            weapon_type = None
+            if hasattr(card, 'weapon_type') and card.weapon_type:
+                weapon_type = card.weapon_type
+            else:
+                # Fallback to determine type based on card value
+                from roguelike_constants import WEAPON_MAPPINGS
+                if card.value in [2, 3]:
+                    weapon_type = "arrow"
+                elif card.value in [11, 13]:  # Longbow and Crossbow are ranged
+                    weapon_type = "ranged"
+                else:
+                    weapon_type = "melee"
+            
             # Weapon type text
             type_text = f"Weapon - "
-            if hasattr(card, 'weapon_type') and card.weapon_type:
-                if card.weapon_type == "ranged":
-                    type_text += "Ranged"
-                elif card.weapon_type == "melee":
-                    type_text += "Melee"
-                elif card.weapon_type == "arrow":
-                    type_text += "Arrow (Ammo)"
+            if weapon_type == "ranged":
+                type_text += "Ranged"
+            elif weapon_type == "melee":
+                type_text += "Melee"
+            elif weapon_type == "arrow":
+                type_text += "Arrow (Ammo)"
                     
             type_render = self.body_font.render(type_text, True, GOLD_COLOR)
             type_rect = type_render.get_rect(centerx=info_x + info_width//2, top=name_rect.bottom + 10)
@@ -966,15 +955,16 @@ class DelvingDeckState(GameState):
             damage_rect = damage_render.get_rect(centerx=info_x + info_width//2, top=type_rect.bottom + 10)
             surface.blit(damage_render, damage_rect)
             
-        elif card.type == "potion":
+        elif card.type == "potion" or card.suit == "hearts":  # Check by both type and suit
             # For potion cards, we have 3 lines of text (name, type, effect)
             # Calculate total text height with spacing
             total_text_height = self.header_font.get_height() + (self.body_font.get_height() * 2) + 30  # 30px for spacing
             # Position first text line so all three will be centered
             start_y = panel_center_y - (total_text_height // 2) + 5
             
-            # Card name
-            name_text = self.header_font.render(card.name, True, WHITE)
+            # Card name - use card name property if available
+            card_name = card.name if hasattr(card, 'name') and card.name else f"Potion {card.value}"
+            name_text = self.header_font.render(card_name, True, WHITE)
             name_rect = name_text.get_rect(centerx=info_x + info_width//2, top=start_y)
             surface.blit(name_text, name_rect)
             
@@ -1021,32 +1011,33 @@ class DelvingDeckState(GameState):
             item_top = position[1]
             item_bottom = position[1] + item_height
             
-        # For catalog view, use a simplified positioning strategy - fixed offset from card
-        if self.show_library:
-            # In library view, always position info to the right of the card
-            # This is simpler and more predictable
-            info_x = position[0] + item_width + 5
-            info_y = position[1]
+        # Use consistent positioning strategy for all views (same as _draw_card_info)
+        # Start with the right side position (most readable position)
+        info_x = position[0] + item_width + 10
+        info_y = position[1]
+        
+        # If it would go off-screen to the right, position left of card
+        if info_x + info_width > self.main_panel.rect.right - 10:
+            info_x = position[0] - info_width - 10
             
-            # But if it would go off-screen to the right, position left of card
-            if info_x + info_width > self.main_panel.rect.right - 10:
-                info_x = position[0] - info_width - 5
-            
-            # Ensure it stays within vertical bounds
-            if info_y + info_height > self.main_panel.rect.bottom - 10:
-                info_y = self.main_panel.rect.bottom - info_height - 10
-        else:
-            # In delving deck view, use more complex positioning
-            panel_middle_y = self.main_panel.rect.top + self.main_panel.rect.height // 2
-            
-            # In bottom half of screen, show above
-            if item_top > panel_middle_y:
-                info_y = item_top - info_height - 10
+        # If it's still off-screen (very wide card or panel edge), 
+        # position below or above the card instead
+        if info_x < self.main_panel.rect.left + 10:
+            # Position below or above based on available space
+            if item_top + item_height + info_height + 10 <= self.main_panel.rect.bottom - 10:
+                # Position below
                 info_x = item_center_x - (info_width // 2)
-            else:
-                # In top half of screen, show below
                 info_y = item_bottom + 10
+            else:
+                # Position above
                 info_x = item_center_x - (info_width // 2)
+                info_y = item_top - info_height - 10
+            
+        # Final check - ensure it stays within vertical bounds
+        if info_y + info_height > self.main_panel.rect.bottom - 10:
+            info_y = self.main_panel.rect.bottom - info_height - 10
+        if info_y < self.main_panel.rect.top + 10:
+            info_y = self.main_panel.rect.top + 10
         
         # Final safety check - ensure panel stays within bounds
         info_x = max(self.main_panel.rect.left + 10, min(info_x, self.main_panel.rect.right - info_width - 10))
@@ -1066,21 +1057,25 @@ class DelvingDeckState(GameState):
         # Determine the item type for all cards and placeholders
         type_hint = "Unknown"
         
-        # For actual card slots, determine type based on suit
+        # For actual card slots, determine type based on suit and value
         if item.get("type") == "card":
             if item.get("suit") == "hearts":
                 type_hint = "Potion"
             elif item.get("suit") == "diamonds":
-                type_hint = "Weapon"
+                # Special case for diamonds 2-3, which are arrows
+                if item.get("value") == 2 or item.get("value") == 3:
+                    type_hint = "Arrow"
+                else:
+                    type_hint = "Weapon"
             elif item.get("suit") == "spades" or item.get("suit") == "clubs":
                 type_hint = "Monster"
         
-        # For rare and exotic placeholders, make a reasonable guess based on section
-        elif item.get("type") == "placeholder":
-            # If it's in the rare or exotic section, show a more specific type hint
+        # For epic and relic placeholders, make a reasonable guess based on section
+        elif item.get("type") == "placeholder" or item.get("type") == "unknown":
+            # If it's in the epic or relic section, show a more specific type hint
             rarity = item.get("rarity", "")
-            if rarity == "rare":
-                # Distribute types evenly for rare cards
+            if rarity == "epic":
+                # Distribute types evenly for epic cards
                 # Use the card's position to deterministically assign a type
                 # This ensures the same card always shows the same type
                 pos = item.get("position", (0, 0))
@@ -1093,8 +1088,8 @@ class DelvingDeckState(GameState):
                     type_hint = "Spell"
                 else:
                     type_hint = "Artifact"
-            elif rarity == "exotic":
-                # For exotic cards, they're special items
+            elif rarity == "relic":
+                # For relic cards, they're special items
                 type_hint = "Artifact"
         
         # Calculate vertical center positioning
