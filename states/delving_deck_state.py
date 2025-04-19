@@ -46,10 +46,13 @@ class DelvingDeckState(GameState):
         self.dragging_card = None
         self.drag_offset = (0, 0)
         self.hovered_item = None  # Could be a card or a placeholder
+        self.selected_card = None  # Card selected for swapping
+        self.swap_source = None   # Source of the card for swapping ("deck" or "library")
         
         # UI state
         self.show_library = False  # Toggle between delving deck and library views
         self.toggle_button = None
+        self.swap_button = None   # Button to swap selected card between delving deck and library
     
     def enter(self):
         # Load fonts
@@ -98,17 +101,16 @@ class DelvingDeckState(GameState):
         )
         
         # Create buttons with dungeon styling
-        button_width = 300
+        button_width = 250  # Slightly smaller to fit the swap button
         button_height = 50
         button_spacing = 20
         
         # Position at the bottom of the panel
         buttons_y = panel_y + panel_height - button_height - button_spacing
         
-        # Create toggle button to switch between delving deck and library
-        # Position to the left of back button
+        # Calculate button positions for 3 buttons
         toggle_button_rect = pygame.Rect(
-            (SCREEN_WIDTH - button_width - button_width - button_spacing) // 2,
+            (SCREEN_WIDTH - button_width*3 - button_spacing*2) // 2,
             buttons_y,
             button_width,
             button_height
@@ -127,9 +129,26 @@ class DelvingDeckState(GameState):
             border_colour=(80, 120, 160)  # Brighter blue border
         )
         
-        # Back button (positioned to the right of toggle button)
-        back_button_rect = pygame.Rect(
+        # Swap button (middle)
+        swap_button_rect = pygame.Rect(
             toggle_button_rect.right + button_spacing,
+            buttons_y,
+            button_width,
+            button_height
+        )
+        self.swap_button = Button(
+            swap_button_rect,
+            "SWAP CARD",
+            self.body_font,
+            text_colour=WHITE,
+            dungeon_style=True,
+            panel_colour=(60, 80, 40),  # Dark green
+            border_colour=(100, 150, 80)  # Brighter green border
+        )
+        
+        # Back button (right)
+        back_button_rect = pygame.Rect(
+            swap_button_rect.right + button_spacing,
             buttons_y,
             button_width, 
             button_height
@@ -203,7 +222,6 @@ class DelvingDeckState(GameState):
     def _initialize_default_deck(self):
         """Initialize the default starter deck for a new player"""
         self.delving_deck_cards = []
-        self.card_library = []
         
         # Add 5 potion cards (hearts) of values 3, 4, 5, 7, 9
         potion_values = [3, 4, 5, 7, 9]
@@ -215,24 +233,6 @@ class DelvingDeckState(GameState):
             new_card.can_add_to_inventory = False
             new_card.can_show_attack_options = False
             self.delving_deck_cards.append(new_card)
-            
-            # Add to card library (create a new card object, don't use the same reference)
-            lib_card = Card("hearts", value)
-            lib_card.face_up = True
-            # Disable split button functionality in this state
-            lib_card.can_add_to_inventory = False
-            lib_card.can_show_attack_options = False
-            self.card_library.append(lib_card)
-            
-            # Add duplicate cards for certain values (for testing)
-            if value == 3 or value == 5:
-                # Add 2 more copies of hearts 3 and 5
-                for _ in range(2):
-                    dup_card = Card("hearts", value)
-                    dup_card.face_up = True
-                    dup_card.can_add_to_inventory = False
-                    dup_card.can_show_attack_options = False
-                    self.card_library.append(dup_card)
         
         # Add 5 weapon cards (diamonds) of values 3, 4, 5, 7, 9
         weapon_values = [3, 4, 5, 7, 9]
@@ -244,54 +244,9 @@ class DelvingDeckState(GameState):
             new_card.can_add_to_inventory = False
             new_card.can_show_attack_options = False
             self.delving_deck_cards.append(new_card)
-            
-            # Add to card library (create a new card object, don't use the same reference)
-            lib_card = Card("diamonds", value)
-            lib_card.face_up = True
-            # Disable split button functionality in this state
-            lib_card.can_add_to_inventory = False
-            lib_card.can_show_attack_options = False
-            self.card_library.append(lib_card)
-            
-            # Add duplicate diamond cards for certain values (for testing)
-            if value == 4 or value == 7:
-                # Add 3 more copies of diamonds 4 and 1 more copy of diamonds 7
-                for _ in range(3 if value == 4 else 1):
-                    dup_card = Card("diamonds", value)
-                    dup_card.face_up = True
-                    dup_card.can_add_to_inventory = False
-                    dup_card.can_show_attack_options = False
-                    self.card_library.append(dup_card)
-        
-        # Count duplicates and create unique card list with counts
-        card_counts = {}
-        for card in self.card_library:
-            card_key = f"{card.suit}_{card.value}"
-            if card_key in card_counts:
-                card_counts[card_key] += 1
-            else:
-                card_counts[card_key] = 1
-        
-        # Create a new library with unique cards and counts
-        unique_library = []
-        processed_keys = set()
-        
-        for card in self.card_library:
-            card_key = f"{card.suit}_{card.value}"
-            if card_key not in processed_keys:
-                # This is the first time we're seeing this card
-                processed_keys.add(card_key)
-                # Set the count property
-                card.count = card_counts[card_key]
-                # Add to our new unique library
-                unique_library.append(card)
-        
-        # Replace the library with our deduplicated version
-        self.card_library = unique_library
         
         # Save both collections to game manager
         self._save_delving_deck()
-        self._save_card_library()
     
     def _position_cards(self):
         """Position the cards for display based on the current view (delving deck or library)"""
@@ -343,6 +298,15 @@ class DelvingDeckState(GameState):
             key = f"{card.suit}_{card.value}"
             owned_cards[key] = card
             
+        # Also track which cards are in the delving deck
+        deck_cards = {}
+        for card in self.delving_deck_cards:
+            key = f"{card.suit}_{card.value}"
+            if key in deck_cards:
+                deck_cards[key] += 1
+            else:
+                deck_cards[key] = 1
+            
         # Make cards much smaller for catalog view (40% of normal size)
         self.catalog_card_width = int(CARD_WIDTH * 0.4)
         self.catalog_card_height = int(CARD_HEIGHT * 0.4)
@@ -373,9 +337,10 @@ class DelvingDeckState(GameState):
             
         # Helper function to add a card to the catalog
         def add_card_slot(suit, value, rarity, position):
-            # Check if player owns this card
+            # Check if player owns this card (in library or deck)
             key = f"{suit}_{value}"
             owned = key in owned_cards
+            in_deck = key in deck_cards
             
             # If owned, use the actual card from library
             card = owned_cards.get(key, None)
@@ -387,6 +352,8 @@ class DelvingDeckState(GameState):
                 "suit": suit,
                 "value": value,
                 "owned": owned,
+                "in_deck": in_deck,
+                "deck_count": deck_cards.get(key, 0),
                 "rarity": rarity,
                 "position": position,
                 "small": True  # Flag that this is a catalog card (smaller size)
@@ -435,20 +402,26 @@ class DelvingDeckState(GameState):
         
         # 2. RARE CARDS (Hearts & Diamonds J-A) - 18 cards
         def add_rare(x, y, i):
-            if i < 4:  # Hearts J-A
+            if i < 3:  # Hearts J-K
                 add_card_slot("hearts", i+11, "rare", (x, y))
-            elif i < 8:  # Diamonds J-A
-                add_card_slot("diamonds", i+7, "rare", (x, y))
+            elif i < 6:  # Diamonds J-K
+                add_card_slot("diamonds", i+8, "rare", (x, y))
             elif i < 18:  # Placeholders for remaining rare slots
                 add_placeholder("rare", (x, y))
                 
         position_column(1, "rare", "RARE", 18, add_rare)
         
         # 3. EPIC CARDS (Placeholders) - 18 cards
-        position_column(2, "epic", "EPIC", 18, 
-            lambda x, y, i: add_placeholder("epic", (x, y))
-        )
-            
+        def add_epic(x, y, i):
+            if i < 1:  # Hearts A
+                add_card_slot("hearts", i+14, "epic", (x, y))
+            elif i < 2:  # Diamonds A
+                add_card_slot("diamonds", i+13, "epic", (x, y))
+            elif i < 18:  # Placeholders for remaining epic slots
+                add_placeholder("epic", (x, y))
+        
+        position_column(2, "epic", "EPIC", 18, add_epic)
+        
         # 4. RELIC CARDS (Placeholders) - 12 cards
         position_column(3, "relic", "RELIC", 12, 
             lambda x, y, i: add_placeholder("relic", (x, y))
@@ -493,6 +466,65 @@ class DelvingDeckState(GameState):
         
         # Save to game manager
         self.game_manager.card_library = library_data
+        
+    def _move_card_from_deck_to_library(self, card):
+        """Move a card from the delving deck to the library"""
+        if card not in self.delving_deck_cards:
+            return
+            
+        # First check if this card already exists in the library
+        card_key = f"{card.suit}_{card.value}"
+        existing_card = None
+        
+        for lib_card in self.card_library:
+            if f"{lib_card.suit}_{lib_card.value}" == card_key:
+                existing_card = lib_card
+                break
+                
+        if existing_card:
+            # If the card already exists in the library, increment its count
+            if hasattr(existing_card, 'count'):
+                existing_card.count += 1
+            else:
+                existing_card.count = 2
+        else:
+            # Otherwise, add the card to the library
+            # Create a new card instance to avoid reference issues
+            new_lib_card = Card(card.suit, card.value)
+            new_lib_card.face_up = True
+            new_lib_card.can_add_to_inventory = False
+            new_lib_card.can_show_attack_options = False
+            new_lib_card.count = 1
+            self.card_library.append(new_lib_card)
+            
+        # Remove the card from the delving deck
+        self.delving_deck_cards.remove(card)
+        
+    def _move_card_from_library_to_deck(self, card):
+        """Move a card from the library to the delving deck"""
+        # Check if the delving deck is already full
+        if len(self.delving_deck_cards) >= 10:
+            return
+            
+        # Find the card in the library
+        if card not in self.card_library:
+            return
+            
+        # Create a new card for the delving deck (to avoid reference issues)
+        new_deck_card = Card(card.suit, card.value)
+        new_deck_card.face_up = True
+        new_deck_card.can_add_to_inventory = False
+        new_deck_card.can_show_attack_options = False
+        
+        # Add the card to the delving deck
+        self.delving_deck_cards.append(new_deck_card)
+        
+        # Update the count in the library
+        if hasattr(card, 'count') and card.count > 1:
+            card.count -= 1
+        else:
+            # If it's the last copy, remove it from the library
+            self.card_library.remove(card)
     
     def handle_event(self, event):
         mouse_pos = pygame.mouse.get_pos()
@@ -515,8 +547,38 @@ class DelvingDeckState(GameState):
                     # We are now in delving deck view, so button should show option to go to library
                     self.toggle_button.update_text("SHOW CARD LIBRARY")
                 
+                # Reset selection when changing views unless it's ready to swap
+                if ((self.swap_source == "deck" and not self.show_library) or 
+                    (self.swap_source == "library" and self.show_library)):
+                    self.selected_card = None
+                    self.swap_source = None
+                
                 # Reposition cards for the new view
                 self._position_cards()
+                return
+                
+            # Check if swap button was clicked
+            if self.swap_button.is_clicked(mouse_pos):
+                # Only process if a card is selected for swapping
+                if self.selected_card:
+                    if self.swap_source == "deck":
+                        # Move the selected card from deck to library
+                        self._move_card_from_deck_to_library(self.selected_card)
+                    elif self.swap_source == "library":
+                        # Move the selected card from library to deck
+                        if len(self.delving_deck_cards) < 10:  # Check if deck has room
+                            self._move_card_from_library_to_deck(self.selected_card)
+                
+                    # Reset selection after swap
+                    self.selected_card = None
+                    self.swap_source = None
+                    
+                    # Reposition cards for the updated collections
+                    self._position_cards()
+                    
+                    # Save both collections to game manager
+                    self._save_delving_deck()
+                    self._save_card_library()
                 return
             
             # Handle click events based on current view
@@ -524,16 +586,44 @@ class DelvingDeckState(GameState):
                 # Delving deck view - check if a card was clicked
                 for card in self.delving_deck_cards:
                     if card.rect.collidepoint(mouse_pos):
-                        self.dragging_card = card
-                        self.drag_offset = (
-                            card.rect.x - mouse_pos[0],
-                            card.rect.y - mouse_pos[1]
-                        )
+                        # Select the card for swapping instead of dragging
+                        if self.selected_card == card:
+                            # Clicking the same card again deselects it
+                            self.selected_card = None
+                            self.swap_source = None
+                        else:
+                            self.selected_card = card
+                            self.swap_source = "deck"
                         break
             else:
-                # Library view - no dragging, but we check for hovering
-                # This is handled in MOUSEMOTION event
-                pass
+                # Library view - check if a catalog card was clicked
+                for item in self.card_catalog:
+                    # Skip headers and non-owned cards
+                    if item.get("type") != "card" or not item.get("owned"):
+                        continue
+                        
+                    # Get the card and position
+                    card = item.get("card")
+                    if not card:
+                        continue
+                        
+                    # Check if mouse is hovering over this item
+                    position = item.get("position")
+                    item_rect = pygame.Rect(
+                        position[0], position[1],
+                        self.catalog_card_width, self.catalog_card_height
+                    )
+                    
+                    if item_rect.collidepoint(mouse_pos):
+                        # Select the card for swapping
+                        if self.selected_card == card:
+                            # Clicking the same card again deselects it
+                            self.selected_card = None
+                            self.swap_source = None
+                        else:
+                            self.selected_card = card
+                            self.swap_source = "library"
+                        break
         
         elif event.type == MOUSEBUTTONUP and event.button == 1:  # Left button release
             # Stop dragging any card
@@ -550,6 +640,7 @@ class DelvingDeckState(GameState):
             # Update button hover states
             self.back_button.check_hover(mouse_pos)
             self.toggle_button.check_hover(mouse_pos)
+            self.swap_button.check_hover(mouse_pos)
             
             # Update hover states based on current view
             if not self.show_library:
@@ -646,6 +737,55 @@ class DelvingDeckState(GameState):
                     
                     if item["card"].is_flipping:
                         item["card"].update_flip(delta_time)
+        
+        # Update swap button text and color based on current state
+        if self.selected_card:
+            if (self.swap_source == "deck" and self.show_library) or (self.swap_source == "library" and not self.show_library):
+                # Card can be swapped in current view
+                if self.swap_source == "library" and len(self.delving_deck_cards) >= 10:
+                    # Delving deck is full
+                    self.swap_button = Button(
+                        self.swap_button.rect,
+                        "DECK FULL",
+                        self.body_font,
+                        text_colour=WHITE,
+                        dungeon_style=True,
+                        panel_colour=(100, 40, 40),  # Red
+                        border_colour=(150, 70, 70)
+                    )
+                else:
+                    # Ready to swap
+                    self.swap_button = Button(
+                        self.swap_button.rect,
+                        "SWAP CARD",
+                        self.body_font,
+                        text_colour=WHITE,
+                        dungeon_style=True,
+                        panel_colour=(60, 120, 40),  # Brighter green
+                        border_colour=(130, 200, 80)
+                    )
+            else:
+                # Wrong view to swap this card
+                self.swap_button = Button(
+                    self.swap_button.rect,
+                    "SWAP CARD",
+                    self.body_font,
+                    text_colour=WHITE,
+                    dungeon_style=True,
+                    panel_colour=(60, 60, 60),  # Grey (disabled)
+                    border_colour=(100, 100, 100)
+                )
+        else:
+            # No card selected
+            self.swap_button = Button(
+                self.swap_button.rect,
+                "SWAP CARD",
+                self.body_font,
+                text_colour=WHITE,
+                dungeon_style=True,
+                panel_colour=(60, 80, 40),  # Default green
+                border_colour=(100, 150, 80)
+            )
     
     def draw(self, surface):
         # Draw background
@@ -675,10 +815,25 @@ class DelvingDeckState(GameState):
             # For library view, place the card count in top right corner
             # Calculate total collectible cards by counting all types except headers and unknowns
             total_collectible = len([i for i in self.card_catalog if i.get("type") == "card" or i.get("type") == "unknown"])
-            collection_text = f"{len(self.card_library)}/{total_collectible}"
+            
+            # Calculate the total unique cards in both library and deck
+            all_cards = set()
+            for card in self.card_library:
+                all_cards.add(f"{card.suit}_{card.value}")
+            for card in self.delving_deck_cards:
+                all_cards.add(f"{card.suit}_{card.value}")
+                
+            # Display the total collected cards and total collectible
+            collection_text = f"{len(all_cards)}/{total_collectible}"
             collection_render = self.body_font.render(f"Cards: {collection_text}", True, WHITE)
             collection_rect = collection_render.get_rect(topright=(self.main_panel.rect.right - 20, self.main_panel.rect.top + 20))
             surface.blit(collection_render, collection_rect)
+            
+            # Also show the deck count below
+            deck_text = f"Delving Deck: {len(self.delving_deck_cards)}/10"
+            deck_render = self.body_font.render(deck_text, True, (230, 180, 50))  # Gold color
+            deck_rect = deck_render.get_rect(topright=(self.main_panel.rect.right - 20, collection_rect.bottom + 10))
+            surface.blit(deck_render, deck_rect)
         
         # Draw cards based on current view
         if not self.show_library:
@@ -687,10 +842,21 @@ class DelvingDeckState(GameState):
             for card in self.delving_deck_cards:
                 if not card.is_hovered and card != self.dragging_card:
                     card.draw(surface)
+                    
+                    # Draw selection indicator if card is selected
+                    if card == self.selected_card:
+                        # Draw a highlighted border around the selected card
+                        selection_rect = card.rect.inflate(8, 8)  # Make border slightly larger than card
+                        pygame.draw.rect(surface, (255, 215, 0), selection_rect, 3, border_radius=6)  # Gold border
             
             # Then draw hovered card to ensure it appears on top
             if self.hovered_item and self.hovered_item.get("type") == "card" and self.hovered_item.get("card") != self.dragging_card:
                 self.hovered_item["card"].draw(surface)
+                
+                # Draw selection indicator if hovered card is selected
+                if self.hovered_item["card"] == self.selected_card:
+                    selection_rect = self.hovered_item["card"].rect.inflate(8, 8)
+                    pygame.draw.rect(surface, (255, 215, 0), selection_rect, 3, border_radius=6)  # Gold border
             
             # Draw dragged card last (on top of everything)
             if self.dragging_card:
@@ -712,6 +878,10 @@ class DelvingDeckState(GameState):
                         self.catalog_card_width + 2, self.catalog_card_height + 2
                     )
                     pygame.draw.rect(surface, self.rarity_colors[item["rarity"]], border_rect, 1, border_radius=4)
+                    
+                    # Check if card is in deck for special handling
+                    in_deck = item.get("in_deck", False)
+                    deck_count = item.get("deck_count", 0)
                     
                     if item["owned"]:
                         # If the card is owned, we'll draw the card object itself later
@@ -754,45 +924,100 @@ class DelvingDeckState(GameState):
                                 # Draw the card at its catalog size
                                 item["card"].draw(surface)
                                 
-                                # Draw count overlay if card count > 1
-                                if hasattr(item["card"], 'count') and item["card"].count > 1:
+                                # Draw selection indicator if card is selected
+                                if item["card"] == self.selected_card:
+                                    # Draw a highlighted border around the selected card
+                                    selection_rect = item["card"].rect.inflate(6, 6)  # Make border slightly larger
+                                    pygame.draw.rect(surface, (255, 215, 0), selection_rect, 2, border_radius=4)  # Gold border
+                                
+                                # Draw count overlay if card count > 1 OR if cards are in deck
+                                has_count = hasattr(item["card"], 'count') and item["card"].count > 1
+                                if has_count or in_deck:
                                     # Position in bottom left corner of card
                                     count_x = position[0] + 10
                                     count_y = position[1] + self.catalog_card_height - 9
                                     
-                                    # Draw a small curved box background for count
-                                    count_width = 22  # Width of box
-                                    count_height = 18  # Height of box
-                                    
-                                    # Create rounded rect for count badge
-                                    count_rect = pygame.Rect(
-                                        count_x - count_width//2, 
-                                        count_y - count_height//2,
-                                        count_width, 
-                                        count_height
-                                    )
-                                    
-                                    # Draw grey background with rounded corners
-                                    pygame.draw.rect(
-                                        surface, 
-                                        (60, 60, 60),  # Dark grey background
-                                        count_rect,
-                                        0,  # Filled
-                                        5  # Border radius
-                                    )
-                                    pygame.draw.rect(
-                                        surface, 
-                                        (100, 100, 100),  # Light grey border
-                                        count_rect,
-                                        1,  # Border width
-                                        5  # Border radius
-                                    )
-                                    
-                                    # Draw count number
+                                    # Draw separate count boxes for library and deck
                                     small_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 16)
-                                    count_text = small_font.render(f"{item['card'].count}", True, WHITE)
-                                    count_text_rect = count_text.get_rect(center=(count_x, count_y))
-                                    surface.blit(count_text, count_text_rect)
+                                    
+                                    # Get the library and deck counts
+                                    lib_count = getattr(item["card"], 'count', 0)
+                                    deck_count_for_this_card = deck_count if in_deck else 0
+                                    
+                                    # Base position for the counts (bottom left of card)
+                                    base_x = position[0] + 10
+                                    base_y = position[1] + self.catalog_card_height - 9
+                                    
+                                    # Only draw library count if there are cards in the library
+                                    if lib_count > 0:
+                                        # Library count badge (bottom position)
+                                        lib_count_width = 22  # Width of box
+                                        lib_count_height = 18  # Height of box
+                                        
+                                        # Create rounded rect for library count badge
+                                        lib_count_rect = pygame.Rect(
+                                            base_x - lib_count_width//2, 
+                                            base_y - lib_count_height//2,
+                                            lib_count_width, 
+                                            lib_count_height
+                                        )
+                                        
+                                        # Draw grey background with rounded corners for library count
+                                        pygame.draw.rect(
+                                            surface, 
+                                            (60, 60, 60),  # Dark grey background
+                                            lib_count_rect,
+                                            0,  # Filled
+                                            5  # Border radius
+                                        )
+                                        pygame.draw.rect(
+                                            surface, 
+                                            (100, 100, 100),  # Light grey border
+                                            lib_count_rect,
+                                            1,  # Border width
+                                            5  # Border radius
+                                        )
+                                        
+                                        # Draw library count number
+                                        lib_count_text = small_font.render(f"{lib_count}", True, WHITE)
+                                        lib_count_text_rect = lib_count_text.get_rect(center=(base_x, base_y))
+                                        surface.blit(lib_count_text, lib_count_text_rect)
+                                    
+                                    # Only draw deck count if there are cards in the deck
+                                    if deck_count_for_this_card > 0:
+                                        # Deck count badge (above library count or at the bottom if no library count)
+                                        deck_y_offset = -20 if lib_count > 0 else 0
+                                        deck_count_width = 22  # Width of box
+                                        deck_count_height = 18  # Height of box
+                                        
+                                        # Create rounded rect for deck count badge
+                                        deck_count_rect = pygame.Rect(
+                                            base_x - deck_count_width//2, 
+                                            base_y + deck_y_offset - deck_count_height//2,
+                                            deck_count_width, 
+                                            deck_count_height
+                                        )
+                                        
+                                        # Draw amber/gold background with rounded corners for deck count
+                                        pygame.draw.rect(
+                                            surface, 
+                                            (100, 70, 20),  # Dark amber background
+                                            deck_count_rect,
+                                            0,  # Filled
+                                            5  # Border radius
+                                        )
+                                        pygame.draw.rect(
+                                            surface, 
+                                            (170, 120, 40),  # Light amber border
+                                            deck_count_rect,
+                                            1,  # Border width
+                                            5  # Border radius
+                                        )
+                                        
+                                        # Draw deck count number
+                                        deck_count_text = small_font.render(f"{deck_count_for_this_card}", True, WHITE)
+                                        deck_count_text_rect = deck_count_text.get_rect(center=(base_x, base_y + deck_y_offset))
+                                        surface.blit(deck_count_text, deck_count_text_rect)
                                 
                                 # Restore idle animation settings
                                 item["card"].idle_float_amount = original_idle_float_amount
@@ -803,6 +1028,92 @@ class DelvingDeckState(GameState):
                                 item["card"].rect = original_rect
                                 item["card"].width = CARD_WIDTH
                                 item["card"].height = CARD_HEIGHT
+                    elif in_deck:
+                        # Card isn't in library but is in delving deck - show as greyed version
+                        card_rect = pygame.Rect(
+                            position[0], position[1],
+                            self.catalog_card_width, self.catalog_card_height
+                        )
+                        
+                        # Load the appropriate card texture
+                        card_img_path = f"cards/{item['suit']}_{item['value']}.png"
+                        try:
+                            card_texture = ResourceLoader.load_image(card_img_path)
+                            card_texture = pygame.transform.scale(card_texture, 
+                                                                 (self.catalog_card_width, self.catalog_card_height))
+                            
+                            # Make it semi-transparent greyscale
+                            greyscale_surface = pygame.Surface((self.catalog_card_width, self.catalog_card_height), pygame.SRCALPHA)
+                            greyscale_surface.fill((200, 200, 200, 180))  # Light grey, semi-transparent
+                            
+                            # Draw card with greyscale overlay
+                            surface.blit(card_texture, card_rect)
+                            surface.blit(greyscale_surface, card_rect, special_flags=pygame.BLEND_RGBA_MULT)
+                            
+                            # Add "IN DECK" indicator
+                            deck_indicator_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 12)
+                            deck_text = deck_indicator_font.render("IN DECK", True, (230, 150, 50))  # Orange text
+                            
+                            # Create background for deck indicator
+                            indicator_bg = pygame.Surface((deck_text.get_width() + 6, deck_text.get_height() + 4), pygame.SRCALPHA)
+                            indicator_bg.fill((40, 40, 40, 200))  # Dark semi-transparent
+                            
+                            # Position the indicator across the middle of the card
+                            indicator_rect = indicator_bg.get_rect(center=(
+                                position[0] + self.catalog_card_width // 2,
+                                position[1] + self.catalog_card_height // 2
+                            ))
+                            
+                            # Draw indicator
+                            surface.blit(indicator_bg, indicator_rect)
+                            text_rect = deck_text.get_rect(center=indicator_rect.center)
+                            surface.blit(deck_text, text_rect)
+                            
+                            # Show deck count if there's more than one
+                            if deck_count > 1:
+                                count_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 16)
+                                count_text = count_font.render(f"{deck_count}", True, WHITE)
+                                
+                                # Position at bottom right of card
+                                count_x = position[0] + self.catalog_card_width - 12
+                                count_y = position[1] + self.catalog_card_height - 10
+                                
+                                # Add background circle
+                                count_circle_radius = 12
+                                pygame.draw.circle(
+                                    surface,
+                                    (40, 40, 40),  # Dark grey
+                                    (count_x, count_y),
+                                    count_circle_radius,
+                                    0  # Filled
+                                )
+                                pygame.draw.circle(
+                                    surface,
+                                    (80, 60, 20),  # Bronze outline
+                                    (count_x, count_y),
+                                    count_circle_radius,
+                                    1  # Border width
+                                )
+                                
+                                # Draw count number
+                                count_text_rect = count_text.get_rect(center=(count_x, count_y))
+                                surface.blit(count_text, count_text_rect)
+                        except:
+                            # Fallback if texture can't be loaded
+                            placeholder_surface = pygame.Surface((self.catalog_card_width, self.catalog_card_height), pygame.SRCALPHA)
+                            placeholder_surface.fill((100, 100, 100, 180))  # Light grey semi-transparent
+                            
+                            # Draw the placeholder with "IN DECK" text
+                            surface.blit(placeholder_surface, card_rect)
+                            
+                            # Add "IN DECK" indicator
+                            deck_indicator_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 14)
+                            deck_text = deck_indicator_font.render("IN DECK", True, (230, 150, 50))  # Orange text
+                            text_rect = deck_text.get_rect(center=(
+                                position[0] + self.catalog_card_width // 2,
+                                position[1] + self.catalog_card_height // 2
+                            ))
+                            surface.blit(deck_text, text_rect)
                     else:
                         # Draw placeholder for unowned card - with catalog size
                         card_rect = pygame.Rect(
@@ -932,45 +1243,95 @@ class DelvingDeckState(GameState):
                 # Draw the card at its enlarged size
                 self.hovered_item["card"].draw(surface)
                 
-                # Draw count overlay if card count > 1
-                if hasattr(self.hovered_item["card"], 'count') and self.hovered_item["card"].count > 1:
-                    # Position in bottom left corner of card
-                    count_x = enlarged_x + 10
-                    count_y = enlarged_y + enlarged_height - 22
+                # Draw selection indicator if hovered card is selected
+                if self.hovered_item["card"] == self.selected_card:
+                    # Draw a highlighted border around the selected card (enlarged for hovered state)
+                    selection_rect = self.hovered_item["card"].rect.inflate(10, 10)
+                    pygame.draw.rect(surface, (255, 215, 0), selection_rect, 3, border_radius=6)  # Gold border
+                
+                # Check if this card is in the deck
+                in_deck = self.hovered_item.get("in_deck", False)
+                deck_count = self.hovered_item.get("deck_count", 0)
+                has_count = hasattr(self.hovered_item["card"], 'count') and self.hovered_item["card"].count > 1
+                
+                # Draw separate counts for library and deck (if applicable)
+                if has_count or in_deck:
+                    # Base position for the counts (bottom left of card)
+                    base_x = enlarged_x + 15
+                    base_y = enlarged_y + enlarged_height - 25
                     
-                    # Draw a larger curved box background for count (proportional to enlarged card)
-                    count_width = 30  # Width of box
-                    count_height = 24  # Height of box
-                    
-                    # Create rounded rect for count badge
-                    count_rect = pygame.Rect(
-                        count_x - count_width//2, 
-                        count_y - count_height//2,
-                        count_width, 
-                        count_height
-                    )
-                    
-                    # Draw grey background with rounded corners
-                    pygame.draw.rect(
-                        surface, 
-                        (60, 60, 60),  # Dark grey background
-                        count_rect,
-                        0,  # Filled
-                        8  # Border radius
-                    )
-                    pygame.draw.rect(
-                        surface, 
-                        (100, 100, 100),  # Light grey border
-                        count_rect,
-                        2,  # Border width
-                        8  # Border radius
-                    )
-                    
-                    # Draw count number
                     small_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 20)
-                    count_text = small_font.render(f"{self.hovered_item['card'].count}", True, WHITE)
-                    count_text_rect = count_text.get_rect(center=(count_x, count_y))
-                    surface.blit(count_text, count_text_rect)
+                    
+                    # Only draw library count if there are cards in the library
+                    if self.hovered_item["card"].count > 0:
+                        # Library count badge (bottom position)
+                        lib_count_width = 30  # Width of box
+                        lib_count_height = 24  # Height of box
+                        
+                        # Create rounded rect for library count badge
+                        lib_count_rect = pygame.Rect(
+                            base_x - lib_count_width//2, 
+                            base_y - lib_count_height//2,
+                            lib_count_width, 
+                            lib_count_height
+                        )
+                        
+                        # Draw grey background with rounded corners for library count
+                        pygame.draw.rect(
+                            surface, 
+                            (60, 60, 60),  # Dark grey background
+                            lib_count_rect,
+                            0,  # Filled
+                            8  # Border radius
+                        )
+                        pygame.draw.rect(
+                            surface, 
+                            (100, 100, 100),  # Light grey border
+                            lib_count_rect,
+                            2,  # Border width
+                            8  # Border radius
+                        )
+                        
+                        # Draw library count number
+                        lib_count_text = small_font.render(f"{self.hovered_item['card'].count}", True, WHITE)
+                        lib_count_text_rect = lib_count_text.get_rect(center=(base_x, base_y))
+                        surface.blit(lib_count_text, lib_count_text_rect)
+                    
+                    # Only draw deck count if there are cards in the deck
+                    if deck_count > 0:
+                        # Deck count badge (above library count or at the bottom if no library count)
+                        deck_y_offset = -30 if self.hovered_item["card"].count > 0 else 0
+                        deck_count_width = 30  # Width of box
+                        deck_count_height = 24  # Height of box
+                        
+                        # Create rounded rect for deck count badge
+                        deck_count_rect = pygame.Rect(
+                            base_x - deck_count_width//2, 
+                            base_y + deck_y_offset - deck_count_height//2,
+                            deck_count_width, 
+                            deck_count_height
+                        )
+                        
+                        # Draw amber/gold background with rounded corners for deck count
+                        pygame.draw.rect(
+                            surface, 
+                            (100, 70, 20),  # Dark amber background
+                            deck_count_rect,
+                            0,  # Filled
+                            8  # Border radius
+                        )
+                        pygame.draw.rect(
+                            surface, 
+                            (170, 120, 40),  # Light amber border
+                            deck_count_rect,
+                            2,  # Border width
+                            8  # Border radius
+                        )
+                        
+                        # Draw deck count number
+                        deck_count_text = small_font.render(f"{deck_count}", True, WHITE)
+                        deck_count_text_rect = deck_count_text.get_rect(center=(base_x, base_y + deck_y_offset))
+                        surface.blit(deck_count_text, deck_count_text_rect)
                 
                 # Restore idle animation settings
                 self.hovered_item["card"].idle_float_amount = original_idle_float_amount
@@ -996,6 +1357,29 @@ class DelvingDeckState(GameState):
         # Draw buttons
         self.back_button.draw(surface)
         self.toggle_button.draw(surface)
+        self.swap_button.draw(surface)
+        
+        # Draw status text if a card is selected
+        if self.selected_card:
+            # Determine text based on source
+            if self.swap_source == "deck":
+                if self.show_library:
+                    status_text = "Click SWAP CARD to move selected card to your Library"
+                else:
+                    status_text = "Selected card from Delving Deck. View Library to swap."
+            elif self.swap_source == "library":
+                if not self.show_library:
+                    status_text = "Click SWAP CARD to add selected card to your Delving Deck"
+                else:
+                    status_text = "Selected card from Library. View Delving Deck to swap."
+            
+            # Draw status text above buttons
+            status_render = self.body_font.render(status_text, True, GOLD_COLOR)
+            status_rect = status_render.get_rect(
+                centerx=SCREEN_WIDTH//2,
+                bottom=self.swap_button.rect.top - 20
+            )
+            surface.blit(status_render, status_rect)
     
     def _draw_card_info(self, surface, card):
         """Draw detailed card info for an owned card"""
