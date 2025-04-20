@@ -27,7 +27,6 @@ from gameplay.inventory_manager import InventoryManager
 from gameplay.ui_renderer import UIRenderer
 from gameplay.game_state_controller import GameStateController
 from gameplay.ui_factory import UIFactory
-from utils.save_manager import save_manager
 
 
 class PlayingState(GameState):
@@ -64,7 +63,7 @@ class PlayingState(GameState):
         self.MAX_INVENTORY_SIZE = 2
         
         # Animation
-        self.animation_manager = None  # Will be initialized in enter()
+        self.animation_manager = AnimationManager()
         self.is_running = False
         self.ran_last_turn = False
         
@@ -89,71 +88,19 @@ class PlayingState(GameState):
         # Layer management
         self.z_index_counter = 0
 
-        # Status UI & HUD - these will be reinitialized in enter()
-        self.status_ui = None
-        self.hud = None
+        # Status UI & HUD
+        self.status_ui = StatusUI(game_manager)
+        self.hud = HUD(game_manager)
 
         # Add item/spell UI elements
         self.item_panel = None
         self.spell_panel = None
         
-    def _initialize_card_visuals(self):
-        """Initialize visual properties for all cards in the game state.
-        This is crucial for cards loaded from save files, which might be
-        missing visual/display properties."""
-        # Define standard visual properties for cards
-        hover_props = {
-            "hover_selection": True,
-            "idle_float_amount": 2,
-            "idle_float_speed": 0.5,
-            "hover_float_offset": 0,
-            "idle_float_offset": 0,
-            "is_hovered": False,
-            "face_up": True
-        }
-        
-        # Update equipped weapon if it exists
-        if self.equipped_weapon and "node" in self.equipped_weapon:
-            weapon_card = self.equipped_weapon["node"]
-            
-            # Set position for the weapon card
-            weapon_card.update_position((100, 100))
-                
-            # Set visual properties
-            for prop, value in hover_props.items():
-                if not hasattr(weapon_card, prop):
-                    setattr(weapon_card, prop, value)
-        
-        # Update defeated monsters
-        for i, monster in enumerate(self.defeated_monsters):
-            # Set position for each monster
-            new_pos_x = 100 + i * 30
-            monster.update_position((new_pos_x, 200))
-            
-            # Set visual properties
-            for prop, value in hover_props.items():
-                if not hasattr(monster, prop):
-                    setattr(monster, prop, value)
-        
-        # Update inventory cards
-        for i, card in enumerate(self.inventory):
-            # Make sure inventory cards have positions
-            # Position will be properly set by UI renderer, just initialize
-            card.update_position((300 + i * 80, 500))
-            
-            # Set visual properties
-            for prop, value in hover_props.items():
-                if not hasattr(card, prop):
-                    setattr(card, prop, value)
-        
         # Add completed room counter
-        # Don't initialize completed_rooms here, as it will be properly initialized in enter()
-        # The enter() method will set this based on the current_room_number
-        if not hasattr(self, 'completed_rooms'):
-            self.completed_rooms = 0
+        self.completed_rooms = 0
         self.total_rooms_on_floor = 0
         
-        # Add flag for completed floor - ALWAYS start with False
+        # Add flag for completed floor
         self.floor_completed = False
         
         # Add flags for room state tracking
@@ -167,58 +114,23 @@ class PlayingState(GameState):
         # Initialize resource loader
         self.resource_loader = ResourceLoader
 
-        # Modular managers will be initialized in enter()
-        self.card_action_manager = None
-        self.room_manager = None
-        self.animation_controller = None
-        self.player_state_manager = None
-        self.inventory_manager = None
-        self.ui_renderer = None
-        self.game_state_controller = None
-        self.ui_factory = None
+        # Initialize our modular managers
+        self.card_action_manager = CardActionManager(self)
+        self.room_manager = RoomManager(self)
+        self.animation_controller = AnimationController(self)
+        self.player_state_manager = PlayerStateManager(self)
+        self.inventory_manager = InventoryManager(self)
+        self.ui_renderer = UIRenderer(self)
+        self.game_state_controller = GameStateController(self)
+        self.ui_factory = UIFactory(self)
 
     def enter(self):
         """Initialize the playing state when entering."""
-        print("Entering playing state - initializing components...")
-        
-        try:
-            # Initialize animation manager first as others depend on it
-            self.animation_manager = AnimationManager()
-            
-            # Initialize our modular managers in a specific order based on dependencies
-            # We need to make sure all managers are created before we try to use them,
-            # especially room_manager which is used at the end of this method
-            self.card_action_manager = CardActionManager(self)
-            self.room_manager = RoomManager(self)  # Used for start_new_room() later
-            self.animation_controller = AnimationController(self)
-            self.player_state_manager = PlayerStateManager(self)
-            self.inventory_manager = InventoryManager(self)
-            self.ui_renderer = UIRenderer(self)
-            self.game_state_controller = GameStateController(self)
-            self.ui_factory = UIFactory(self)
-            
-            # Verify all managers were properly initialized
-            if (self.animation_manager is None or self.room_manager is None or
-                self.card_action_manager is None or self.player_state_manager is None or
-                self.inventory_manager is None or self.ui_renderer is None or
-                self.game_state_controller is None or self.ui_factory is None):
-                print("WARNING: Some managers failed to initialize. Using fallback initialization.")
-                self._ensure_managers_initialized()
-                
-        except Exception as e:
-            print(f"ERROR during manager initialization: {e}")
-            # Try to recover using our safe initialization method
-            self._ensure_managers_initialized()
-        
         # Load fonts
         self.title_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 60)
         self.header_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 36)
         self.body_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 28)
         self.normal_font = pygame.font.SysFont(None, 20)
-        
-        # Initialize UI
-        self.status_ui = StatusUI(self.game_manager)
-        self.hud = HUD(self.game_manager)
 
         # Load background
         self.background = ResourceLoader.load_image("bg.png")
@@ -252,65 +164,36 @@ class PlayingState(GameState):
         # Initialize game components
         floor_manager = self.game_manager.floor_manager
         self.current_floor = floor_manager.get_current_floor()
+        self.current_room_number = floor_manager.current_room
         
-        # CRITICAL FIX: When floor_manager.current_room = rooms_per_floor (floor completed),
-        # we need to set current_room_number to avoid auto-completion
-        from roguelike_constants import FLOOR_STRUCTURE
-        if floor_manager.current_room >= FLOOR_STRUCTURE["rooms_per_floor"]:
-            # At floor end, set to one less to avoid auto-completion
-            self.current_room_number = FLOOR_STRUCTURE["rooms_per_floor"] - 1
-            print(f"[DEBUG] Prevented auto-completion: current_room_number set to {self.current_room_number}")
-        else:
-            self.current_room_number = floor_manager.current_room
-        
-        # Setup/reset the game components with the newly initialized animation manager
-        self.deck = Deck(self.current_floor)
-        self.discard_pile = DiscardPile()
-        self.room = Room(self.animation_manager)
+        # If this is a new floor, setup the appropriate deck
+        if not hasattr(self, 'deck') or not self.deck:
+            self.deck = Deck(self.current_floor)
+            self.discard_pile = DiscardPile()
+            self.room = Room(self.animation_manager)
 
         # Create run button
         self.ui_factory.create_run_button()
 
-        # Create UI elements in the correct order
-        self.ui_factory.create_item_spell_panels()  # First create the panels
-        self.ui_factory.create_item_buttons()       # Then create the buttons
+        # Create item and spell buttons
+        self.ui_factory.create_item_buttons()
         self.ui_factory.create_spell_buttons()
-        
-        # Update status UI fonts
-        self.status_ui.update_fonts(self.header_font, self.normal_font)
-        # Update HUD fonts
-        self.hud.update_fonts(self.normal_font, self.normal_font)
 
         # Reset player stats
         self.life_points = self.game_manager.game_data["life_points"]
         self.max_life = self.game_manager.game_data["max_life"]
-        self.gold = self.game_manager.player_gold  # Get gold directly 
+        self.gold = self.game_manager.game_data.get("gold", 0)  # Get gold from game data
         
-        # Check if new game/floor or coming back from merchant or loading a saved game
-        if self.current_room_number == 0:
-            # Starting a new floor, clear weapons and monsters
-            self.equipped_weapon = {}
-            self.defeated_monsters = []
-        elif hasattr(self.game_manager, 'equipped_weapon') and self.game_manager.equipped_weapon:
+        # Check if coming back from merchant - restore equipped weapon and defeated monsters
+        if hasattr(self.game_manager, 'equipped_weapon') and self.game_manager.equipped_weapon:
             self.equipped_weapon = self.game_manager.equipped_weapon
+            self.defeated_monsters = self.game_manager.defeated_monsters
+            # Clear the stored data
+            self.game_manager.equipped_weapon = {}
+            self.game_manager.defeated_monsters = []
         else:
             self.equipped_weapon = {}
-            
-        # Restore defeated monsters if they exist
-        if self.current_room_number == 0:
-            # Starting a new floor, clear defeated monsters
             self.defeated_monsters = []
-        elif hasattr(self.game_manager, 'defeated_monsters') and self.game_manager.defeated_monsters:
-            self.defeated_monsters = self.game_manager.defeated_monsters
-        else:
-            self.defeated_monsters = []
-            
-        # Make sure cards have the proper visual properties
-        # This is crucial for loaded cards to display correctly
-        self._initialize_card_visuals()
-            
-        # Don't clear the stored data from game_manager anymore - we need it for saving
-        # We'll let the exit method handle updating the game_manager with our state
             
         self.damage_shield = 0
         
@@ -322,20 +205,14 @@ class PlayingState(GameState):
             # Get player's delving deck if it exists
             player_deck = self.game_manager.delving_deck if hasattr(self.game_manager, 'delving_deck') else None
             
-            # Check if we're resuming a saved game mid-floor
-            resuming_saved_game = hasattr(self, 'completed_rooms') and self.completed_rooms > 0
+            # Initialize deck with player cards shuffled in
+            self.deck.initialise_deck(player_deck)
             
-            # If we're not resuming a saved game, or if the deck is empty, reinitialize it
-            # This prevents the deck from being re-initialized when loading a saved game mid-floor
-            if not resuming_saved_game or len(self.deck.cards) == 0:
-                # Initialize deck with player cards shuffled in
-                self.deck.initialise_deck(player_deck)
-                
-                # Also clear the discard pile when starting a new floor (not from merchant)
-                if self.discard_pile:
-                    self.discard_pile.cards = []
-                    if hasattr(self.discard_pile, 'card_stack'):
-                        self.discard_pile.card_stack = []
+            # Also clear the discard pile when starting a new floor (not from merchant)
+            if self.discard_pile:
+                self.discard_pile.cards = []
+                if hasattr(self.discard_pile, 'card_stack'):
+                    self.discard_pile.card_stack = []
         
         # Initialize last_card variable
         last_card_from_merchant = None
@@ -366,71 +243,41 @@ class PlayingState(GameState):
             # Now clear the stored card data
             self.game_manager.last_card_data = None
             
-            try:
-                # Start a new room with the preserved card
-                self.room_manager.start_new_room(last_card_from_merchant)
-            except Exception as e:
-                print(f"Error starting room with preserved card: {e}")
-                # Fallback to empty room if there's an error
-                self.room_manager.start_new_room()
+            # Start a new room with the preserved card
+            self.room_manager.start_new_room(last_card_from_merchant)
         else:
-            try:
-                # No card was preserved or not coming from merchant, start a normal room
-                self.room_manager.start_new_room()
-            except Exception as e:
-                print(f"Error starting new room: {e}")
+            # No card was preserved or not coming from merchant, start a normal room
+            self.room_manager.start_new_room()
         
         # Reset coming_from_merchant flag after handling the transition
         self.game_manager.coming_from_merchant = False
         
-        # Reset floor completion tracking - ALWAYS FALSE on entry
+        # Update status UI fonts
+        self.status_ui.update_fonts(self.header_font, self.normal_font)
+
+        # Update HUD fonts
+        self.hud.update_fonts(self.normal_font, self.normal_font)
+
+        # Create item and spell panels
+        self.ui_factory.create_item_spell_panels()
+
+        # Reset floor completion tracking
         self.floor_completed = False
         self.merchant_transition_started = False
-        self.room_completion_in_progress = False
-        self.gold_reward_given = False
 
         # Reset room counter if starting a new floor
         if self.current_room_number == 0:
             self.completed_rooms = 0
-        # Initialize completed_rooms if not already set - avoid using current_room_number directly
+        # Initialize completed_rooms if not already set
         elif not hasattr(self, 'completed_rooms'):
-            # CRITICAL FIX: We cannot set completed_rooms = current_room_number directly
-            # If current_room_number is at max (from floor completion), it would auto-complete
-            from roguelike_constants import FLOOR_STRUCTURE
-            
-            # Always set to at least 1 less than max, or to current_room_number if less
-            # This ensures we always have at least one more room to complete
-            if self.current_room_number >= FLOOR_STRUCTURE["rooms_per_floor"] - 1:
-                self.completed_rooms = FLOOR_STRUCTURE["rooms_per_floor"] - 2
-                print(f"[DEBUG] Set completed_rooms to {self.completed_rooms} to ensure at least one more room")
-            else:
-                self.completed_rooms = self.current_room_number
-                
-        # Make sure deck is not empty when loading a saved game mid-floor
-        # Empty deck + non-zero completed_rooms would trigger floor completion
-        if len(self.deck.cards) == 0 and self.current_room_number > 0 and not self.room.cards:
-            # Re-initialize the deck with a few cards to prevent auto-completion
-            print("[DEBUG] Adding cards to prevent empty deck auto-completion")
-            player_deck = self.game_manager.delving_deck if hasattr(self.game_manager, 'delving_deck') else None
-            self.deck.initialise_deck(player_deck)
+            self.completed_rooms = self.current_room_number
 
     def exit(self):
         """Save state when exiting playing state."""
         # Save player stats to game_data
         self.game_manager.game_data["life_points"] = self.life_points
         self.game_manager.game_data["max_life"] = self.max_life
-        self.game_manager.player_gold = self.gold  # Save to player_gold, not game_data["gold"]
-        
-        # Store equipped weapon and defeated monsters to preserve between states
-        if hasattr(self, 'equipped_weapon') and self.equipped_weapon:
-            self.game_manager.equipped_weapon = self.equipped_weapon
-        
-        if hasattr(self, 'defeated_monsters') and self.defeated_monsters:
-            self.game_manager.defeated_monsters = self.defeated_monsters
-            
-        # Save the complete game state when exiting the playing state
-        # This ensures the game can be continued from this point later
-        save_manager.save_game_state(self.game_manager)
+        self.game_manager.game_data["gold"] = self.gold
 
     def handle_event(self, event):
         """Handle player input events."""
@@ -514,17 +361,7 @@ class PlayingState(GameState):
     
     def update(self, delta_time):
         """Update game state for this frame."""
-        # Ensure all managers are properly initialized FIRST before any game logic
-        # This is critical to prevent NoneType errors
-        self._ensure_managers_initialized()
-        
-        # Safety check - if we still don't have critical managers, return early
-        if (self.animation_manager is None or self.room_manager is None or 
-            self.card_action_manager is None or self.player_state_manager is None):
-            print("CRITICAL ERROR: Unable to initialize essential managers. Skipping update.")
-            return
-            
-        # Now it's safe to update animations
+        # First, update animations
         previous_animating = self.animation_manager.is_animating()
         self.animation_manager.update(delta_time)
         current_animating = self.animation_manager.is_animating()
@@ -594,19 +431,7 @@ class PlayingState(GameState):
                     # More difficult floors could give more gold
                     floor_bonus = min(2, self.game_manager.floor_manager.current_floor_index)  # 0-2 bonus based on floor
                     gold_reward = random.randint(2, 5) + floor_bonus
-                    
-                    # Safely update gold
-                    try:
-                        if self.player_state_manager:
-                            self.player_state_manager.change_gold(gold_reward)
-                        else:
-                            # Fallback - update gold directly
-                            print("Using direct gold update fallback")
-                            self.gold += gold_reward
-                    except Exception as e:
-                        print(f"Error updating gold: {e}")
-                        # Emergency fallback
-                        self.gold += gold_reward
+                    self.player_state_manager.change_gold(gold_reward)
 
                 # Go directly to the next room if we have cards
                 if len(self.deck.cards) > 0:
@@ -619,11 +444,7 @@ class PlayingState(GameState):
                         self.room_manager.start_new_room()
                 else:
                     # No more cards in the deck - floor completed
-                    # SAFETY CHECK: Only complete the floor if we've completed enough rooms
-                    # This prevents auto-completion when loading a saved game
-                    from roguelike_constants import FLOOR_STRUCTURE
-                    if not self.floor_completed and self.completed_rooms >= FLOOR_STRUCTURE["rooms_per_floor"] - 1:
-                        print(f"[DEBUG] Floor completed with {self.completed_rooms} completed rooms")
+                    if not self.floor_completed:
                         self.floor_completed = True
                         
                         # Mark this floor as completed
@@ -668,19 +489,7 @@ class PlayingState(GameState):
                     # More difficult floors could give more gold
                     floor_bonus = min(2, self.game_manager.floor_manager.current_floor_index)  # 0-2 bonus based on floor
                     gold_reward = random.randint(2, 5) + floor_bonus
-                    
-                    # Safely update gold with error handling
-                    try:
-                        if self.player_state_manager is not None:
-                            self.player_state_manager.change_gold(gold_reward)
-                        else:
-                            # Fallback - update gold directly if manager is not available
-                            print("Using direct gold update (player_state_manager is None)")
-                            self.gold += gold_reward
-                    except Exception as e:
-                        print(f"Error updating gold during room transition: {e}")
-                        # Emergency fallback
-                        self.gold += gold_reward
+                    self.player_state_manager.change_gold(gold_reward)
                 
                 # Start a new room with the remaining card - merchant check happens inside start_new_room
                 self.room_manager.start_new_room(self.room.cards[0])
@@ -948,85 +757,7 @@ class PlayingState(GameState):
     
     def animate_card_movement(self, card, target_pos, duration=0.3, easing=None, on_complete=None):
         """Forward card movement animation to animation controller."""
-        self._ensure_managers_initialized()  # Ensure we have all managers
         self.animation_controller.animate_card_movement(card, target_pos, duration, easing, on_complete)
-        
-    def _ensure_managers_initialized(self):
-        """Ensure all managers are initialized before use.
-        This is a safety mechanism in case they weren't properly set in enter()"""
-        try:
-            # AnimationManager must be initialized first as other managers depend on it
-            if self.animation_manager is None:
-                print("Initializing animation_manager in safe mode")
-                self.animation_manager = AnimationManager()
-                
-            # Initialize other managers in dependency order
-            if self.card_action_manager is None:
-                print("Initializing card_action_manager in safe mode")
-                self.card_action_manager = CardActionManager(self)
-                
-            if self.room_manager is None:
-                print("Initializing room_manager in safe mode")
-                self.room_manager = RoomManager(self)
-                
-            if self.animation_controller is None:
-                print("Initializing animation_controller in safe mode")
-                self.animation_controller = AnimationController(self)
-                
-            if self.player_state_manager is None:
-                print("Initializing player_state_manager in safe mode")
-                self.player_state_manager = PlayerStateManager(self)
-                
-            if self.inventory_manager is None:
-                print("Initializing inventory_manager in safe mode")
-                self.inventory_manager = InventoryManager(self)
-                
-            if self.ui_renderer is None:
-                print("Initializing ui_renderer in safe mode")
-                self.ui_renderer = UIRenderer(self)
-                
-            if self.game_state_controller is None:
-                print("Initializing game_state_controller in safe mode")
-                self.game_state_controller = GameStateController(self)
-                
-            if self.ui_factory is None:
-                print("Initializing ui_factory in safe mode")
-                self.ui_factory = UIFactory(self)
-                
-            # Also ensure basic game components exist
-            if self.deck is None:
-                print("Initializing deck in safe mode")
-                self.deck = Deck(self.current_floor or "dungeon")  # Default to dungeon if no floor set
-                
-            if self.discard_pile is None:
-                print("Initializing discard_pile in safe mode")
-                self.discard_pile = DiscardPile()
-                
-            if self.room is None:
-                print("Initializing room in safe mode")
-                # We know animation_manager exists from above
-                self.room = Room(self.animation_manager)
-                
-            # Verify critical UI components
-            if self.run_button is None and self.ui_factory is not None:
-                print("Creating run button in safe mode")
-                self.ui_factory.create_run_button()
-                
-            if (self.item_panel is None or self.spell_panel is None) and self.ui_factory is not None:
-                print("Creating item/spell panels in safe mode")
-                self.ui_factory.create_item_spell_panels()
-                
-            if not self.item_buttons and self.ui_factory is not None:
-                print("Creating item buttons in safe mode")
-                self.ui_factory.create_item_buttons()
-                
-            if not self.spell_buttons and self.ui_factory is not None:
-                print("Creating spell buttons in safe mode")
-                self.ui_factory.create_spell_buttons()
-                
-        except Exception as e:
-            print(f"ERROR during safe initialization: {e}")
-            # Even if there's an error, we continue and let the safety check in update() handle it
     
     def schedule_delayed_animation(self, delay, callback):
         """Forward delayed animation to animation controller."""

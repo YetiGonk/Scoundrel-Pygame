@@ -24,14 +24,6 @@ class FloorManager:
         """Get the current floor type."""
         if not self.floors or self.current_floor_index >= len(self.floors):
             return "unknown"  # Return a default value if no floors exist
-            
-        # SAFETY CHECK: Ensure current_room is valid upon retrieving the current floor
-        # If current_room is equal to or exceeds the max rooms, adjust it to prevent auto-completion bug
-        if self.current_room >= FLOOR_STRUCTURE["rooms_per_floor"]:
-            # Adjust to one less to avoid triggering floor completion immediately
-            print(f"[DEBUG] Floor manager fixed invalid current_room: {self.current_room} -> {FLOOR_STRUCTURE['rooms_per_floor'] - 1}")
-            self.current_room = FLOOR_STRUCTURE["rooms_per_floor"] - 1
-            
         return self.floors[self.current_floor_index]
     
     def advance_room(self):

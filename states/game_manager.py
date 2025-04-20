@@ -103,11 +103,6 @@ class GameManager:
         self.item_manager.player_items = []
         self.spell_manager.player_spells = []
         
-        # FIXED: Reset equipped weapon and defeated monsters
-        self.equipped_weapon = {}
-        self.defeated_monsters = []
-        self.last_card_data = None
-        
         # Reset purchased cards for this run
         self.purchased_cards = []
         
