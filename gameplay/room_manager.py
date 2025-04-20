@@ -13,14 +13,43 @@ class RoomManager:
     
     def start_new_room(self, last_card=None):
         """Start a new room with cards from the deck."""
+        # Safety check for initialization
+        if not hasattr(self.playing_state, 'life_points') or not hasattr(self.playing_state, 'animation_manager'):
+            print("ERROR: Critical attributes missing from playing_state in start_new_room()")
+            return
+            
+        # Safety check for required components
+        if (self.playing_state.animation_manager is None or self.playing_state.room is None or 
+            self.playing_state.deck is None):
+            print("ERROR: Required components not initialized in start_new_room()")
+            # Try to initialize any missing components
+            self.playing_state._ensure_managers_initialized()
+            # If they're still missing, we can't continue
+            if (self.playing_state.animation_manager is None or self.playing_state.room is None or 
+                self.playing_state.deck is None):
+                print("CRITICAL: Unable to initialize required components for start_new_room()")
+                return
+        
         if self.playing_state.life_points <= 0:
             return
         
         if self.playing_state.animation_manager.is_animating():
             return  # Don't start a new room if animations are running
+            
+        # Check for FLOOR_STRUCTURE existence
+        if not hasattr(self.playing_state, 'FLOOR_STRUCTURE') or self.playing_state.FLOOR_STRUCTURE is None:
+            print("WARNING: FLOOR_STRUCTURE missing, initializing default")
+            self.playing_state.FLOOR_STRUCTURE = {
+                "rooms_per_floor": 10,
+                "merchant_rooms": [3, 6, 9]
+            }
         
         # Check if we should transition to a merchant room instead of starting a new room
-        if not self.playing_state.merchant_transition_started:
+        if not hasattr(self.playing_state, 'merchant_transition_started') or not self.playing_state.merchant_transition_started:
+            # Make sure completed_rooms is initialized
+            if not hasattr(self.playing_state, 'completed_rooms'):
+                self.playing_state.completed_rooms = 0
+                
             is_merchant_next = self.playing_state.completed_rooms in self.playing_state.FLOOR_STRUCTURE["merchant_rooms"]
             if is_merchant_next:
                 # Set flag to prevent multiple merchant transitions
@@ -37,6 +66,9 @@ class RoomManager:
         self.playing_state.gold_reward_given = False
         self.playing_state.room_completion_in_progress = False
         self.playing_state.merchant_transition_started = False
+        
+        # Ensure floor_completed is properly reset when starting a new room after loading a save
+        self.playing_state.floor_completed = False
         
         # Clear the room
         self.playing_state.room.clear()

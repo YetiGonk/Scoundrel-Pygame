@@ -164,6 +164,11 @@ class GameOverState(GameState):
         if event.type == MOUSEBUTTONDOWN and event.button == 1:  # Left click
             # Check for button clicks
             if self.restart_button and self.restart_button.is_clicked(event.pos):
+                # Clear any gameplay-related attributes
+                self.game_manager.equipped_weapon = {}
+                self.game_manager.defeated_monsters = []
+                self.game_manager.last_card_data = None 
+                
                 # Reset game data
                 self.game_manager.game_data["life_points"] = 20
                 self.game_manager.game_data["max_life"] = 20
@@ -178,11 +183,16 @@ class GameOverState(GameState):
                 if not hasattr(self.game_manager, 'card_library'):
                     self.game_manager.card_library = []
                 
-                # Start a new game
+                # Start a new game using the full reset logic
                 self.game_manager.start_new_run()
             
             # Check for title button click
             elif self.title_button and self.title_button.is_clicked(event.pos):
+                # Clear any gameplay-related attributes
+                self.game_manager.equipped_weapon = {}
+                self.game_manager.defeated_monsters = []
+                self.game_manager.last_card_data = None 
+                
                 # Reset game data
                 self.game_manager.game_data["life_points"] = 20
                 self.game_manager.game_data["max_life"] = 20

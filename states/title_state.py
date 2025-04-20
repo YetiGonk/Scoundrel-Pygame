@@ -9,12 +9,13 @@ from pygame.locals import *
 from constants import (
     SCREEN_WIDTH, SCREEN_HEIGHT, WHITE, BLACK, DARK_GRAY,
     PANEL_BORDER_RADIUS, PANEL_ALPHA, PANEL_BORDER_WIDTH,
-    SHIELD_COLOR, GOLD_COLOR, GOLD_BORDER
+    SHIELD_COLOR, GOLD_COLOR, GOLD_BORDER, FONTS_PATH
 )
 from states.game_state import GameState
 from ui.panel import Panel
 from ui.button import Button
 from utils.resource_loader import ResourceLoader
+from utils.save_manager import save_manager
 
 class TitleState(GameState):
     """The atmospheric title screen state of the game."""
@@ -30,8 +31,16 @@ class TitleState(GameState):
         self.background = None
         self.floor = None
         self.title_panel = None
-        self.start_button = None
+        
+        # Buttons
+        self.new_game_button = None
+        self.load_game_button = None
+        self.delving_deck_button = None
         self.rules_button = None
+        
+        # Saved game info
+        self.has_saved_game = False
+        self.saved_game_info = None
         
         # Animation elements
         self.particles = []
@@ -99,22 +108,38 @@ class TitleState(GameState):
             border_colour=(120, 100, 80)  # Gold-ish border
         )
         
-        # Create buttons with dungeon styling
+        # Check if there's a saved game
+        self.has_saved_game = save_manager.has_saved_game()
+        if self.has_saved_game:
+            self.saved_game_info = save_manager.get_saved_game_info()
+        
+        # Create buttons with dungeon styling in a 2x2 grid
         button_width = 300
         button_height = 60
-        button_spacing = 10
-        buttons_y = panel_y + panel_height - button_height*3 - button_spacing*2 - 25
+        button_spacing = 20
         
-        # Start button (center)
-        start_button_rect = pygame.Rect(
-            (SCREEN_WIDTH - button_width) // 2,
-            buttons_y,
+        # Calculate position for a 2x2 grid of buttons
+        # We'll place them in the lower part of the panel but with enough room to not overlap the title/tagline
+        grid_top = panel_y + panel_height - (button_height*2 + button_spacing) - 60
+        
+        # Calculate column positions (left and right columns)
+        left_col_x = panel_x + (panel_width // 4) - (button_width // 2)
+        right_col_x = panel_x + (panel_width * 3 // 4) - (button_width // 2)
+        
+        # Row positions (top and bottom rows)
+        top_row_y = grid_top
+        bottom_row_y = grid_top + button_height + button_spacing
+        
+        # New Game button (top left)
+        new_game_rect = pygame.Rect(
+            left_col_x,
+            top_row_y,
             button_width, 
             button_height
         )
-        self.start_button = Button(
-            start_button_rect,
-            "START ADVENTURE",
+        self.new_game_button = Button(
+            new_game_rect,
+            "NEW GAME",
             self.body_font,
             text_colour=WHITE,
             dungeon_style=True,
@@ -122,10 +147,36 @@ class TitleState(GameState):
             border_colour=(150, 70, 70)  # Brighter red border
         )
         
-        # Delving deck button (below start)
+        # Load Game button (top right) - grayed out if no save
+        load_game_rect = pygame.Rect(
+            right_col_x,
+            top_row_y,
+            button_width, 
+            button_height
+        )
+        
+        # Use different colors based on whether there's a save
+        if self.has_saved_game:
+            load_panel_color = (70, 70, 120)  # Purple-blue
+            load_border_color = (100, 100, 180)
+        else:
+            load_panel_color = (60, 60, 60)  # Gray (disabled)
+            load_border_color = (100, 100, 100)
+            
+        self.load_game_button = Button(
+            load_game_rect,
+            "LOAD GAME",
+            self.body_font,
+            text_colour=WHITE,
+            dungeon_style=True,
+            panel_colour=load_panel_color,
+            border_colour=load_border_color
+        )
+        
+        # Delving Deck button (bottom left)
         delving_deck_rect = pygame.Rect(
-            (SCREEN_WIDTH - button_width) // 2,
-            buttons_y + button_height + button_spacing,
+            left_col_x,
+            bottom_row_y,
             button_width, 
             button_height
         )
@@ -139,10 +190,10 @@ class TitleState(GameState):
             border_colour=(120, 160, 80)  # Brighter green border
         )
         
-        # Rules button (below delving deck)
+        # Rules button (bottom right)
         rules_button_rect = pygame.Rect(
-            (SCREEN_WIDTH - button_width) // 2,
-            buttons_y + (button_height + button_spacing) * 2,
+            right_col_x,
+            bottom_row_y,
             button_width, 
             button_height
         )
@@ -323,7 +374,7 @@ class TitleState(GameState):
             # Only process button clicks if no card was clicked
             if not card_clicked:
                 # Check for button clicks
-                if self.start_button.is_clicked(mouse_pos):
+                if self.new_game_button.is_clicked(mouse_pos):
                     # Initialize a new roguelike run
                     self.game_manager.start_new_run()
                     
@@ -333,8 +384,26 @@ class TitleState(GameState):
                     # Set the rules as seen for any future logic that might need it
                     if not hasattr(self.game_manager, 'has_shown_rules'):
                         self.game_manager.has_shown_rules = True
+                        
+                elif self.load_game_button.is_clicked(mouse_pos) and self.has_saved_game:
+                    # Load the saved game
+                    success = save_manager.load_game_state(self.game_manager)
+                    
+                    if success:
+                        # Depending on where they left off, go to the appropriate state
+                        # For simplicity, we'll just go to the playing state
+                        self.game_manager.change_state("playing")
+                        
+                        # Show a brief message (if possible) indicating successful load
+                        if hasattr(self.game_manager.states["playing"], "set_message"):
+                            self.game_manager.states["playing"].set_message("Game loaded successfully!")
+                    else:
+                        # Handle failed load (could show an error message)
+                        print("Failed to load saved game")
+                        
                 elif self.delving_deck_button.is_clicked(mouse_pos):
                     self.game_manager.change_state("delving_deck")
+                    
                 elif self.rules_button.is_clicked(mouse_pos):
                     self.game_manager.change_state("rules")
                     
@@ -394,12 +463,20 @@ class TitleState(GameState):
         # Update button hover states - only if no card is under the cursor
         card_under_cursor = any(card['hover'] for card in self.cards)
         if not card_under_cursor:
-            self.start_button.check_hover(mouse_pos)
+            self.new_game_button.check_hover(mouse_pos)
+            
+            # Only enable hover for load game if there's a save
+            if self.has_saved_game:
+                self.load_game_button.check_hover(mouse_pos)
+            else:
+                self.load_game_button.hovered = False
+                
             self.delving_deck_button.check_hover(mouse_pos)
             self.rules_button.check_hover(mouse_pos)
         else:
             # Force non-hover state for buttons when a card is under cursor
-            self.start_button.hovered = False
+            self.new_game_button.hovered = False
+            self.load_game_button.hovered = False
             self.delving_deck_button.hovered = False
             self.rules_button.hovered = False
     
@@ -775,9 +852,48 @@ class TitleState(GameState):
             surface.blit(tagline_text, tagline_rect)
         
         # Draw buttons
-        self.start_button.draw(surface)
+        self.new_game_button.draw(surface)
+        self.load_game_button.draw(surface)
         self.delving_deck_button.draw(surface)
         self.rules_button.draw(surface)
+        
+        # Draw saved game info if available
+        if self.has_saved_game and self.saved_game_info:
+            # Create a small info panel above the load game button
+            info_width = 280
+            info_height = 80
+            info_x = self.load_game_button.rect.centerx - info_width // 2
+            info_y = self.load_game_button.rect.top - info_height - 10
+            
+            # Draw info panel background
+            info_panel = pygame.Surface((info_width, info_height), pygame.SRCALPHA)
+            pygame.draw.rect(info_panel, (40, 40, 60, 200), pygame.Rect(0, 0, info_width, info_height), border_radius=8)
+            pygame.draw.rect(info_panel, (100, 100, 150, 200), pygame.Rect(0, 0, info_width, info_height), width=2, border_radius=8)
+            surface.blit(info_panel, (info_x, info_y))
+            
+            # Draw save info text
+            small_font = pygame.font.Font(FONTS_PATH + "/Pixel Times.ttf", 16)
+            
+            # Saved date/time
+            date_text = small_font.render(f"Saved: {self.saved_game_info['timestamp']}", True, WHITE)
+            date_rect = date_text.get_rect(x=info_x + 10, y=info_y + 10)
+            surface.blit(date_text, date_rect)
+            
+            # Floor and room info
+            progress_text = small_font.render(
+                f"Floor {self.saved_game_info['current_floor']}/{self.saved_game_info['total_floors']} - Room {self.saved_game_info['current_room']}", 
+                True, WHITE
+            )
+            progress_rect = progress_text.get_rect(x=info_x + 10, y=date_rect.bottom + 5)
+            surface.blit(progress_text, progress_rect)
+            
+            # Health and gold
+            stats_text = small_font.render(
+                f"HP: {self.saved_game_info['health']} - Gold: {self.saved_game_info['gold']}", 
+                True, WHITE
+            )
+            stats_rect = stats_text.get_rect(x=info_x + 10, y=progress_rect.bottom + 5)
+            surface.blit(stats_text, stats_rect)
         
         # Draw particle effects (on top of everything)
         for particle in self.particles:
