@@ -21,7 +21,8 @@ class CardActionManager:
         # Reset the ran_last_turn flag
         self.playing_state.ran_last_turn = False
         
-        # Mark the card as selected to remove split colours
+        # Temporarily mark the card as selected during the action
+        # This doesn't need to persist as we'll remove the card from view
         card.is_selected = True
         
         # For inventory cards, determine which part was clicked
@@ -65,9 +66,9 @@ class CardActionManager:
             # Calculate center Y with float offset
             center_y = card.rect.centery - total_float_offset
             
-            # Check if weapon is available
-            if card.weapon_available:
-                # With weapon available, check which half was clicked
+            # Check if weapon is available and viable
+            if card.weapon_available and not getattr(card, 'weapon_attack_not_viable', False):
+                # With weapon available and viable, check which half was clicked
                 if event_pos[1] < center_y:
                     # Top half clicked - attack with weapon
                     self.attack_monster(card)
@@ -77,7 +78,7 @@ class CardActionManager:
                     self.attack_barehanded(card)
                     return
             else:
-                # No weapon available - always attack bare-handed
+                # No weapon available or not viable - always attack bare-handed
                 self.attack_barehanded(card)
                 return
         
@@ -93,16 +94,9 @@ class CardActionManager:
     
     def attack_barehanded(self, monster):
         """Process player attacking a monster card with bare hands (takes full damage)."""
-        # Calculate monster value - apply any effect from items or spells
+        # Calculate monster value
         monster_value = monster.value
-        
-        # Use damage shield if available
-        damage_reduction = 0
-        if self.playing_state.damage_shield > 0:
-            damage_reduction = min(self.playing_state.damage_shield, monster_value)
-            monster_value -= damage_reduction
-            self.playing_state.damage_shield -= damage_reduction
-        
+                
         # First ensure the monster is removed from the room before animations start
         self.playing_state.room.remove_card(monster)
         
@@ -126,22 +120,11 @@ class CardActionManager:
                     animation_manager=self.playing_state.animation_manager
                 )
             )
-        
-        # After attack is complete, update interface
-        self.playing_state.ui_factory.create_item_buttons()
-        self.playing_state.ui_factory.create_spell_buttons()
     
     def attack_monster(self, monster):
         """Process player attacking a monster card with equipped weapon."""
-        # Calculate monster value - apply any effect from items or spells
+        # Calculate monster value
         monster_value = monster.value
-        
-        # Use damage shield if available
-        damage_reduction = 0
-        if self.playing_state.damage_shield > 0:
-            damage_reduction = min(self.playing_state.damage_shield, monster_value)
-            monster_value -= damage_reduction
-            self.playing_state.damage_shield -= damage_reduction
 
         # First ensure the monster is removed from the room before animations start
         self.playing_state.room.remove_card(monster)
@@ -160,10 +143,10 @@ class CardActionManager:
                 # Look for arrow cards in inventory
                 for card in self.playing_state.inventory:
                     if (hasattr(card, "weapon_type") and card.weapon_type == "arrow") or \
-                       (card.type == "weapon" and card.value == 2):  # 2 of diamonds is arrow
-                        has_arrow = True
-                        arrow_card = card
-                        break
+                        (card.type == "weapon" and card.value == 2):  # 2 of diamonds is arrow
+                            has_arrow = True
+                            arrow_card = card
+                            break
             
             # Handle ranged weapon with arrow
             if weapon_node and hasattr(weapon_node, "weapon_type") and weapon_node.weapon_type == "ranged" and has_arrow:
@@ -263,10 +246,6 @@ class CardActionManager:
                     animation_manager=self.playing_state.animation_manager
                 )
             )
-        
-        # After attack is complete, update interface
-        self.playing_state.ui_factory.create_item_buttons()
-        self.playing_state.ui_factory.create_spell_buttons()
     
     def equip_weapon(self, weapon):
         """Equip a weapon card."""
@@ -283,6 +262,9 @@ class CardActionManager:
         
         # Update data structures first
         self.playing_state.room.remove_card(weapon)
+        
+        # Mark the weapon as equipped (for hover text)
+        weapon.is_equipped = True
         
         # Store weapon type in the equipped_weapon dict
         weapon_type = getattr(weapon, "weapon_type", "melee")  # Default to melee if not specified
@@ -385,11 +367,37 @@ class CardActionManager:
         
         return True
     
-    def use_inventory_card(self, card):
-        """Use a card from the inventory."""
+    def use_inventory_card(self, card, event_pos=None):
+        """Use a card from the inventory with optional click position to determine action."""
         if card in self.playing_state.inventory:
-            # Mark the card as selected to ensure no split colours
+            # Temporarily mark the card as selected during processing
             card.is_selected = True
+            
+            # Default action is to use the card (equip weapon or use potion)
+            discard_only = False
+            
+            # If click position is provided, determine which part was clicked
+            if event_pos:
+                # Calculate position of the card's visual midpoint
+                center_x = card.rect.centerx 
+                
+                # For the Y position, we need to account for the float offset
+                total_float_offset = 0
+                if hasattr(card, 'idle_float_offset') and hasattr(card, 'hover_float_offset'):
+                    total_float_offset = card.idle_float_offset + card.hover_float_offset
+                
+                # Calculate center Y with float offset
+                center_y = card.rect.centery - total_float_offset
+                
+                # Check which half was clicked
+                if event_pos[1] < center_y:
+                    # Top half clicked - use card (equip weapon or use potion)
+                    discard_only = False
+                    card.hover_selection = "top"
+                else:
+                    # Bottom half clicked - discard card
+                    discard_only = True
+                    card.hover_selection = "bottom"
             
             # Reset inventory flag since it's being removed
             card.in_inventory = False
@@ -400,13 +408,15 @@ class CardActionManager:
             # Reposition remaining inventory cards
             self.playing_state.position_inventory_cards()
             
-            # Process the card effect based on type
+            # Process the card effect based on type and action
             if card.type == "weapon":
-                # Special case for arrows - just discard them
-                if hasattr(card, "weapon_type") and card.weapon_type == "arrow":
-                    # Show message about discarding arrow
-                    self.playing_state.show_message("Arrow discarded")
-                    # Discard the arrow
+                if discard_only or (hasattr(card, "weapon_type") and card.weapon_type == "arrow"):
+                    # Show message about discarding
+                    if hasattr(card, "weapon_type") and card.weapon_type == "arrow":
+                        self.playing_state.show_message("Arrow discarded")
+                    else:
+                        self.playing_state.show_message(f"{card.name} discarded")
+                    # Discard the card
                     self.playing_state.animate_card_to_discard(card)
                 else:
                     # Reset the card's scale back to original size (1.0)
@@ -416,15 +426,47 @@ class CardActionManager:
                     # Use the standard equip weapon logic
                     self.equip_weapon(card)
             elif card.type == "potion":
-                # Use the potion effect directly
-                self.playing_state.change_health(card.value)
-                # Discard the potion
-                self.playing_state.animate_card_to_discard(card)
+                if discard_only:
+                    # Show message about discarding potion
+                    self.playing_state.show_message(f"{card.name} discarded")
+                    # Discard the potion
+                    self.playing_state.animate_card_to_discard(card)
+                else:
+                    # Use the potion effect directly
+                    self.playing_state.change_health(card.value)
+                    # Show message about using potion
+                    self.playing_state.show_message(f"Used {card.name}. Restored {card.value} health.")
+                    # Discard the potion
+                    self.playing_state.animate_card_to_discard(card)
             else:
                 # For any other card type that doesn't have a specific use
                 # Just discard it when clicked
                 self.playing_state.show_message(f"{card.name} discarded")
                 self.playing_state.animate_card_to_discard(card)
-                
+    
+    def discard_equipped_weapon(self):
+        """Discard the currently equipped weapon."""
+        if self.playing_state.equipped_weapon and "node" in self.playing_state.equipped_weapon:
+            weapon = self.playing_state.equipped_weapon["node"]
+            
+            # Clear the equipped weapon
+            self.playing_state.equipped_weapon = {}
+            
+            # Reset equipped flag
+            weapon.is_equipped = False
+            
+            # Show message about discarding weapon
+            self.playing_state.show_message(f"{weapon.name} discarded")
+            
+            # Discard the weapon card
+            self.playing_state.animate_card_to_discard(weapon)
+            
+            # Also discard any defeated monsters
+            for monster in self.playing_state.defeated_monsters:
+                self.playing_state.animate_card_to_discard(monster)
+            
+            # Clear the defeated monsters list
+            self.playing_state.defeated_monsters = []
+            
             return True
         return False

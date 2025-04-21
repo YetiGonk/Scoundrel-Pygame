@@ -1,6 +1,5 @@
 """Inventory Manager for handling the player's inventory in the Scoundrel game."""
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT
-from constants import ITEM_PANEL_POSITION, SPELL_PANEL_POSITION, ITEM_PANEL_WIDTH, SPELL_PANEL_HEIGHT
 
 
 class InventoryManager:
@@ -12,17 +11,11 @@ class InventoryManager:
     
     def position_inventory_cards(self):
         """Position all inventory cards in their proper places."""
-        # Calculate position based on inventory panel location
-        
-        # Calculate vertical center between spell and item panels
-        vertical_center = (SPELL_PANEL_POSITION[1] + SPELL_PANEL_HEIGHT + 
-            (ITEM_PANEL_POSITION[1] - (SPELL_PANEL_POSITION[1] + SPELL_PANEL_HEIGHT))// 2)
-        
-        # Create a smaller inventory panel
-        inv_width = ITEM_PANEL_WIDTH
-        inv_height = 120  # Smaller height
-        inv_x = SCREEN_WIDTH - inv_width - 40  # Same x as item/spell panels
-        inv_y = vertical_center - inv_height // 2  # Center between items and spells
+        # Define inventory panel position
+        inv_width = 160
+        inv_height = 120
+        inv_x = SCREEN_WIDTH - inv_width - 40
+        inv_y = SCREEN_HEIGHT // 2 - inv_height // 2
         
         # Scale cards to fit inventory panel nicely
         card_scale = 0.8  # 80% of normal size

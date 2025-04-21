@@ -10,8 +10,6 @@ from states.delving_deck_state import DelvingDeckState  # Import the new delving
 
 # Import roguelike components
 from floor_manager import FloorManager
-from item_manager import ItemManager
-from spell_manager import SpellManager
 
 from roguelike_constants import STARTING_ATTRIBUTES
 
@@ -21,8 +19,6 @@ class GameManager:
     def __init__(self):
         # Initialize roguelike managers
         self.floor_manager = FloorManager(self)
-        self.item_manager = ItemManager(self)
-        self.spell_manager = SpellManager(self)
         
         # Initialize player attributes
         self.player_gold = STARTING_ATTRIBUTES["gold"]
@@ -99,10 +95,6 @@ class GameManager:
         self.game_data["victory"] = False
         self.game_data["run_complete"] = False
         
-        # Clear player items and spells
-        self.item_manager.player_items = []
-        self.spell_manager.player_spells = []
-        
         # Reset purchased cards for this run
         self.purchased_cards = []
         
@@ -114,9 +106,6 @@ class GameManager:
     
     def advance_to_next_room(self):
         """Advance to the next room in the current floor."""
-        # Update spells (reduce memory points)
-        self.spell_manager.update_room_advance()
-        
         # Get next room info
         room_info = self.floor_manager.advance_room()
         
@@ -148,7 +137,7 @@ class GameManager:
             return True
         return False
     
-    # Item and spell effect methods
+    # Helper methods
     def heal_player(self, amount=5):
         """Heal the player by the specified amount."""
         self.game_data["life_points"] = min(
@@ -164,13 +153,3 @@ class GameManager:
     def add_gold(self, amount=10):
         """Add gold to the player."""
         self.player_gold += amount
-    
-    def reveal_next_room(self):
-        """Reveal the contents of the next room."""
-        # This would be implemented in the UI to show what's coming
-        pass
-    
-    def protect_from_damage(self, amount=5):
-        """Create a damage shield for the next monster."""
-        # This would be implemented in the playing state
-        pass

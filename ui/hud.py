@@ -1,5 +1,5 @@
 """
-HUD component for displaying active effects and item/spell information
+HUD component for displaying active effects, health, and gold indicators.
 """
 import pygame
 import random
@@ -10,28 +10,23 @@ from constants import (
     HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT, HEALTH_BAR_POSITION,
     GOLD_BAR_WIDTH, GOLD_BAR_HEIGHT, GOLD_BAR_POSITION,
     EFFECT_ICON_SIZE, EFFECT_ICON_SPACING, EFFECT_START_POSITION,
-    SHIELD_RADIUS, SHIELD_PANEL_WIDTH, SHIELD_PANEL_HEIGHT,
     # UI styling parameters
     PANEL_BORDER_RADIUS, PANEL_ALPHA, PANEL_BORDER_WIDTH,
     # UI Colors
     GOLD_COLOR, GOLD_HIGHLIGHT, GOLD_BORDER, GOLD_TEXT,
     HEALTH_COLOR_GOOD, HEALTH_COLOR_WARNING, HEALTH_COLOR_DANGER,
     HEALTH_GLOW_GOOD, HEALTH_GLOW_WARNING, HEALTH_GLOW_DANGER,
-    SHIELD_COLOR, SHIELD_GLOW, SHIELD_INNER, SHIELD_TEXT,
     # UI Panel Colors
     PANEL_DEFAULT_BORDER, PANEL_WOODEN, PANEL_WOODEN_BORDER,
-    PANEL_HEALTH, PANEL_HEALTH_BORDER, PANEL_SHIELD, PANEL_SHIELD_BORDER,
+    PANEL_HEALTH, PANEL_HEALTH_BORDER,
     # Effect Colors
-    EFFECT_SHIELD_COLOR, EFFECT_SHIELD_PANEL, EFFECT_SHIELD_BORDER,
     EFFECT_HEALING_COLOR, EFFECT_HEALING_PANEL, EFFECT_HEALING_BORDER,
     EFFECT_DAMAGE_COLOR, EFFECT_DAMAGE_PANEL, EFFECT_DAMAGE_BORDER,
     EFFECT_GOLD_COLOR, EFFECT_GOLD_PANEL, EFFECT_GOLD_BORDER,
     EFFECT_DEFAULT_COLOR, EFFECT_DEFAULT_PANEL, EFFECT_DEFAULT_BORDER,
     # Animation constants
     GOLD_CHANGE_DURATION, GOLD_PARTICLE_FADE_SPEED, GOLD_PARTICLE_SPEED,
-    GOLD_PARTICLE_SIZE, GOLD_PARTICLE_SPREAD, SHIELD_PULSE_FREQUENCY,
-    SHIELD_PULSE_AMPLITUDE, SHIELD_EDGE_WIDTH, SHIELD_DASH_LENGTH,
-    SHIELD_DASH_COUNT, SHIELD_SPARK_CHANCE, EFFECT_PULSE_PERMANENT,
+    GOLD_PARTICLE_SIZE, GOLD_PARTICLE_SPREAD, EFFECT_PULSE_PERMANENT,
     EFFECT_PULSE_TEMPORARY, EFFECT_EXPIRE_THRESHOLD
 )
 
@@ -43,7 +38,7 @@ class HUD:
         self.normal_font = pygame.font.SysFont(None, 20)
         self.small_font = pygame.font.SysFont(None, 16)
         
-        # Active effects (damage shield, etc.)
+        # Active effects
         self.active_effects = []
         
         # Effect icon positions
@@ -109,10 +104,6 @@ class HUD:
         
         # Draw health indicator
         self.draw_health_indicator(surface)
-        
-        # Draw damage shield if active
-        if hasattr(self.game_manager.states["playing"], 'damage_shield') and self.game_manager.states["playing"].damage_shield > 0:
-            self.draw_damage_shield(surface)
     
     def draw_active_effects(self, surface):
         """Draw icons for active effects with dungeon styling."""
@@ -132,12 +123,7 @@ class HUD:
             
             # Choose colour based on effect type
             effect_colour = EFFECT_DEFAULT_COLOR  # Default
-            if effect['type'] == 'shield':
-                effect_colour = EFFECT_SHIELD_COLOR
-                panel_colour = EFFECT_SHIELD_PANEL
-                border_colour = EFFECT_SHIELD_BORDER
-                icon_symbol = "✦"  # Star/Shield symbol
-            elif effect['type'] == 'healing':
+            if effect['type'] == 'healing':
                 effect_colour = EFFECT_HEALING_COLOR
                 panel_colour = EFFECT_HEALING_PANEL
                 border_colour = EFFECT_HEALING_BORDER
@@ -528,107 +514,3 @@ class HUD:
         return (min(255, int(r + (255-r) * factor)),
                 min(255, int(g + (255-g) * factor)),
                 min(255, int(b + (255-b) * factor)))
-    
-    def draw_damage_shield(self, surface):
-        """Draw a damage shield indicator with magical dungeon styling."""
-        playing_state = self.game_manager.states["playing"]
-        if playing_state.damage_shield <= 0:
-            return
-        
-        # Shield parameters from constants
-        shield_radius = SHIELD_RADIUS
-        center_x = SCREEN_WIDTH // 2
-        center_y = SCREEN_HEIGHT // 2
-        
-        # Create animated time-based effect (pulsating shield)
-        time_ms = pygame.time.get_ticks()
-        pulse_factor = 0.1 * (1 + SHIELD_PULSE_AMPLITUDE * math.sin(time_ms / SHIELD_PULSE_FREQUENCY))
-        
-        # Draw magical shield effect with multiple layers for depth
-        shield_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        
-        # Inner core with pulsating size
-        inner_radius = int(shield_radius * 0.8 * pulse_factor)
-        pygame.draw.circle(shield_surface, SHIELD_INNER, (center_x, center_y), inner_radius)
-        
-        # Main shield layer with arcane-like pattern
-        pygame.draw.circle(shield_surface, (70, 140, 255, 40), (center_x, center_y), shield_radius)
-        
-        # Draw a slightly translucent edge for a magical barrier look
-        edge_width = max(2, int(SHIELD_EDGE_WIDTH * pulse_factor))
-        pygame.draw.circle(shield_surface, SHIELD_COLOR, (center_x, center_y), shield_radius, edge_width)
-        
-        # Add arcane runes or symbols (simplified as dashed lines)
-        dash_length = SHIELD_DASH_LENGTH
-        dash_gap = 10
-        num_dashes = SHIELD_DASH_COUNT
-        rune_radius = shield_radius - 10
-        
-        for i in range(num_dashes):
-            angle = 2 * math.pi * i / num_dashes
-            start_x = center_x + int(rune_radius * math.cos(angle))
-            start_y = center_y + int(rune_radius * math.sin(angle))
-            end_x = center_x + int((rune_radius - dash_length) * math.cos(angle))
-            end_y = center_y + int((rune_radius - dash_length) * math.sin(angle))
-            
-            # Vary colour slightly for visual interest
-            rune_alpha = 150 + int(50 * math.sin((time_ms / 200) + i))
-            rune_colour = (180, 200, 255, rune_alpha)
-            
-            pygame.draw.line(shield_surface, rune_colour, (start_x, start_y), (end_x, end_y), 2)
-        
-        # Draw shield particles for magical effect (occasional sparks)
-        if random.random() < SHIELD_SPARK_CHANCE:  # Random chance per frame
-            spark_angle = random.uniform(0, 2 * math.pi)
-            spark_distance = shield_radius * random.uniform(0.9, 1.1)
-            spark_x = center_x + int(spark_distance * math.cos(spark_angle))
-            spark_y = center_y + int(spark_distance * math.sin(spark_angle))
-            
-            # Draw a magical spark
-            spark_radius = random.randint(2, 4)
-            pygame.draw.circle(shield_surface, (220, 240, 255, 200), (spark_x, spark_y), spark_radius)
-            
-            # Add glow around spark
-            glow_radius = spark_radius * 3
-            for r in range(glow_radius, 0, -1):
-                alpha = max(0, 100 - (glow_radius - r) * 25)
-                pygame.draw.circle(shield_surface, (150, 200, 255, alpha), 
-                                  (spark_x, spark_y), r)
-        
-        # Blit the complete shield effect
-        surface.blit(shield_surface, (0, 0))
-        
-        # Create a stylized panel for shield value display
-        from ui.panel import Panel
-        
-        # Shield panel positioning
-        panel_width = SHIELD_PANEL_WIDTH
-        panel_height = SHIELD_PANEL_HEIGHT
-        panel_x = center_x - panel_width // 2
-        panel_y = center_y - shield_radius - 35
-        
-        shield_panel = Panel(
-            (panel_width, panel_height),
-            (panel_x, panel_y),
-            colour=PANEL_SHIELD,
-            alpha=PANEL_ALPHA,
-            border_radius=PANEL_BORDER_RADIUS,
-            dungeon_style=True,
-            border_width=PANEL_BORDER_WIDTH,
-            border_colour=PANEL_SHIELD_BORDER
-        )
-        shield_panel.draw(surface)
-        
-        # Draw shield value with magical glow
-        shield_text = self.normal_font.render(f"Shield: {playing_state.damage_shield}", True, SHIELD_TEXT)
-        
-        # Create glow behind text
-        glow_surface = pygame.Surface((shield_text.get_width() + 10, shield_text.get_height() + 10), pygame.SRCALPHA)
-        pygame.draw.ellipse(glow_surface, SHIELD_GLOW, glow_surface.get_rect())
-        
-        # Position and draw
-        shield_text_rect = shield_text.get_rect(center=(panel_x + panel_width//2, panel_y + panel_height//2))
-        glow_rect = glow_surface.get_rect(center=shield_text_rect.center)
-        
-        surface.blit(glow_surface, glow_rect)
-        surface.blit(shield_text, shield_text_rect)

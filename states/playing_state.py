@@ -4,7 +4,7 @@ import random
 import math
 from pygame.locals import *
 
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT, WHITE, BLACK, GRAY, DARK_GRAY, LIGHT_GRAY, FONTS_PATH
+from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT, INVENTORY_PANEL_WIDTH, WHITE, BLACK, GRAY, DARK_GRAY, LIGHT_GRAY, FONTS_PATH
 from roguelike_constants import FLOOR_STRUCTURE
 from components.card import Card
 from components.deck import Deck
@@ -69,7 +69,6 @@ class PlayingState(GameState):
         
         # Roguelike components
         self.current_room_number = 0
-        self.damage_shield = 0
         self.FLOOR_STRUCTURE = FLOOR_STRUCTURE
         
         # UI elements
@@ -77,8 +76,6 @@ class PlayingState(GameState):
         self.body_font = None
         self.normal_font = None
         self.run_button = None
-        self.item_buttons = []
-        self.spell_buttons = []
         self.background = None
         self.floor = None
 
@@ -91,10 +88,6 @@ class PlayingState(GameState):
         # Status UI & HUD
         self.status_ui = StatusUI(game_manager)
         self.hud = HUD(game_manager)
-
-        # Add item/spell UI elements
-        self.item_panel = None
-        self.spell_panel = None
         
         # Add completed room counter
         self.completed_rooms = 0
@@ -175,10 +168,6 @@ class PlayingState(GameState):
         # Create run button
         self.ui_factory.create_run_button()
 
-        # Create item and spell buttons
-        self.ui_factory.create_item_buttons()
-        self.ui_factory.create_spell_buttons()
-
         # Reset player stats
         self.life_points = self.game_manager.game_data["life_points"]
         self.max_life = self.game_manager.game_data["max_life"]
@@ -194,8 +183,6 @@ class PlayingState(GameState):
         else:
             self.equipped_weapon = {}
             self.defeated_monsters = []
-            
-        self.damage_shield = 0
         
         # Check if we're coming from merchant room
         coming_from_merchant = hasattr(self.game_manager, 'coming_from_merchant') and self.game_manager.coming_from_merchant
@@ -258,9 +245,6 @@ class PlayingState(GameState):
         # Update HUD fonts
         self.hud.update_fonts(self.normal_font, self.normal_font)
 
-        # Create item and spell panels
-        self.ui_factory.create_item_spell_panels()
-
         # Reset floor completion tracking
         self.floor_completed = False
         self.merchant_transition_started = False
@@ -288,42 +272,110 @@ class PlayingState(GameState):
             # Check hover for cards in the room
             inventory_is_full = len(self.inventory) >= self.MAX_INVENTORY_SIZE
             
+            # Prepare all cards for hover detection
+            all_hoverable_cards = []
+            
+            # Setup room cards
             for card in self.room.cards:
                 # For monster cards, set the weapon_available flag based on equipped weapon
                 if hasattr(card, 'can_show_attack_options') and card.can_show_attack_options:
                     card.weapon_available = bool(self.equipped_weapon)
+                    
+                    # First check if we have a ranged weapon equipped but no arrows
+                    ranged_weapon_without_arrows = False
+                    if self.equipped_weapon:
+                        # Get the weapon node
+                        weapon_node = self.equipped_weapon.get("node", None)
+                        # Check if it's a ranged weapon
+                        if weapon_node and hasattr(weapon_node, "weapon_type") and weapon_node.weapon_type == "ranged":
+                            # Check if we have arrows in inventory
+                            has_arrow = False
+                            for inv_card in self.inventory:
+                                if (hasattr(inv_card, "weapon_type") and inv_card.weapon_type == "arrow") or \
+                                   (inv_card.type == "weapon" and inv_card.value == 2):  # 2 of diamonds is arrow
+                                    has_arrow = True
+                                    break
+                            
+                            # If we have a ranged weapon but no arrows, mark attack as not viable
+                            if not has_arrow:
+                                ranged_weapon_without_arrows = True
+                    
+                    # Check if this monster's value is higher than or equal to the last defeated monster
+                    # If we have defeated monsters and a weapon equipped, check if this monster is too powerful
+                    if ranged_weapon_without_arrows:
+                        card.weapon_attack_not_viable = True
+                        card.no_arrows = True  # Additional flag to specify no arrows reason
+                    elif self.equipped_weapon and self.defeated_monsters:
+                        card.weapon_attack_not_viable = card.value >= self.defeated_monsters[-1].value
+                        card.no_arrows = False
+                    else:
+                        card.weapon_attack_not_viable = False
+                        card.no_arrows = False
                 
                 # For cards that can be added to inventory, check if inventory is full
                 if hasattr(card, 'can_add_to_inventory') and card.can_add_to_inventory:
                     card.inventory_available = not inventory_is_full
                 
-                # Check hover status for all cards
-                card.check_hover(event.pos)
+                # Add card to hoverable cards if it collides with mouse
+                # Reset hover status first
+                card.is_hovered = False
+                if card.rect.collidepoint(event.pos):
+                    all_hoverable_cards.append(card)
             
-            # Check hover for inventory cards
+            # Setup inventory cards
             for card in self.inventory:
-                card.check_hover(event.pos)
+                # Reset hover status first
+                card.is_hovered = False
+                if card.rect.collidepoint(event.pos):
+                    all_hoverable_cards.append(card)
                 
-            # Check hover for equipped weapon
+            # Setup equipped weapon
             if "node" in self.equipped_weapon:
-                self.equipped_weapon["node"].check_hover(event.pos)
+                weapon_card = self.equipped_weapon["node"]
+                # Reset hover status first
+                weapon_card.is_hovered = False
+                if weapon_card.rect.collidepoint(event.pos):
+                    all_hoverable_cards.append(weapon_card)
             
-            # Check hover for defeated monsters
+            # Setup defeated monsters
             for monster in self.defeated_monsters:
-                monster.check_hover(event.pos)
+                # Reset hover status first
+                monster.is_hovered = False
+                if monster.rect.collidepoint(event.pos):
+                    all_hoverable_cards.append(monster)
+            
+            # Find the closest card to mouse cursor
+            if all_hoverable_cards:
+                closest_card = None
+                closest_distance = float('inf')
+                
+                for card in all_hoverable_cards:
+                    # Calculate distance from mouse to card center
+                    card_center_x = card.rect.centerx
+                    card_center_y = card.rect.centery
+                    
+                    # Calculate total float offset for more accurate hover detection
+                    total_float_offset = 0
+                    if hasattr(card, 'idle_float_offset') and hasattr(card, 'hover_float_offset'):
+                        total_float_offset = card.idle_float_offset + card.hover_float_offset
+                    
+                    # Adjust center Y with float offset
+                    card_center_y -= total_float_offset
+                    
+                    # Calculate squared distance (faster than sqrt)
+                    dist_sq = (event.pos[0] - card_center_x) ** 2 + (event.pos[1] - card_center_y) ** 2
+                    
+                    if dist_sq < closest_distance:
+                        closest_distance = dist_sq
+                        closest_card = card
+                
+                # Only set the closest card as hovered
+                if closest_card:
+                    closest_card.check_hover(event.pos)
             
             # Check hover for run button
             self.run_button.check_hover(event.pos)
-            
-            # Check hover for item buttons
-            for item_data in self.item_buttons:
-                item_data["button"].check_hover(event.pos)
-            
-            # Check hover for spell buttons
-            for spell_data in self.spell_buttons:
-                spell_data["button"].check_hover(event.pos)
-                
-        
+                    
         elif event.type == MOUSEBUTTONDOWN and event.button == 1:  # Left click
             if self.life_points <= 0:
                 return  # Don't handle clicks if player is dead
@@ -332,19 +384,7 @@ class PlayingState(GameState):
             if self.run_button.is_clicked(event.pos) and not self.ran_last_turn and len(self.room.cards) == 4:
                 self.room_manager.run_from_room()
                 return
-            
-            # Check if an item button was clicked
-            for item_data in self.item_buttons:
-                if item_data["button"].is_clicked(event.pos):
-                    self.player_state_manager.use_item(item_data["index"])
-                    return
-            
-            # Check if a spell button was clicked
-            for spell_data in self.spell_buttons:
-                if spell_data["button"].is_clicked(event.pos):
-                    self.player_state_manager.cast_spell(spell_data["index"])
-                    return
-            
+                        
             # Check if a card was clicked
             clicked_card = None
             
@@ -357,7 +397,12 @@ class PlayingState(GameState):
             # If no room card was clicked, check inventory cards
             clicked_inventory_card = self.inventory_manager.get_inventory_card_at_position(event.pos)
             if clicked_inventory_card:
-                self.card_action_manager.use_inventory_card(clicked_inventory_card)
+                self.card_action_manager.use_inventory_card(clicked_inventory_card, event.pos)
+                return  # Important: Return to prevent checking equipped weapon
+            
+            # If no room card or inventory card was clicked, check equipped weapon
+            if "node" in self.equipped_weapon and self.equipped_weapon["node"].rect.collidepoint(event.pos):
+                self.card_action_manager.discard_equipped_weapon()
     
     def update(self, delta_time):
         """Update game state for this frame."""
@@ -519,23 +564,6 @@ class PlayingState(GameState):
             # Draw the weapon card
             weapon_card.draw(surface)
             
-            # Draw weapon type and name only if hovered
-            if weapon_is_hovered:
-                # Draw weapon type below the card
-                if hasattr(weapon_card, 'weapon_type') and weapon_card.weapon_type:
-                    weapon_type = weapon_card.weapon_type.upper()
-                    if hasattr(weapon_card, 'damage_type') and weapon_card.damage_type:
-                        damage_type = weapon_card.damage_type.upper()
-                        type_text = f"{weapon_type} ({damage_type})"
-                    else:
-                        type_text = weapon_type
-                        
-                    self.ui_renderer.draw_card_type(surface, weapon_card, type_text)
-                    
-                # Draw weapon name above the card
-                if weapon_card.name:
-                    self.ui_renderer._draw_inventory_card_info(surface, weapon_card)
-            
             # Process all defeated monsters
             hovered_monsters = []
             non_hovered_monsters = []
@@ -555,28 +583,15 @@ class PlayingState(GameState):
             for monster in hovered_monsters:
                 # Draw the monster card
                 monster.draw(surface)
-                
-                # Draw monster type below the card
-                if hasattr(monster, 'monster_type') and monster.monster_type:
-                    self.ui_renderer.draw_card_type(surface, monster, monster.monster_type.upper())
-                
-                # Draw monster name above the card
-                if monster.name:
-                    self.ui_renderer._draw_inventory_card_info(surface, monster)
         
-        # Draw inventory background panel between item and spell panels
-        # Position it vertically centered between the item and spell panels
-        from constants import ITEM_PANEL_POSITION, SPELL_PANEL_POSITION, ITEM_PANEL_WIDTH, ITEM_PANEL_HEIGHT, SPELL_PANEL_HEIGHT
+        # Draw inventory background panel
+        vertical_center = SCREEN_HEIGHT // 2
         
-        # Calculate vertical center between spell and item panels
-        vertical_center = (SPELL_PANEL_POSITION[1] + SPELL_PANEL_HEIGHT + 
-                          (ITEM_PANEL_POSITION[1] - (SPELL_PANEL_POSITION[1] + SPELL_PANEL_HEIGHT)) // 2)
-        
-        # Create a smaller inventory panel
-        inv_width = ITEM_PANEL_WIDTH
-        inv_height = 120  # Smaller height
-        inv_x = SCREEN_WIDTH - inv_width - 40  # Same x as item/spell panels
-        inv_y = vertical_center - inv_height // 2 # Center between items and spells
+        # Create an inventory panel
+        inv_width = INVENTORY_PANEL_WIDTH
+        inv_height = 400  # Smaller height
+        inv_x = SCREEN_WIDTH - inv_width - 40
+        inv_y = vertical_center - inv_height // 2
         
         # Create the inventory panel using the Panel class
         if not hasattr(self, 'inventory_panel'):
@@ -641,20 +656,26 @@ class PlayingState(GameState):
                         type_text = weapon_type
                 elif card.type == "potion":
                     type_text = "HEALING"
-                
-                # Draw type text below the card
-                if type_text:
-                    self.ui_renderer.draw_card_type(surface, card, type_text)
-                
-                # Draw name hover info above the card
-                if card.name:
-                    self.ui_renderer._draw_inventory_card_info(surface, card)
             
         # Draw room cards LAST always
         self.room.draw(surface)
         
         # Draw any visual effects (destruction/materialize animations)
         self.animation_manager.draw_effects(surface)
+        
+        # Draw hover text for inventory cards
+        for card in self.inventory:
+            if card.is_hovered and card.face_up:
+                card.draw_hover_text(surface)
+        
+        # Draw hover text for equipped weapon
+        if "node" in self.equipped_weapon and self.equipped_weapon["node"].is_hovered and self.equipped_weapon["node"].face_up:
+            self.equipped_weapon["node"].draw_hover_text(surface)
+        
+        # Draw hover text for defeated monsters
+        for monster in self.defeated_monsters:
+            if monster.is_hovered and monster.face_up:
+                monster.draw_hover_text(surface)
         
         # Draw health display
         self.ui_renderer.draw_health_display(surface)
@@ -706,30 +727,7 @@ class PlayingState(GameState):
                 # Fallback for old message format (just in case)
                 pygame.draw.rect(surface, BLACK, self.message["bg_rect"], border_radius=8)
                 pygame.draw.rect(surface, WHITE, self.message["bg_rect"], 2, border_radius=8)
-                surface.blit(self.message["text"], self.message["rect"])
-
-        # Draw item and spell panels
-        self.item_panel.draw(surface)
-        self.spell_panel.draw(surface)
-        
-        # Draw item panel title
-        item_title = self.body_font.render("Items", True, WHITE)
-        item_title_rect = item_title.get_rect(centerx=self.item_panel.rect.centerx, top=self.item_panel.rect.top + 10)
-        surface.blit(item_title, item_title_rect)
-        
-        # Draw spell panel title
-        spell_title = self.body_font.render("Spells", True, WHITE)
-        spell_title_rect = spell_title.get_rect(centerx=self.spell_panel.rect.centerx, top=self.spell_panel.rect.top + 10)
-        surface.blit(spell_title, spell_title_rect)
-        
-        # Draw item buttons
-        for item_data in self.item_buttons:
-            item_data["button"].draw(surface)
-        
-        # Draw spell buttons
-        for spell_data in self.spell_buttons:
-            spell_data["button"].draw(surface)
-        
+                surface.blit(self.message["text"], self.message["rect"])        
         
         # Draw status UI
         self.status_ui.draw(surface)
@@ -742,10 +740,6 @@ class PlayingState(GameState):
     def change_gold(self, amount):
         """Forward gold change to player state manager."""
         self.player_state_manager.change_gold(amount)
-    
-    def set_damage_shield(self, amount):
-        """Forward damage shield to player state manager."""
-        self.player_state_manager.set_damage_shield(amount)
     
     def position_inventory_cards(self):
         """Forward inventory positioning to inventory manager."""

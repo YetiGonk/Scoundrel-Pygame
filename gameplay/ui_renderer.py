@@ -2,7 +2,7 @@
 import pygame
 import random
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT
-from constants import WHITE, BLACK, GRAY, DARK_GRAY, LIGHT_GRAY, FONTS_PATH
+from constants import WHITE, BLACK, GRAY, DARK_GRAY, LIGHT_GRAY, GOLD_COLOR, FONTS_PATH
 from utils.resource_loader import ResourceLoader
 
 
@@ -259,34 +259,6 @@ class UIRenderer:
         # Draw the gold text on top
         surface.blit(gold_text, gold_text_rect)
     
-    def _draw_inventory_card_info(self, surface, card):
-        """Draw name and other info for inventory cards."""
-        # Font for card name
-        name_font = pygame.font.Font(FONTS_PATH + "/Pixel Times.ttf", 18)
-        
-        # Render card name
-        card_name = card.name.upper()
-        text_surface = name_font.render(card_name, True, WHITE)
-        text_rect = text_surface.get_rect()
-        
-        # Calculate total float offset (idle + hover)
-        total_float_offset = 0
-        if hasattr(card, 'idle_float_offset') and hasattr(card, 'hover_float_offset'):
-            total_float_offset = card.idle_float_offset + card.hover_float_offset
-            
-        # Position text above card with floating offset
-        gap = 4
-        text_rect.midbottom = (card.rect.centerx, card.rect.top - gap - total_float_offset)
-        
-        # Add background with padding
-        padding = 8
-        bg_rect = text_rect.inflate(padding * 2, padding * 2)
-        
-        # Draw the background and text
-        pygame.draw.rect(surface, BLACK, bg_rect)
-        pygame.draw.rect(surface, WHITE, bg_rect, 2)  # White border
-        surface.blit(text_surface, text_rect)
-    
     def _draw_card_shadow(self, surface, card):
         """Draw shadow effect for a card"""
         shadow_alpha = 60
@@ -295,35 +267,3 @@ class UIRenderer:
         shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
         pygame.draw.rect(shadow_surf, (0, 0, 0, shadow_alpha), shadow_surf.get_rect(), border_radius=3)
         surface.blit(shadow_surf, (shadow_rect.x, shadow_rect.y))
-    
-    def draw_card_type(self, surface, card, type_text):
-        """Helper method to draw a card's type below the card"""
-        # Only proceed if we have text to display
-        if not type_text:
-            return
-            
-        # Initialize font if needed
-        if not hasattr(self.playing_state, 'small_font') or self.playing_state.small_font is None:
-            self.playing_state.small_font = pygame.font.Font(FONTS_PATH + "/Pixel Times.ttf", 16)
-        
-        padding = 6  # Smaller padding for non-hovered cards
-        
-        # Render the type text
-        type_surface = self.playing_state.small_font.render(type_text, True, WHITE)
-        type_rect = type_surface.get_rect()
-        
-        # Calculate the total float offset for proper positioning
-        total_float_offset = 0
-        if hasattr(card, 'idle_float_offset') and hasattr(card, 'hover_float_offset'):
-            total_float_offset = card.idle_float_offset + card.hover_float_offset
-            
-        # Position text below card with the float offset to move with card
-        gap = 4  # Smaller consistent gap
-        # Use negative offset for inventory cards to make text move with card
-        type_rect.midtop = (card.rect.centerx, card.rect.bottom + gap - total_float_offset)
-        
-        # Create background rect and draw
-        type_bg_rect = type_rect.inflate(padding * 2, padding * 2)
-        pygame.draw.rect(surface, BLACK, type_bg_rect)
-        pygame.draw.rect(surface, WHITE, type_bg_rect, 1)  # 1px white border
-        surface.blit(type_surface, type_rect)

@@ -3,7 +3,7 @@ import pygame
 
 
 class PlayerStateManager:
-    """Manages player state such as health, gold, and damage shield."""
+    """Manages player state such as health and gold."""
     
     def __init__(self, playing_state):
         """Initialize with a reference to the playing state."""
@@ -46,39 +46,4 @@ class PlayerStateManager:
         # Only animate if there was an actual change
         if actual_change > 0:
             self.playing_state.animation_controller.animate_gold_change(amount < 0, actual_change)  # True = gold loss, False = gold gain
-    
-    def set_damage_shield(self, amount):
-        """Set a damage shield for the player."""
-        self.playing_state.damage_shield = amount
-        
-        # Create a visual indicator for the shield
-        shield_effect = pygame.Surface((self.playing_state.SCREEN_WIDTH, self.playing_state.SCREEN_HEIGHT), pygame.SRCALPHA)
-        pygame.draw.circle(shield_effect, (0, 100, 255, 100), (self.playing_state.SCREEN_WIDTH//2, self.playing_state.SCREEN_HEIGHT//2), 150, 5)
-    
-    def use_item(self, item_index):
-        """Use an item from the player's inventory."""
-        if self.playing_state.game_manager.item_manager.use_item(item_index):
-            # Apply shield effect if it's a protection item
-            if item_index < len(self.playing_state.game_manager.item_manager.player_items):
-                item = self.playing_state.game_manager.item_manager.player_items[item_index]
-                if item.effect == "protect_from_damage":
-                    self.set_damage_shield(10)  # Set a default shield value
-            
-            # Refresh the UI
-            self.playing_state.ui_factory.create_item_buttons()
-            return True
-        return False
-    
-    def cast_spell(self, spell_index):
-        """Cast a spell from the player's spellbook."""
-        if self.playing_state.game_manager.spell_manager.cast_spell(spell_index):
-            # Apply shield effect if it's a protection spell
-            if spell_index < len(self.playing_state.game_manager.spell_manager.player_spells):
-                spell = self.playing_state.game_manager.spell_manager.player_spells[spell_index]
-                if spell.effect == "protect_from_damage":
-                    self.set_damage_shield(5)  # Set a default shield value
-            
-            # Refresh the UI
-            self.playing_state.ui_factory.create_spell_buttons()
-            return True
-        return False
+

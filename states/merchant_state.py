@@ -239,15 +239,11 @@ class MerchantState(GameState):
         self.shade = None
         
         # Inventory
-        self.items_for_sale = []
-        self.spells_for_sale = []
         self.cards_for_sale = []
         
         # UI elements
         self.panels = {}
         self.buttons = {}
-        self.item_buttons = []
-        self.spell_buttons = []
         self.card_buttons = []
         self.continue_button = None
         
@@ -342,26 +338,8 @@ class MerchantState(GameState):
         floor_manager = self.game_manager.floor_manager
         current_floor = floor_manager.get_current_floor()
         
-        # Get items, spells, and cards for sale
-        from roguelike_constants import MERCHANT_INVENTORY
-        
-        # Get items for sale
-        item_manager = self.game_manager.item_manager
-        rarity_weights = self.get_rarity_weights_for_floor(floor_manager.current_floor_index)
-        self.items_for_sale = item_manager.get_random_items(
-            MERCHANT_INVENTORY["items"], 
-            rarity_weights
-        )
-        
-        # Get spells for sale
-        spell_manager = self.game_manager.spell_manager
-        self.spells_for_sale = spell_manager.get_random_spells(
-            MERCHANT_INVENTORY["spells"],
-            rarity_weights
-        )
-        
         # Generate cards for sale - potions and weapons with higher values
-        self.cards_for_sale = self.generate_cards_for_sale(MERCHANT_INVENTORY["cards"])
+        self.cards_for_sale = self.generate_cards_for_sale(2)
     
     def get_rarity_weights_for_floor(self, floor_index):
         """Get adjusted rarity weights based on floor progress."""
@@ -383,29 +361,15 @@ class MerchantState(GameState):
         """Create the UI elements for the merchant state."""
         # Main panel
         self.panels["main"] = Panel(
-            (720, 530),
+            (300, 530),
             (SCREEN_WIDTH//2 - 150, SCREEN_HEIGHT//2 - 265),
             colour=DARK_GRAY
         )
         
-        # Items panel
-        self.panels["items"] = Panel(
-            (200, 430),
-            (self.panels["main"].rect.left + 30, self.panels["main"].rect.top + 75),
-            colour=GRAY
-        )
-        
-        # Spells panel
-        self.panels["spells"] = Panel(
-            (200, 430),
-            (self.panels["main"].rect.left + 260, self.panels["main"].rect.top + 75),
-            colour=GRAY
-        )
-        
         # Cards panel
         self.panels["cards"] = Panel(
-            (200, 430),
-            (self.panels["main"].rect.left + 490, self.panels["main"].rect.top + 75),
+            (250, 430),
+            (self.panels["main"].rect.left + 25, self.panels["main"].rect.top + 75),
             colour=GRAY
         )
         
@@ -415,49 +379,9 @@ class MerchantState(GameState):
         continue_rect.top = self.panels["main"].rect.bottom - 15
         self.continue_button = Button(continue_rect, "Continue", self.body_font)
         
-        # Create item buttons
-        self.create_item_buttons()
-        
-        # Create spell buttons
-        self.create_spell_buttons()
-        
         # Create card buttons
         self.create_card_buttons()
-    
-    def create_item_buttons(self):
-        """Create buttons for items."""
-        self.item_buttons = []
         
-        for i, item in enumerate(self.items_for_sale):
-            button_rect = pygame.Rect(
-                self.panels["items"].rect.left + 10,
-                self.panels["items"].rect.top + 40 + (i * 80),
-                230,
-                70
-            )
-            
-            self.item_buttons.append({
-                "item": item,
-                "button": Button(button_rect, item.name, self.normal_font)
-            })
-    
-    def create_spell_buttons(self):
-        """Create buttons for spells."""
-        self.spell_buttons = []
-        
-        for i, spell in enumerate(self.spells_for_sale):
-            button_rect = pygame.Rect(
-                self.panels["spells"].rect.left + 10,
-                self.panels["spells"].rect.top + 40 + (i * 80),
-                230,
-                70
-            )
-            
-            self.spell_buttons.append({
-                "spell": spell,
-                "button": Button(button_rect, spell.name, self.normal_font)
-            })
-    
     def create_card_buttons(self):
         """Create buttons for cards."""
         self.card_buttons = []
@@ -492,12 +416,6 @@ class MerchantState(GameState):
             # Check button hover states
             self.continue_button.check_hover(event.pos)
             
-            for item_data in self.item_buttons:
-                item_data["button"].check_hover(event.pos)
-            
-            for spell_data in self.spell_buttons:
-                spell_data["button"].check_hover(event.pos)
-            
             for card_data in self.card_buttons:
                 card_data["button"].check_hover(event.pos)
         
@@ -514,42 +432,12 @@ class MerchantState(GameState):
                 self.game_manager.change_state("playing")
                 return
             
-            # Check if an item button was clicked
-            for item_data in self.item_buttons:
-                if item_data["button"].is_clicked(event.pos):
-                    self.purchase_item(item_data["item"])
-                    return
-            
-            # Check if a spell button was clicked
-            for spell_data in self.spell_buttons:
-                if spell_data["button"].is_clicked(event.pos):
-                    self.purchase_spell(spell_data["spell"])
-                    return
-            
             # Check if a card button was clicked
             for card_data in self.card_buttons:
                 if card_data["button"].is_clicked(event.pos):
                     self.purchase_card(card_data["card"])
                     return
-    
-    def purchase_item(self, item):
-        """Purchase an item if the player has enough gold."""
-        if self.game_manager.player_gold >= item.price:
-            if self.game_manager.item_manager.add_player_item(item):
-                self.game_manager.player_gold -= item.price
-                self.items_for_sale.remove(item)
-                # Refresh UI
-                self.create_item_buttons()
-    
-    def purchase_spell(self, spell):
-        """Purchase a spell if the player has enough gold."""
-        if self.game_manager.player_gold >= spell.price:
-            if self.game_manager.spell_manager.add_player_spell(spell):
-                self.game_manager.player_gold -= spell.price
-                self.spells_for_sale.remove(spell)
-                # Refresh UI
-                self.create_spell_buttons()
-    
+        
     def generate_cards_for_sale(self, count):
         """Generate cards for sale in the merchant shop.
         
@@ -783,56 +671,13 @@ class MerchantState(GameState):
         title_rect = title_text.get_rect(centerx=self.panels["main"].rect.centerx, top=self.panels["main"].rect.top + 20)
         surface.blit(title_text, title_rect)
         
-        # Draw section headings
-        items_text = self.body_font.render("Items", True, WHITE)
-        items_rect = items_text.get_rect(centerx=self.panels["items"].rect.centerx, top=self.panels["items"].rect.top + 10)
-        surface.blit(items_text, items_rect)
-        
-        spells_text = self.body_font.render("Spells", True, WHITE)
-        spells_rect = spells_text.get_rect(centerx=self.panels["spells"].rect.centerx, top=self.panels["spells"].rect.top + 10)
-        surface.blit(spells_text, spells_rect)
-        
+        # Draw section heading
         cards_text = self.body_font.render("Cards", True, WHITE)
         cards_rect = cards_text.get_rect(centerx=self.panels["cards"].rect.centerx, top=self.panels["cards"].rect.top + 10)
         surface.blit(cards_text, cards_rect)
         
         # Draw continue button
         self.continue_button.draw(surface)
-        
-        # Draw item buttons and prices
-        for item_data in self.item_buttons:
-            item = item_data["item"]
-            button = item_data["button"]
-            
-            # Draw the button
-            button.draw(surface)
-            
-            # Draw the price and durability
-            price_text = self.normal_font.render(f"Price: {item.price}", True, WHITE)
-            price_rect = price_text.get_rect(left=button.rect.left + 10, top=button.rect.top + 25)
-            surface.blit(price_text, price_rect)
-            
-            if item.durability > 0:
-                durability_text = self.normal_font.render(f"Uses: {item.durability}", True, WHITE)
-                durability_rect = durability_text.get_rect(left=button.rect.left + 10, top=button.rect.top + 45)
-                surface.blit(durability_text, durability_rect)
-        
-        # Draw spell buttons and prices
-        for spell_data in self.spell_buttons:
-            spell = spell_data["spell"]
-            button = spell_data["button"]
-            
-            # Draw the button
-            button.draw(surface)
-            
-            # Draw the price and memory
-            price_text = self.normal_font.render(f"Price: {spell.price}", True, WHITE)
-            price_rect = price_text.get_rect(left=button.rect.left + 10, top=button.rect.top + 25)
-            surface.blit(price_text, price_rect)
-            
-            memory_text = self.normal_font.render(f"Memory: {spell.memory_points}", True, WHITE)
-            memory_rect = memory_text.get_rect(left=button.rect.left + 10, top=button.rect.top + 45)
-            surface.blit(memory_text, memory_rect)
         
         # Draw card buttons and prices
         for card_data in self.card_buttons:

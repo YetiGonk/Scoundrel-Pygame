@@ -7,61 +7,21 @@ FLOOR_TYPES = ["dungeon", "forest", "library", "crypt", "volcano"]
 # Floor structure
 FLOOR_STRUCTURE = {
     "rooms_per_floor": 12,  # Maximum potential rooms (flexible)
-    "merchant_rooms": [1, 8],  # Room numbers where merchants appear
+    "merchant_rooms": [5, 10],  # Room numbers where merchants appear
     # Boss room functionality removed
-}
-
-# Item and spell rarity
-RARITY_TYPES = ["common", "uncommon", "rare", "legendary"]
-
-# Item types
-ITEM_TYPES = ["passive", "active"]
-
-# Generic item template
-ITEM_TEMPLATE = {
-    "name": "",
-    "description": "",
-    "type": "",  # passive or active
-    "rarity": "",
-    "durability": 0,  # How many uses before breaking (0 = infinite)
-    "effect": "",  # Function name to call for effect
-    "icon": "",  # Path to icon image
-}
-
-# Spell template
-SPELL_TEMPLATE = {
-    "name": "",
-    "description": "",
-    "rarity": "",
-    "memory_points": 0,  # How many rooms before forgetting
-    "effect": "",  # Function name to call for effect
-    "icon": "",  # Path to icon image
 }
 
 # Merchant inventory sizes
 MERCHANT_INVENTORY = {
-    "items": 3,
-    "spells": 3,
     "cards": 2,  # Special cards that can be purchased
 }
 
 # Starting player attributes
 STARTING_ATTRIBUTES = {
     "gold": 0,
-    "item_slots": 3,
-    "spell_slots": 2,
     "life_points": 20,
     "max_life": 20,
 }
-
-# Item and spell selection at floor start
-FLOOR_START_SELECTION = {
-    "items": 5,  # Show 5 items
-    "spells": 5,  # Show 5 spells
-    "picks": 2,  # Player can pick 2 total (any combination)
-}
-
-# Boss cards removed
 
 """ Monster definitions for the roguelike elements of Scoundrel. """
 
@@ -254,61 +214,6 @@ FLOOR_MONSTERS = {
             14: {"name": "Reaper", "image": "monsters/reaper.png", "ability": "fear"},
         },
     },
-}
-
-# Monster abilities and their effects
-MONSTER_ABILITIES = {
-    "block_first_attack": "Negates the first weapon attack",
-    "reduced_damage": "Takes 50% less damage from weapons",
-    "poison": "Deals 1 damage per turn for 3 turns",
-    "phase_shift": "50% chance to avoid weapon attacks",
-    "life_drain": "Heals for 50% of damage dealt",
-    "regeneration": "Regains 2 health each turn",
-    "burning_attack": "Deals additional 2 fire damage",
-    "magic_attacks": "Ignores weapon defence bonuses",
-    "summon_minions": "Summons 1-3 weaker monsters",
-    "split": "Creates a copy of itself at 50% health when damaged",
-    "confusion": "50% chance player attacks themselves",
-    "constriction": "Damage increases each turn",
-    "counter_attack": "Deals damage back to player on attack",
-    "stun_attack": "50% chance to stun player for 1 turn",
-    "fear": "Reduces player's attack strength by 2",
-    "spell_reflection": "Reflects magical attacks back to player",
-    "holy_resistance": "Immune to holy/light damage types",
-    "entangle": "Prevents player from running for 2 turns",
-    "web_trap": "Slows player movement, reduced dodge chance",
-    "dive_attack": "First attack deals double damage",
-    "curse": "Reduces player's max health by 1",
-    "root_attack": "Prevents player from running",
-    "crushing_blow": "25% chance to break equipped weapon",
-    "spawn_spiders": "Spawns 1-4 spider minions",
-    "nature_magic": "Heals from potion attacks",
-    "charge": "First attack stuns player for 1 turn",
-    "toxicity": "All attacks are poisoned",
-    "poison_cloud": "Damages all characters in room",
-    "bad_joke": "Makes player unable to use items for 1 turn",
-    "summon_ghouls": "Summons 1-2 ghouls as allies",
-    "royal_command": "Strengthens all other monsters in room",
-    "petrify": "25% chance to disable player for 2 turns",
-    "deadly_constriction": "Damage doubles each turn",
-    "knowledge_drain": "Reduces spell effectiveness",
-    "astral_projection": "Can attack from a distance",
-    "lunar_magic": "Stronger during night cycles",
-    "solar_flare": "Area attack that damages player and all equipment",
-    "wail": "50% chance to cause fear effect",
-    "judgment": "Damage based on player's actions in run",
-    "reality_warp": "Randomizes effects of all items and spells",
-    "ranged_attack": "Can attack from a distance",
-    "wish_twist": "Grants a random effect (positive or negative)",
-    "chain_lightning": "Damages player and destroys one random item",
-    "gold_theft": "Steals 5-15 gold from player",
-    "entomb": "Traps player for 2 turns",
-    "fire_breath": "Area attack with fire damage",
-    "lava_pool": "Creates hazard that damages player each turn",
-    "devastating_breath": "Massive damage attack with 1 turn charge-up",
-    "magma_eruption": "Area attack that persists for 3 turns",
-    "ink_spray": "Blinds player, reducing hit chance by 75%",
-    "tidal_wave": "Pushes back all characters and applies wet effect"
 }
 
 WEAPON_MAPPINGS = {

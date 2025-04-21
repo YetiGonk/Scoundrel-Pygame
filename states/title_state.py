@@ -9,7 +9,7 @@ from pygame.locals import *
 from constants import (
     SCREEN_WIDTH, SCREEN_HEIGHT, WHITE, BLACK, DARK_GRAY,
     PANEL_BORDER_RADIUS, PANEL_ALPHA, PANEL_BORDER_WIDTH,
-    SHIELD_COLOR, GOLD_COLOR, GOLD_BORDER
+    GOLD_COLOR, GOLD_BORDER
 )
 from states.game_state import GameState
 from ui.panel import Panel
