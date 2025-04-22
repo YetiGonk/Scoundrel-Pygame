@@ -536,8 +536,40 @@ class Card:
                 overlay_width = current_texture.get_width()
                 overlay_height = current_texture.get_height() // 2  # Half height for each section
                 
+                # For defeated monsters, don't show any action overlay
+                is_defeated_monster = False
+                
+                # First check the is_defeated flag
+                if hasattr(self, 'is_defeated') and self.is_defeated:
+                    is_defeated_monster = True
+                
+                # As a fallback, also check if it's in the PlayingState's defeated_monsters list
+                if not is_defeated_monster and pygame.display.get_surface():
+                    # Only try to access the playing_state if we're running in the game
+                    try:
+                        # This gets the current PyGame application
+                        import sys
+                        main_module = sys.modules['__main__']
+                        if hasattr(main_module, 'game_manager'):
+                            game_manager = main_module.game_manager
+                            if hasattr(game_manager, 'current_state'):
+                                current_state = game_manager.current_state
+                                if hasattr(current_state, 'defeated_monsters'):
+                                    # Check if this card is in the defeated_monsters list
+                                    if self in current_state.defeated_monsters:
+                                        is_defeated_monster = True
+                                        # Also set the flag for future checks
+                                        self.is_defeated = True
+                    except:
+                        # If anything goes wrong, just continue
+                        pass
+                
+                # Skip all overlay rendering for defeated monsters
+                if is_defeated_monster:
+                    pass  # No overlay for defeated monsters
+                
                 # Check if this is an equipped weapon (show discard only)
-                if hasattr(self, 'is_equipped') and self.is_equipped:
+                elif hasattr(self, 'is_equipped') and self.is_equipped:
                     # Full overlay with single color for discard
                     full_overlay = pygame.Surface((overlay_width, overlay_height*2), pygame.SRCALPHA)
                     full_overlay.fill((200, 60, 60))  # Bright red color for discard
@@ -670,9 +702,15 @@ class Card:
         """Draw hover action text to the right of the card using the delving deck style"""
         # Check if the card is hovered while in inventory
         card_in_inventory = hasattr(self, 'in_inventory') and self.in_inventory
+        # Check if this is a defeated monster
+        is_defeated_monster = hasattr(self, 'is_defeated') and self.is_defeated
         
+        # For defeated monsters, just show info when hovered
+        if is_defeated_monster:
+            if not (self.is_hovered and self.face_up):
+                return
         # If this is an inventory card
-        if card_in_inventory:
+        elif card_in_inventory:
             # Only show hover info for inventory cards when hovered and face up
             if not (self.is_hovered and self.face_up):
                 return
@@ -855,24 +893,58 @@ class Card:
             action_text = ""
             warning_text = ""
             action_color = GOLD_COLOR
+            defeated_text = ""
             
-            if self.weapon_available and not self.weapon_attack_not_viable:
-                if self.hover_selection == "top":
-                    action_text = "WEAPON ATTACK"
-                    action_color = (120, 170, 255)  # Bright blue
-                elif self.hover_selection == "bottom":
-                    action_text = "BARE HANDS"
-                    action_color = (255, 120, 120)  # Bright red
-            elif self.weapon_available and self.weapon_attack_not_viable:
-                if self.no_arrows:
-                    warning_text = "NO ARROWS AVAILABLE"
-                else:
-                    warning_text = "TOO POWERFUL FOR WEAPON"
-                action_text = "BARE HANDS ONLY"
-                action_color = (255, 120, 120)  # Bright red
+            # Check if this is a defeated monster - also check if it's in the defeated_monsters list
+            is_defeated_monster = False
+            
+            # First check the is_defeated flag
+            if hasattr(self, 'is_defeated') and self.is_defeated:
+                is_defeated_monster = True
+            
+            # As a fallback, also check if it's in the PlayingState's defeated_monsters list
+            if not is_defeated_monster and pygame.display.get_surface():
+                # Only try to access the playing_state if we're running in the game
+                try:
+                    # This gets the current PyGame application
+                    import sys
+                    main_module = sys.modules['__main__']
+                    if hasattr(main_module, 'game_manager'):
+                        game_manager = main_module.game_manager
+                        if hasattr(game_manager, 'current_state'):
+                            current_state = game_manager.current_state
+                            if hasattr(current_state, 'defeated_monsters'):
+                                # Check if this card is in the defeated_monsters list
+                                if self in current_state.defeated_monsters:
+                                    is_defeated_monster = True
+                                    # Also set the flag for future checks
+                                    self.is_defeated = True
+                except:
+                    # If anything goes wrong, just continue
+                    pass
+            
+            if is_defeated_monster:
+                # For defeated monsters, add a "DEFEATED" text instead of actions
+                defeated_text = "DEFEATED"
             else:
-                action_text = "BARE HANDS ONLY"
-                action_color = (255, 120, 120)  # Bright red
+                # Only show action options for monsters that aren't defeated
+                if self.weapon_available and not self.weapon_attack_not_viable:
+                    if self.hover_selection == "top":
+                        action_text = "WEAPON ATTACK"
+                        action_color = (120, 170, 255)  # Bright blue
+                    elif self.hover_selection == "bottom":
+                        action_text = "BARE HANDS"
+                        action_color = (255, 120, 120)  # Bright red
+                elif self.weapon_available and self.weapon_attack_not_viable:
+                    if self.no_arrows:
+                        warning_text = "NO ARROWS AVAILABLE"
+                    else:
+                        warning_text = "TOO POWERFUL FOR WEAPON"
+                    action_text = "BARE HANDS ONLY"
+                    action_color = (255, 120, 120)  # Bright red
+                else:
+                    action_text = "BARE HANDS ONLY"
+                    action_color = (255, 120, 120)  # Bright red
             
             # Create complete lines list
             info_lines = [
@@ -880,12 +952,16 @@ class Card:
                 {"text": type_text, "font": body_font, "color": GOLD_COLOR}
             ]
             
+            # Add "DEFEATED" text for defeated monsters
+            if defeated_text:
+                info_lines.append({"text": defeated_text, "font": body_font, "color": (150, 150, 150)})  # Grey color
+            
             # Add warning text if present
-            if warning_text:
+            elif warning_text:
                 info_lines.append({"text": warning_text, "font": body_font, "color": (255, 100, 100)})
                 
             # Add action text if present
-            if action_text:
+            elif action_text:
                 info_lines.append({"text": action_text, "font": body_font, "color": action_color})
         
         # Calculate total height needed for all lines with spacing
@@ -939,8 +1015,11 @@ class Card:
         # Create and draw the info panel
         panel_color = (60, 50, 40)  # Default brown color matching delving deck
         
+        # For defeated monsters, use neutral color
+        if hasattr(self, 'is_defeated') and self.is_defeated:
+            panel_color = (60, 50, 40)  # Default brown color, no special highlight
         # For inventory cards, match panel color with action
-        if hasattr(self, 'in_inventory') and self.in_inventory:
+        elif hasattr(self, 'in_inventory') and self.in_inventory:
             if self.hover_selection == "top":
                 if self.type == "weapon":
                     panel_color = (60, 100, 40)  # Green tint for EQUIP
@@ -1006,8 +1085,35 @@ class Card:
             # Calculate the mid-point of the card height
             card_midpoint_y = self.rect.y + self.rect.height / 2
             
+            # For defeated monsters, don't set any hover selection
+            is_defeated_monster = False
+            
+            # Check the is_defeated flag
+            if hasattr(self, 'is_defeated') and self.is_defeated:
+                is_defeated_monster = True
+            
+            # As a fallback, also check if it's in the PlayingState's defeated_monsters list
+            if not is_defeated_monster and pygame.display.get_surface():
+                try:
+                    import sys
+                    main_module = sys.modules['__main__']
+                    if hasattr(main_module, 'game_manager'):
+                        game_manager = main_module.game_manager
+                        if hasattr(game_manager, 'current_state'):
+                            current_state = game_manager.current_state
+                            if hasattr(current_state, 'defeated_monsters'):
+                                if self in current_state.defeated_monsters:
+                                    is_defeated_monster = True
+                                    self.is_defeated = True
+                except:
+                    pass
+            
+            if is_defeated_monster:
+                # No hover selection for defeated monsters (ensures no split colors)
+                self.hover_selection = None
+            
             # For equipped weapons (only have discard option)
-            if hasattr(self, 'is_equipped') and self.is_equipped:
+            elif hasattr(self, 'is_equipped') and self.is_equipped:
                 # No split for equipped weapons, just a single action
                 self.hover_selection = "bottom"  # Discard
             

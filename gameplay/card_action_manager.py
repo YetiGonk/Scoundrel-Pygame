@@ -157,6 +157,8 @@ class CardActionManager:
                     # Monster defeated with no damage
                     monster.z_index = self.playing_state.z_index_counter
                     self.playing_state.z_index_counter += 1
+                    # Mark monster as defeated for proper hover behavior
+                    monster.is_defeated = True
                     # Add to defeated monster stack
                     self.playing_state.defeated_monsters.append(monster)
                     self.playing_state.position_monster_stack()
@@ -210,6 +212,8 @@ class CardActionManager:
                     if monster_value <= weapon_value:
                         monster.z_index = self.playing_state.z_index_counter
                         self.playing_state.z_index_counter += 1
+                        # Mark monster as defeated for proper hover behavior
+                        monster.is_defeated = True
                         # Add to defeated monster stack
                         self.playing_state.defeated_monsters.append(monster)
                         self.playing_state.position_monster_stack()
@@ -224,6 +228,8 @@ class CardActionManager:
                         
                         monster.z_index = self.playing_state.z_index_counter
                         self.playing_state.z_index_counter += 1
+                        # Mark monster as defeated for proper hover behavior
+                        monster.is_defeated = True
                         # Add to defeated monster stack
                         self.playing_state.defeated_monsters.append(monster)
                         self.playing_state.position_monster_stack()

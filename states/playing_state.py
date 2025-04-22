@@ -177,6 +177,11 @@ class PlayingState(GameState):
         if hasattr(self.game_manager, 'equipped_weapon') and self.game_manager.equipped_weapon:
             self.equipped_weapon = self.game_manager.equipped_weapon
             self.defeated_monsters = self.game_manager.defeated_monsters
+            
+            # Ensure all defeated monsters have the is_defeated flag set
+            for monster in self.defeated_monsters:
+                monster.is_defeated = True
+                
             # Clear the stored data
             self.game_manager.equipped_weapon = {}
             self.game_manager.defeated_monsters = []
@@ -672,6 +677,10 @@ class PlayingState(GameState):
         if "node" in self.equipped_weapon and self.equipped_weapon["node"].is_hovered and self.equipped_weapon["node"].face_up:
             self.equipped_weapon["node"].draw_hover_text(surface)
         
+        # Ensure all monsters in defeated_monsters have the is_defeated flag set
+        for monster in self.defeated_monsters:
+            monster.is_defeated = True
+            
         # Draw hover text for defeated monsters
         for monster in self.defeated_monsters:
             if monster.is_hovered and monster.face_up:
