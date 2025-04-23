@@ -147,154 +147,450 @@ FONT_FILE = f"{FONTS_PATH}/Pixel Times.ttf"
 SUITS = ["diamonds", "hearts", "spades", "clubs"]
 
 STANDARD_DECK = {
-    "diamonds": {
-        "upper": 10,
-        "lower": 2
+    "diamonds": {  
+        0: 2,
+        2: 1,
+        3: 1,
+        4: 1,  
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
     },
     "hearts": {
-        "upper": 10,
-        "lower": 2
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1
     },
     "spades": {
-        "upper": 14,
-        "lower": 2
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
+        11: 1,
+        12: 1,
+        13: 1,
+        14: 1,
     },
     "clubs": {
-        "upper": 14,
-        "lower": 2
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
+        11: 1,
+        12: 1,
+        13: 1,
+        14: 1,
     },
 }
 
 EASY_DECK = {
-    "diamonds": {
-        "upper": 14,
-        "lower": 2
+    "diamonds": {  
+        0: 2,
+        2: 1,
+        3: 1,
+        4: 1,  
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
     },
     "hearts": {
-        "upper": 14,
-        "lower": 2
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1
     },
     "spades": {
-        "upper": 10,
-        "lower": 2
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
+        11: 1,
+        12: 1,
+        13: 1,
+        14: 1,
     },
     "clubs": {
-        "upper": 10,
-        "lower": 2
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
+        11: 1,
+        12: 1,
+        13: 1,
+        14: 1,
     },
 }
 
 HARD_DECK = {
-    "diamonds": {
-        "upper": 10,
-        "lower": 4
+    "diamonds": {  
+        0: 2,
+        2: 1,
+        3: 1,
+        4: 1,  
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
     },
     "hearts": {
-        "upper": 10,
-        "lower": 4
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1
     },
     "spades": {
-        "upper": 14,
-        "lower": 2
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
+        11: 1,
+        12: 1,
+        13: 1,
+        14: 1,
     },
     "clubs": {
-        "upper": 14,
-        "lower": 2
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
+        11: 1,
+        12: 1,
+        13: 1,
+        14: 1,
     },
 }
 
 DUNGEON_DECK = {
-    "diamonds": {
-        "upper": 12,
-        "lower": 2
+    "diamonds": {  
+        0: 2,
+        2: 1,
+        3: 1,
+        4: 1,  
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
     },
     "hearts": {
-        "upper": 12,
-        "lower": 2
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1
     },
     "spades": {
-        "upper": 12,
-        "lower": 2
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
+        11: 1,
+        12: 1,
+        13: 1,
+        14: 1,
     },
     "clubs": {
-        "upper": 12,
-        "lower": 2
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
+        11: 1,
+        12: 1,
+        13: 1,
+        14: 1,
     },
 }
 
 FOREST_DECK = {
-    "diamonds": {
-        "upper": 11,
-        "lower": 3
+    "diamonds": {  
+        0: 2,
+        2: 1,
+        3: 1,
+        4: 1,  
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
     },
     "hearts": {
-        "upper": 14,  # More healing in forest
-        "lower": 4
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1
     },
     "spades": {
-        "upper": 11,
-        "lower": 2
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
+        11: 1,
+        12: 1,
+        13: 1,
+        14: 1,
     },
     "clubs": {
-        "upper": 11,
-        "lower": 2
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
+        11: 1,
+        12: 1,
+        13: 1,
+        14: 1,
     },
 }
 
 LIBRARY_DECK = {
-    "diamonds": {
-        "upper": 14,  # More powerful weapons
-        "lower": 2
+    "diamonds": {  
+        0: 2,
+        2: 1,
+        3: 1,
+        4: 1,  
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
     },
     "hearts": {
-        "upper": 10,
-        "lower": 2
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1
     },
     "spades": {
-        "upper": 12,
-        "lower": 3
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
+        11: 1,
+        12: 1,
+        13: 1,
+        14: 1,
     },
     "clubs": {
-        "upper": 12,
-        "lower": 3
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
+        11: 1,
+        12: 1,
+        13: 1,
+        14: 1,
     },
 }
 
 CRYPT_DECK = {
-    "diamonds": {
-        "upper": 14,
-        "lower": 3
+    "diamonds": {  
+        0: 2,
+        2: 1,
+        3: 1,
+        4: 1,  
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
     },
     "hearts": {
-        "upper": 10,  # Less healing
-        "lower": 2
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1
     },
     "spades": {
-        "upper": 14,  # Stronger monsters
-        "lower": 3
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
+        11: 1,
+        12: 1,
+        13: 1,
+        14: 1,
     },
     "clubs": {
-        "upper": 14,  # Stronger monsters
-        "lower": 3
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
+        11: 1,
+        12: 1,
+        13: 1,
+        14: 1,
     },
 }
 
-VOLCANO_DECK = {
-    "diamonds": {
-        "upper": 14,  # Strong weapons
-        "lower": 2
+MOLTEN_DECK = {
+    "diamonds": {  
+        0: 2,
+        2: 1,
+        3: 1,
+        4: 1,  
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
     },
     "hearts": {
-        "upper": 14,  # Less healing
-        "lower": 2
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1
     },
     "spades": {
-        "upper": 14,  # Very strong monsters
-        "lower": 4
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
+        11: 1,
+        12: 1,
+        13: 1,
+        14: 1,
     },
     "clubs": {
-        "upper": 14,
-        "lower": 4
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 1,
+        11: 1,
+        12: 1,
+        13: 1,
+        14: 1,
     },
 }
 
@@ -310,16 +606,16 @@ DECK_DICT = {
     "forest": FOREST_DECK,
     "library": LIBRARY_DECK,
     "crypt": CRYPT_DECK,
-    "volcano": VOLCANO_DECK,
+    "molten": MOLTEN_DECK,
 }
 
 DECK_DESC_DICT = {
     "standard": "The standard deck. The original game.",
     "easy": "For the shmucks with no 'cojones'. No face or ace monster cards, all weapons and potions.",
     "hard": "For the crazies with too many 'cojones'. All monsters, no face or ace weapons or potions.",
-    "dungeon": "Standard dungeon cards with balanced challenges.",
-    "forest": "Nature-themed cards with enhanced healing potions.",
-    "library": "Magical tomes and scrolls with powerful weapons.",
-    "crypt": "Undead monsters and cursed treasures with fewer healing options.",
-    "volcano": "Fire monsters and molten weapons with extreme challenges.",
+    "dungeon": "",
+    "forest": "",
+    "library": "",
+    "crypt": "",
+    "molten": ""
 }

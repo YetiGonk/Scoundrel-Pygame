@@ -297,7 +297,7 @@ class PlayingState(GameState):
                             has_arrow = False
                             for inv_card in self.inventory:
                                 if (hasattr(inv_card, "weapon_type") and inv_card.weapon_type == "arrow") or \
-                                   (inv_card.type == "weapon" and inv_card.value == 2):  # 2 of diamonds is arrow
+                                   (inv_card.type == "weapon" and inv_card.value == 0):  # 0 value diamonds is arrow
                                     has_arrow = True
                                     break
                             

@@ -2,7 +2,7 @@
 import random
 
 # Floor definitions
-FLOOR_TYPES = ["dungeon", "forest", "library", "crypt", "volcano"]
+FLOOR_TYPES = ["dungeon", "forest", "library", "crypt", "MOLTEN"]
 
 # Floor structure
 FLOOR_STRUCTURE = {
@@ -179,7 +179,7 @@ FLOOR_MONSTERS = {
         },
     },
     
-    "volcano": {
+    "MOLTEN": {
         "spades": {
             # Lower values (4-5): Easy monsters
             4: {"name": "Fire Spirit", "image": "monsters/fire_spirit.png", "ability": "burning_attack"},
@@ -217,15 +217,16 @@ FLOOR_MONSTERS = {
 }
 
 WEAPON_MAPPINGS = {
-    2: "arrow",
-    3: "arrow",
+    0: "arrow",  # Non-valued card for arrow
+    2: "shortsword",
+    3: "shortsword",
     4: "shield",
     5: "axe",
     6: "warhammer",
     7: "flail",
-    8: "shortsword",
+    8: "axe",
     9: "greatsword",
-    10: "shortsword",
+    10: "greatsword",
     11: "longbow",
     12: "warhammer",
     13: "crossbow",

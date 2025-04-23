@@ -12,6 +12,9 @@ class Card:
     @staticmethod
     def _to_roman(num):
         """Convert integer to Roman numeral"""
+        if num == 0:
+            return ""  # No roman numeral for zero
+            
         val = [
             1000, 900, 500, 400,
             100, 90, 50, 40,
@@ -32,6 +35,55 @@ class Card:
                 num -= val[i]
             i += 1
         return roman_num
+
+    def _create_blank_card(self, suit):
+        """Create a blank card texture with just the suit symbol (for non-valued cards)"""
+        import pygame
+        from constants import CARD_WIDTH, CARD_HEIGHT, WHITE, BLACK
+        
+        # Create a blank white card
+        texture = pygame.Surface((CARD_WIDTH, CARD_HEIGHT), pygame.SRCALPHA)
+        texture.fill(WHITE)
+        
+        # Add a border
+        pygame.draw.rect(texture, BLACK, (0, 0, CARD_WIDTH, CARD_HEIGHT), 1)
+        
+        # Add the suit symbol
+        suit_symbol = ""
+        suit_color = BLACK
+        if suit == "diamonds":
+            suit_symbol = "♦"
+            suit_color = (255, 0, 0)  # Red
+        elif suit == "hearts":
+            suit_symbol = "♥"
+            suit_color = (255, 0, 0)  # Red
+        elif suit == "spades":
+            suit_symbol = "♠"
+            suit_color = BLACK
+        elif suit == "clubs":
+            suit_symbol = "♣"
+            suit_color = BLACK
+            
+        # Create a font object for the suit symbol
+        suit_font = pygame.font.SysFont("arial", 40)
+        suit_text = suit_font.render(suit_symbol, True, suit_color)
+        
+        # Draw the suit symbol in the center
+        text_rect = suit_text.get_rect(center=(CARD_WIDTH // 2, CARD_HEIGHT // 2))
+        texture.blit(suit_text, text_rect)
+        
+        # Add smaller suit symbols in the corners
+        small_font = pygame.font.SysFont("arial", 20)
+        small_text = small_font.render(suit_symbol, True, suit_color)
+        
+        # Top-left corner
+        texture.blit(small_text, (5, 5))
+        
+        # Bottom-right corner (flip the symbol)
+        flipped_text = pygame.transform.flip(small_text, True, True)
+        texture.blit(flipped_text, (CARD_WIDTH - 25, CARD_HEIGHT - 25))
+        
+        return texture
     
     def __init__(self, suit, value, floor_type="dungeon"):
         self.suit = suit
@@ -102,18 +154,37 @@ class Card:
         self.no_arrows = False  # For monsters: is weapon attack not viable due to no arrows?
         
         # Special handling for arrow cards (ranged ammo)
-        if self.type == "weapon" and self.value == 2:  # 2 of Diamonds is an arrow
+        if self.type == "weapon" and self.value == 0:  # 0 value diamonds is arrow
             self.weapon_type = "arrow"
             self.name = "Arrow"
         
-        # Load the card texture
-        texture = ResourceLoader.load_image(f"cards/{self.suit}_{self.value}.png")
+        # Load the card texture - handle non-valued cards (value 0)
+        if self.value == 0:
+            # Use a special texture for non-valued cards
+            # For arrow cards - use diamonds_0 if it exists, otherwise create a custom one
+            try:
+                texture = ResourceLoader.load_image(f"cards/{self.suit}_{self.value}.png")
+            except:
+                # Create a custom card texture for arrows
+                # Use a base diamond card as template or create from scratch
+                if self.suit == "diamonds":
+                    # Try to load a template diamond card
+                    try:
+                        texture = ResourceLoader.load_image(f"cards/{self.suit}_14.png")  # Use ace of diamonds as template
+                    except:
+                        # Create a blank card with diamond suit symbol
+                        texture = self._create_blank_card("diamonds")
+                else:
+                    texture = self._create_blank_card(self.suit)
+        else:
+            # Normal valued card
+            texture = ResourceLoader.load_image(f"cards/{self.suit}_{self.value}.png")
             
         # If this is a monster card (spades or clubs), add monster image and name
         if self.type == "monster" and self.value >= 2 and self.value <= 14:
             texture = self.add_monster_to_card(texture)
         # If this is a weapon card (diamonds), add weapon image
-        elif self.type == "weapon" and self.value >= 2 and self.value <= 14:
+        elif self.type == "weapon" and ((self.value >= 2 and self.value <= 14) or self.value == 0):
             texture = self.add_weapon_to_card(texture)
             
         self.texture = pygame.transform.scale(texture, (self.width, self.height))

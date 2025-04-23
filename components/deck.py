@@ -24,8 +24,10 @@ class Deck:
         
         # First add cards from the floor deck configuration
         for suit in SUITS:
-            for value in range(DECK_DICT[self.floor][suit]["lower"], DECK_DICT[self.floor][suit]["upper"]+1):
-                self.cards.append({"suit": suit, "value": value})
+            for value, count in DECK_DICT[self.floor][suit].items():
+                # Add the specified number of each card
+                for _ in range(count):
+                    self.cards.append({"suit": suit, "value": value})
         
         # Add player's delving deck cards if provided
         if player_deck:

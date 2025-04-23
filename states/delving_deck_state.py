@@ -1475,7 +1475,7 @@ class DelvingDeckState(GameState):
             else:
                 # Fallback to determine type based on card value
                 from roguelike_constants import WEAPON_MAPPINGS
-                if card.value in [2, 3]:
+                if card.value == 0: # non-valued
                     weapon_type = "arrow"
                 elif card.value in [11, 13]:  # Longbow and Crossbow are ranged
                     weapon_type = "ranged"
@@ -1646,8 +1646,8 @@ class DelvingDeckState(GameState):
             if item.get("suit") == "hearts":
                 type_hint = "Potion"
             elif item.get("suit") == "diamonds":
-                # Special case for diamonds 2-3, which are arrows
-                if item.get("value") == 2 or item.get("value") == 3:
+                # Special case for diamonds 0 (non-valued), which are arrows
+                if item.get("value") == 0:
                     type_hint = "Arrow"
                 else:
                     type_hint = "Weapon"
