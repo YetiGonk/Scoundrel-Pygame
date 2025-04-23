@@ -99,7 +99,7 @@ class PlayingState(GameState):
         # Add flags for room state tracking
         self.gold_reward_given = False
         self.room_completion_in_progress = False
-        self.merchant_transition_started = False
+        self.treasure_transition_started = False
         
         # Initialize message display
         self.message = None
@@ -136,11 +136,11 @@ class PlayingState(GameState):
         # Get current floor info
         floor_manager = self.game_manager.floor_manager
         current_floor_type = floor_manager.get_current_floor()
-        is_merchant = floor_manager.is_merchant_room()
+        is_treasure = floor_manager.is_treasure_room()
         
         # Choose the appropriate floor image
-        if is_merchant:
-            floor_image = "floors/merchant_floor.png"
+        if is_treasure:
+            floor_image = "floors/treasure_floor.png"
         else:
             floor_image = f"floors/{current_floor_type}_floor.png"
             
@@ -159,8 +159,22 @@ class PlayingState(GameState):
         self.current_floor = floor_manager.get_current_floor()
         self.current_room_number = floor_manager.current_room
         
-        # If this is a new floor, setup the appropriate deck
-        if not hasattr(self, 'deck') or not self.deck:
+        # Make sure we have a valid floor
+        if not self.current_floor:
+            print(f"Warning: Floor is not initialized. Using fallback.")
+            self.current_floor = "dungeon"  # Fallback to dungeon if floor is None
+        
+        # If this is a new run or we don't have a deck, setup the appropriate deck
+        if hasattr(self.game_manager, 'is_new_run') and self.game_manager.is_new_run:
+            # Clear the flag
+            self.game_manager.is_new_run = False
+            
+            # Create a new deck with the current floor
+            self.deck = Deck(self.current_floor)
+            self.discard_pile = DiscardPile()
+            self.room = Room(self.animation_manager)
+        elif not hasattr(self, 'deck') or not self.deck:
+            # Create a new deck with the current floor
             self.deck = Deck(self.current_floor)
             self.discard_pile = DiscardPile()
             self.room = Room(self.animation_manager)
@@ -173,7 +187,7 @@ class PlayingState(GameState):
         self.max_life = self.game_manager.game_data["max_life"]
         self.gold = self.game_manager.game_data.get("gold", 0)  # Get gold from game data
         
-        # Check if coming back from merchant - restore equipped weapon and defeated monsters
+        # Check if coming back from treasure room - restore equipped weapon and defeated monsters
         if hasattr(self.game_manager, 'equipped_weapon') and self.game_manager.equipped_weapon:
             self.equipped_weapon = self.game_manager.equipped_weapon
             self.defeated_monsters = self.game_manager.defeated_monsters
@@ -189,11 +203,11 @@ class PlayingState(GameState):
             self.equipped_weapon = {}
             self.defeated_monsters = []
         
-        # Check if we're coming from merchant room
-        coming_from_merchant = hasattr(self.game_manager, 'coming_from_merchant') and self.game_manager.coming_from_merchant
+        # Check if we're coming from treasure room
+        coming_from_treasure = hasattr(self.game_manager, 'coming_from_treasure') and self.game_manager.coming_from_treasure
         
         # Initialize the deck if needed
-        if not coming_from_merchant:
+        if not coming_from_treasure:
             # Get player's delving deck if it exists
             player_deck = self.game_manager.delving_deck if hasattr(self.game_manager, 'delving_deck') else None
             
@@ -209,15 +223,15 @@ class PlayingState(GameState):
         # Initialize last_card variable
         last_card_from_merchant = None
         
-        # Debug: print our current state when coming from merchant
-        if coming_from_merchant:
-            print("Coming from merchant room")
+        # Debug: print our current state when coming from treasure room
+        if coming_from_treasure:
+            print("Coming from treasure room")
             print(f"Has last_card_data: {hasattr(self.game_manager, 'last_card_data')}")
             if hasattr(self.game_manager, 'last_card_data'):
                 print(f"last_card_data is None: {self.game_manager.last_card_data is None}")
         
         # If we have preserved card data, prepare it for the next room
-        if coming_from_merchant and hasattr(self.game_manager, 'last_card_data') and self.game_manager.last_card_data:
+        if coming_from_treasure and hasattr(self.game_manager, 'last_card_data') and self.game_manager.last_card_data:
             # Create a card object from the stored data
             card_data = self.game_manager.last_card_data
             last_card_from_merchant = Card(card_data["suit"], card_data["value"], card_data.get("floor_type", self.current_floor))
@@ -241,8 +255,8 @@ class PlayingState(GameState):
             # No card was preserved or not coming from merchant, start a normal room
             self.room_manager.start_new_room()
         
-        # Reset coming_from_merchant flag after handling the transition
-        self.game_manager.coming_from_merchant = False
+        # Reset coming_from_treasure flag after handling the transition
+        self.game_manager.coming_from_treasure = False
         
         # Update status UI fonts
         self.status_ui.update_fonts(self.header_font, self.normal_font)
@@ -252,7 +266,7 @@ class PlayingState(GameState):
 
         # Reset floor completion tracking
         self.floor_completed = False
-        self.merchant_transition_started = False
+        self.treasure_transition_started = False
 
         # Reset room counter if starting a new floor
         if self.current_room_number == 0:
@@ -592,9 +606,9 @@ class PlayingState(GameState):
         # Draw inventory background panel
         vertical_center = SCREEN_HEIGHT // 2
         
-        # Create an inventory panel
-        inv_width = INVENTORY_PANEL_WIDTH
-        inv_height = 400  # Smaller height
+        # Create an inventory panel - taller and wider to accommodate full-size vertical card stack
+        inv_width = CARD_WIDTH + 20  # Panel slightly wider than cards
+        inv_height = 400  # Taller height for vertical stacking
         inv_x = SCREEN_WIDTH - inv_width - 40
         inv_y = vertical_center - inv_height // 2
         
@@ -783,7 +797,7 @@ class PlayingState(GameState):
         self.game_state_controller.show_message(message, duration)
         
     def _add_purchased_cards_to_library(self):
-        """Add any cards purchased from merchants to the player's card library."""
+        """Add any cards acquired from treasure chests to the player's card library."""
         # Check if there are any purchased cards to add
         if hasattr(self.game_manager, 'purchased_cards') and self.game_manager.purchased_cards:
             # Make sure card_library exists
@@ -797,7 +811,7 @@ class PlayingState(GameState):
             # Show a message about the cards being added
             card_count = len(self.game_manager.purchased_cards)
             self.game_state_controller.show_message(
-                f"Added {card_count} purchased cards to your collection!",
+                f"Added {card_count} treasure cards to your collection!",
                 duration=3.0
             )
             

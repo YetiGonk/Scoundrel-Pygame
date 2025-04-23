@@ -147,14 +147,14 @@ class AnimationController:
     
     def animate_card_to_inventory(self, card):
         """Animate a card moving to its position in the inventory."""
-        # Define inventory panel location
-        inv_width = 160
-        inv_height = 120
+        # Define inventory panel location - match the dimensions in playing_state.py
+        inv_width = CARD_WIDTH + 20  # Panel slightly wider than cards
+        inv_height = 400  # Taller height for vertical stacking
         inv_x = SCREEN_WIDTH - inv_width - 40
         inv_y = SCREEN_HEIGHT // 2 - inv_height // 2
         
-        # Scale cards to fit inventory panel nicely
-        card_scale = 0.8  # 80% of normal size
+        # Use standard card size (no scaling) for inventory cards
+        card_scale = 1.0
         
         # Scale the card
         card.update_scale(card_scale)
@@ -166,18 +166,30 @@ class AnimationController:
         scaled_card_width = int(CARD_WIDTH * card_scale)
         scaled_card_height = int(CARD_HEIGHT * card_scale)
         
-        # Center cards in inventory panel with proper spacing
-        margin = 10
-        card_spacing = 10  # Fixed spacing between cards
-        if self.playing_state.MAX_INVENTORY_SIZE > 1:
-            card_spacing = (inv_width - (self.playing_state.MAX_INVENTORY_SIZE * scaled_card_width) - (margin * 2)) // max(1, self.playing_state.MAX_INVENTORY_SIZE - 1)
+        # Center X position (horizontally centered in panel)
+        inventory_x = inv_x + (inv_width // 2) - (scaled_card_width // 2)
         
-        # Calculate position for this specific card
-        inventory_index = len(self.playing_state.inventory) - 1
-        inventory_x = inv_x + margin + (inventory_index * (scaled_card_width + card_spacing))
-        inventory_y = inv_y + margin
+        # Get number of cards in inventory (including this new one)
+        num_cards = len(self.playing_state.inventory)
+        
+        # Calculate Y position based on number of cards
+        if num_cards == 1:
+            # Single card - center vertically in panel
+            inventory_y = inv_y + (inv_height // 2) - (scaled_card_height // 2)
+        elif num_cards == 2:
+            # If this is the second card, position cards one above center, one below center
+            # Reposition existing card to top position
+            existing_card = self.playing_state.inventory[0]
+            top_y = inv_y + (inv_height // 4) - (scaled_card_height // 2)
+            
+            # Only reposition if it's not already at the right position
+            if existing_card.rect.y != top_y:
+                self.animate_card_movement(existing_card, (inventory_x, top_y))
+            
+            # Position new card in bottom half
+            inventory_y = inv_y + (3 * inv_height // 4) - (scaled_card_height // 2)
         
         inventory_pos = (inventory_x, inventory_y)
         
         # Animate the card movement
-        self.animate_card_movement(card, inventory_pos)
+        self.animate_card_movement(card, inventory_pos, on_complete=lambda: self.playing_state.position_inventory_cards())

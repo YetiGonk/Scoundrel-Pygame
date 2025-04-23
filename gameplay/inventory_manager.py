@@ -10,25 +10,22 @@ class InventoryManager:
         self.playing_state = playing_state
     
     def position_inventory_cards(self):
-        """Position all inventory cards in their proper places."""
-        # Define inventory panel position
-        inv_width = 160
-        inv_height = 120
+        """Position inventory cards centered vertically within the panel."""
+        # Define inventory panel position - must match playing_state.py
+        inv_width = CARD_WIDTH + 100  # Panel slightly wider than cards
+        inv_height = 400
         inv_x = SCREEN_WIDTH - inv_width - 40
         inv_y = SCREEN_HEIGHT // 2 - inv_height // 2
         
-        # Scale cards to fit inventory panel nicely
-        card_scale = 0.8  # 80% of normal size
+        # Use standard card size (no scaling) for inventory cards
+        card_scale = 1.0
         
         # Calculate the scaled card dimensions
         scaled_card_width = int(CARD_WIDTH * card_scale)
         scaled_card_height = int(CARD_HEIGHT * card_scale)
         
-        # Center cards in inventory panel with proper spacing
-        margin = 10
-        card_spacing = 10  # Fixed spacing between cards
-        if self.playing_state.MAX_INVENTORY_SIZE > 1:
-            card_spacing = (inv_width - (self.playing_state.MAX_INVENTORY_SIZE * scaled_card_width) - (margin * 2)) // max(1, self.playing_state.MAX_INVENTORY_SIZE - 1)
+        # Get number of cards in inventory
+        num_cards = len(self.playing_state.inventory)
         
         # Position each card
         for i, card in enumerate(self.playing_state.inventory):
@@ -38,10 +35,23 @@ class InventoryManager:
             # Make sure card knows it's in inventory to reduce bobbing
             card.in_inventory = True
             
-            # Calculate position
-            inventory_x = inv_x + margin + (i * (scaled_card_width + card_spacing))
-            inventory_y = inv_y + margin
+            # Center X position (horizontally centered in panel)
+            inventory_x = inv_x + (inv_width // 2) - (scaled_card_width // 2)
             
+            # Calculate Y position based on number of cards
+            if num_cards == 1:
+                # Single card - center vertically in panel
+                inventory_y = inv_y + (inv_height // 2) - (scaled_card_height // 2)
+            elif num_cards == 2:
+                # Two cards - one above center, one below center
+                if i == 0:
+                    # First card positioned in top half
+                    inventory_y = inv_y + (inv_height // 4) - (scaled_card_height // 2)
+                else:
+                    # Second card positioned in bottom half
+                    inventory_y = inv_y + (3 * inv_height // 4) - (scaled_card_height // 2)
+            
+            # Update the card's position
             card.update_position((inventory_x, inventory_y))
     
     def get_inventory_card_at_position(self, position):

@@ -327,8 +327,8 @@ class TitleState(GameState):
                     # Initialize a new roguelike run
                     self.game_manager.start_new_run()
                     
-                    # Go directly to floor start, skipping rules screen
-                    self.game_manager.change_state("floor_start")
+                    # Go directly to playing state, skipping rules screen
+                    self.game_manager.change_state("playing")
                     
                     # Set the rules as seen for any future logic that might need it
                     if not hasattr(self.game_manager, 'has_shown_rules'):

@@ -7,13 +7,13 @@ FLOOR_TYPES = ["dungeon", "forest", "library", "crypt", "MOLTEN"]
 # Floor structure
 FLOOR_STRUCTURE = {
     "rooms_per_floor": 12,  # Maximum potential rooms (flexible)
-    "merchant_rooms": [5, 10],  # Room numbers where merchants appear
+    "treasure_rooms": [1, 10],  # Room numbers where treasures appear
     # Boss room functionality removed
 }
 
-# Merchant inventory sizes
-MERCHANT_INVENTORY = {
-    "cards": 2,  # Special cards that can be purchased
+# Treasure inventory sizes
+TREASURE_INVENTORY = {
+    "cards": 2,  # Special cards that can be found
 }
 
 # Starting player attributes

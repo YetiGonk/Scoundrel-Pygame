@@ -372,7 +372,7 @@ class Card:
             center_y = self.rect.centery
             
             # Update scale based on hover progress
-            base_scale = 0.8 if hasattr(self, 'in_inventory') and self.in_inventory else 1.0
+            base_scale = 1.0
             hover_scale_modifier = (self.hover_scale_target - 1.0) * self.hover_progress
             new_scale = base_scale + (base_scale * hover_scale_modifier)
             self.update_scale(new_scale)

@@ -19,24 +19,24 @@ class RoomManager:
         if self.playing_state.animation_manager.is_animating():
             return  # Don't start a new room if animations are running
         
-        # Check if we should transition to a merchant room instead of starting a new room
-        if not self.playing_state.merchant_transition_started:
-            is_merchant_next = self.playing_state.completed_rooms in self.playing_state.FLOOR_STRUCTURE["merchant_rooms"]
-            if is_merchant_next:
-                # Set flag to prevent multiple merchant transitions
-                self.playing_state.merchant_transition_started = True
-                # Set the floor manager's current room for the merchant
+        # Check if we should transition to a treasure room instead of starting a new room
+        if not self.playing_state.treasure_transition_started:
+            is_treasure_next = self.playing_state.completed_rooms in self.playing_state.FLOOR_STRUCTURE["treasure_rooms"]
+            if is_treasure_next:
+                # Set flag to prevent multiple treasure transitions
+                self.playing_state.treasure_transition_started = True
+                # Set the floor manager's current room for the treasure room
                 self.playing_state.game_manager.floor_manager.current_room = self.playing_state.completed_rooms - 1
-                # Flag that we're coming from merchant so we preserve state
-                self.playing_state.game_manager.coming_from_merchant = True
-                # Advance to merchant room
+                # Flag that we're coming from treasure room so we preserve state
+                self.playing_state.game_manager.coming_from_treasure = True
+                # Advance to treasure room
                 self.playing_state.game_manager.advance_to_next_room()
                 return
         
         # Reset the room state tracking flags when starting a new room
         self.playing_state.gold_reward_given = False
         self.playing_state.room_completion_in_progress = False
-        self.playing_state.merchant_transition_started = False
+        self.playing_state.treasure_transition_started = False
         
         # Clear the room
         self.playing_state.room.clear()
@@ -194,8 +194,8 @@ class RoomManager:
         # Advance to the next floor
         self.playing_state.game_manager.floor_manager.advance_floor()
         
-        # Change to floor start state
-        self.playing_state.game_manager.change_state("floor_start")
+        # Change back to playing state
+        self.playing_state.game_manager.change_state("playing")
     
     def remove_and_discard(self, card):
         """Remove a card from the room and add it to the discard pile.

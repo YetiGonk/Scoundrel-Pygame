@@ -23,7 +23,14 @@ class FloorManager:
     def get_current_floor(self):
         """Get the current floor type."""
         if not self.floors or self.current_floor_index >= len(self.floors):
-            return "unknown"  # Return a default value if no floors exist
+            # If floors aren't initialized yet, do it now
+            if not self.floors:
+                self.initialize_run()
+                
+            # Check again after initialization
+            if not self.floors or self.current_floor_index >= len(self.floors):
+                return "dungeon"  # Return a default floor value if still no floors
+                
         return self.floors[self.current_floor_index]
     
     def advance_room(self):
@@ -34,13 +41,13 @@ class FloorManager:
         if self.current_room > FLOOR_STRUCTURE["rooms_per_floor"]:
             return self.advance_floor()
         
-        # Check if this is a merchant room
-        is_merchant = self.current_room in FLOOR_STRUCTURE["merchant_rooms"]
+        # Check if this is a treasure room
+        is_treasure = self.current_room in FLOOR_STRUCTURE["treasure_rooms"]
         
         return {
             "floor": self.get_current_floor(),
             "room": self.current_room,
-            "is_merchant": is_merchant
+            "is_treasure": is_treasure
         }
     
     def advance_floor(self):
@@ -65,8 +72,8 @@ class FloorManager:
             "is_floor_start": True
         }
     
-    def is_merchant_room(self):
-        """Check if the current room is a merchant room."""
-        return self.current_room in FLOOR_STRUCTURE["merchant_rooms"]
+    def is_treasure_room(self):
+        """Check if the current room is a treasure room."""
+        return self.current_room in FLOOR_STRUCTURE["treasure_rooms"]
     
     # Boss room functionality removed

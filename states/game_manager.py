@@ -4,8 +4,7 @@ from states.menu_state import MenuState
 from states.rules_state import RulesState
 from states.playing_state import PlayingState
 from states.game_over_state import GameOverState
-from states.merchant_state import MerchantState
-from states.floor_start_state import FloorStartState
+from states.treasure_state import TreasureState
 from states.delving_deck_state import DelvingDeckState  # Import the new delving deck state
 
 # Import roguelike components
@@ -30,8 +29,7 @@ class GameManager:
             "rules": RulesState(self),
             "playing": PlayingState(self),
             "game_over": GameOverState(self),
-            "merchant": MerchantState(self),
-            "floor_start": FloorStartState(self),
+            "treasure": TreasureState(self),
             "delving_deck": DelvingDeckState(self)  # Add delving deck state
         }
         
@@ -51,8 +49,8 @@ class GameManager:
         self.equipped_weapon = {}
         self.defeated_monsters = []
         self.last_card_data = None
-        # Flag to track if coming from merchant room
-        self.coming_from_merchant = False
+        # Flag to track if coming from treasure room
+        self.coming_from_treasure = False
         
         # Start with the new title state
         self.change_state("title")
@@ -61,10 +59,10 @@ class GameManager:
         if self.current_state:
             self.current_state.exit()
         
-        # Reset coming_from_merchant flag and last_card_data when we're not going between merchant and playing
-        # We need to preserve these values when going from merchant to playing
-        if state_name != "playing" and (not self.current_state or not isinstance(self.current_state, MerchantState)):
-            self.coming_from_merchant = False
+        # Reset coming_from_treasure flag and last_card_data when we're not going between treasure and playing
+        # We need to preserve these values when going from treasure to playing
+        if state_name != "playing" and (not self.current_state or not isinstance(self.current_state, TreasureState)):
+            self.coming_from_treasure = False
             self.last_card_data = None
             
         # Initialize floors when going to title screen if they're not set
@@ -101,8 +99,11 @@ class GameManager:
         # Initialize the floor sequence
         self.floor_manager.initialize_run()
         
-        # Go to the floor start state
-        self.change_state("floor_start")
+        # Set a flag to indicate this is a new run
+        self.is_new_run = True
+        
+        # Go directly to the playing state
+        self.change_state("playing")
     
     def advance_to_next_room(self):
         """Advance to the next room in the current floor."""
@@ -111,19 +112,23 @@ class GameManager:
         
         # Check if the run is complete
         if "run_complete" in room_info and room_info["run_complete"]:
+            # Add treasure room at the end of the game - reward for completing all floors
+            self.change_state("treasure")
+            # After treasure room, will go to game over
             self.game_data["victory"] = True
             self.game_data["run_complete"] = True
-            self.change_state("game_over")
             return
         
-        # Check if this is a new floor
+        # Check if this is a new floor and also add a treasure room when floor changes
         if "is_floor_start" in room_info and room_info["is_floor_start"]:
-            self.change_state("floor_start")
+            # Add treasure room when floor changes - reward for completing the floor
+            if self.floor_manager.current_floor_index > 0:  # Not at the very beginning of the game
+                self.change_state("treasure")
             return
         
-        # Check if this is a merchant room
-        if "is_merchant" in room_info and room_info["is_merchant"]:
-            self.change_state("merchant")
+        # Check if this is a treasure room
+        if "is_treasure" in room_info and room_info["is_treasure"]:
+            self.change_state("treasure")
             return
         
         # Otherwise, continue to the next regular room

@@ -47,6 +47,7 @@ class ResourceLoader:
         try:
             # Load the font
             font_path = os.path.join(ASSETS_PATH, name)
+            print(f"Loading font from: {font_path}")
             font = pygame.font.Font(font_path, size)
             
             # Cache the font
