@@ -1,7 +1,8 @@
 """Animation Controller for managing animations in the Scoundrel game."""
 import random
 import pygame
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT
+from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT, INVENTORY_PANEL_WIDTH, INVENTORY_PANEL_HEIGHT, INVENTORY_PANEL_X, INVENTORY_PANEL_Y, FLOOR_WIDTH
+
 from utils.animation import (
     Animation, MoveAnimation, DestructionAnimation, MaterializeAnimation, 
     HealthChangeAnimation, GoldChangeAnimation, EasingFunctions
@@ -148,10 +149,10 @@ class AnimationController:
     def animate_card_to_inventory(self, card):
         """Animate a card moving to its position in the inventory."""
         # Define inventory panel location - match the dimensions in playing_state.py
-        inv_width = CARD_WIDTH + 20  # Panel slightly wider than cards
-        inv_height = 400  # Taller height for vertical stacking
-        inv_x = SCREEN_WIDTH - inv_width - 40
-        inv_y = SCREEN_HEIGHT // 2 - inv_height // 2
+        inv_width = INVENTORY_PANEL_WIDTH
+        inv_height = INVENTORY_PANEL_HEIGHT
+        inv_x = INVENTORY_PANEL_X
+        inv_y = INVENTORY_PANEL_Y
         
         # Use standard card size (no scaling) for inventory cards
         card_scale = 1.0

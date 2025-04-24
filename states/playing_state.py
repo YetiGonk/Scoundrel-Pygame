@@ -4,7 +4,8 @@ import random
 import math
 from pygame.locals import *
 
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT, INVENTORY_PANEL_WIDTH, WHITE, BLACK, GRAY, DARK_GRAY, LIGHT_GRAY, FONTS_PATH
+from constants import SCREEN_WIDTH, SCREEN_HEIGHT, FLOOR_WIDTH, CARD_WIDTH, CARD_HEIGHT, INVENTORY_PANEL_WIDTH, INVENTORY_PANEL_HEIGHT, INVENTORY_PANEL_X, INVENTORY_PANEL_Y, WHITE, BLACK, GRAY, DARK_GRAY, LIGHT_GRAY, FONTS_PATH
+
 from roguelike_constants import FLOOR_STRUCTURE
 from components.card import Card
 from components.deck import Deck
@@ -607,10 +608,10 @@ class PlayingState(GameState):
         vertical_center = SCREEN_HEIGHT // 2
         
         # Create an inventory panel - taller and wider to accommodate full-size vertical card stack
-        inv_width = CARD_WIDTH + 20  # Panel slightly wider than cards
-        inv_height = 400  # Taller height for vertical stacking
-        inv_x = SCREEN_WIDTH - inv_width - 40
-        inv_y = vertical_center - inv_height // 2
+        inv_width = INVENTORY_PANEL_WIDTH
+        inv_height = INVENTORY_PANEL_HEIGHT
+        inv_x = INVENTORY_PANEL_X
+        inv_y = INVENTORY_PANEL_Y
         
         # Create the inventory panel using the Panel class
         if not hasattr(self, 'inventory_panel'):

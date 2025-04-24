@@ -160,7 +160,7 @@ class UIRenderer:
         # Create gold panel with treasure chest appearance
         if not hasattr(self, 'gold_panel'):
             # Calculate panel size based on icon and text
-            panel_width = icon_width + gold_text.get_width() + 40
+            panel_width = icon_width + gold_text.get_width() + 80
             panel_height = max(icon_height, gold_text.get_height()) + 20
             
             from ui.panel import Panel
@@ -236,7 +236,7 @@ class UIRenderer:
         # Draw gold amount with gold-coloured text
         gold_text = self.playing_state.body_font.render(f"{self.playing_state.game_manager.player_gold}", True, (255, 223, 0))  # Gold text
         gold_text_rect = gold_text.get_rect(
-            left=self.gold_icon_pos[0] + icon_width + 15, 
+            right=health_display_x + icon_width + 65,
             centery=self.gold_icon_pos[1] + icon_height//2
         )
         

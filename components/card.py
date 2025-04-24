@@ -802,13 +802,6 @@ class Card:
         header_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 32)  # Larger font for card name
         body_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 24)    # Medium font for details
         
-        # Set info box dimensions - exact match to delving deck
-        info_width = 300
-        
-        # Calculate height based on content (we'll adjust after rendering text)
-        header_height = header_font.get_height()
-        body_height = body_font.get_height()
-        
         # Get card position
         card_center_x = self.rect.centerx
         card_top = self.rect.top
@@ -1035,6 +1028,30 @@ class Card:
             elif action_text:
                 info_lines.append({"text": action_text, "font": body_font, "color": action_color})
         
+        else:
+            # Default case for unknown card types
+            info_lines = [
+                {"text": f"Card {self.suit.capitalize()} {self.value}", "font": header_font, "color": WHITE},
+                {"text": f"Type: {self.type.capitalize()}", "font": body_font, "color": GOLD_COLOR}
+            ]
+        
+        # Set minimum info box width - will be adjusted based on text content
+        min_info_width = 300
+        
+        # Calculate necessary width based on content
+        max_text_width = min_info_width - 20  # Accounting for padding (10px on each side)
+        
+        # Pre-render text to determine width needs
+        rendered_texts = []
+        for line in info_lines:
+            text_surface = line["font"].render(line["text"], True, line["color"])
+            rendered_texts.append(text_surface)
+            # Track the widest text
+            max_text_width = max(max_text_width, text_surface.get_width() + 20)  # Add 20px padding
+            
+        # Determine final panel width (use minimum width or text-based width, whichever is larger)
+        info_width = max(min_info_width, max_text_width)
+        
         # Calculate total height needed for all lines with spacing
         total_text_height = 0
         line_spacing = 5
@@ -1132,10 +1149,16 @@ class Card:
         )
         info_panel.draw(surface)
         
-        # Draw all lines of text
+        # Draw all lines of text using pre-rendered text surfaces
         current_y = info_y + 10  # Start with top padding
-        for line in info_lines:
-            text_surface = line["font"].render(line["text"], True, line["color"])
+        for i, line in enumerate(info_lines):
+            # Use the pre-rendered text surface if available
+            if i < len(rendered_texts):
+                text_surface = rendered_texts[i]
+            else:
+                # Fallback in case there's a mismatch
+                text_surface = line["font"].render(line["text"], True, line["color"])
+                
             text_rect = text_surface.get_rect(centerx=info_x + info_width//2, top=current_y)
             surface.blit(text_surface, text_rect)
             current_y = text_rect.bottom + line_spacing
