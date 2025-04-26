@@ -5,7 +5,7 @@ import random
 from glob import glob
 from constants import CARD_WIDTH, CARD_HEIGHT, CARD_RED, BLACK, WHITE, DARK_GRAY, GOLD_COLOR, FONTS_PATH
 from utils.resource_loader import ResourceLoader
-from roguelike_constants import FLOOR_MONSTERS, WEAPON_DAMAGE_TYPES, WEAPON_MAPPINGS
+from roguelike_constants import MONSTER_RANKS, MONSTER_DIFFICULTY_MAP, WEAPON_DAMAGE_TYPES, WEAPON_MAPPINGS
 
 class Card:
     """ Represents a card in the game with support for rotation and scaling. """
@@ -100,12 +100,14 @@ class Card:
         self.z_index = 0
         self.is_visible = True  # Controls card visibility for effects
         self.floor_type = floor_type
-        self.name = None  # Store card name for hover display
+        self.name = None
         
         # Card subtype properties
         self.weapon_type = None  # "melee" or "ranged" for weapons
         self.damage_type = None  # "piercing", "slashing", or "bludgeoning" for weapons
         self.monster_type = None  # D&D style monster type for monsters
+        
+        self.sprite_file_path = None if self.suit in ("diamonds", "hearts") else self.determine_monster_sprite_path()
         
         # Set name for potions and weapons using Roman numerals
         if self.type == "potion":
@@ -209,68 +211,31 @@ class Card:
         self.original_y = 0  # Original y position for reference
     
     def add_monster_to_card(self, card_surface):
-        """Add monster image to card surface based on suit, value and floor type"""
-        # Get monster data from roguelike_constants
-        try:
-            monster_data = FLOOR_MONSTERS[self.floor_type][self.suit][self.value]
-        except KeyError:
-            # No monster defined for this card
-            return card_surface
-            
+        """Add monster image to card surface based on suit, value and floor type"""    
         # Store monster name for hover display
-        self.name = f"{monster_data["name"]} {self._to_roman(self.value)}"
+        self.name = f"{self.sprite_file_path.split("/")[-1].split(".")[0].upper()} {self._to_roman(self.value)}"
         
         # Determine monster type based on the name (D&D style types)
-        monster_name = monster_data["name"].lower()
+        monster_name = self.name.lower()
         
-        # Assign monster type based on monster name keywords
-        if any(creature in monster_name for creature in ["goblin", "knight", "soldier", "mage", "king", "merchant", "jester"]):
-            self.monster_type = "Humanoid"
-        elif any(creature in monster_name for creature in ["skeleton", "ghost", "wraith", "ghoul", "zombie", "lich"]):
-            self.monster_type = "Undead"
-        elif any(creature in monster_name for creature in ["dragon", "wyrm", "serpent"]):
-            self.monster_type = "Dragon"
-        elif any(creature in monster_name for creature in ["demon", "devil", "fiend", "shaman"]):
-            self.monster_type = "Fiend"
-        elif any(creature in monster_name for creature in ["golem", "armour", "sentinel", "totem"]):
-            self.monster_type = "Construct"
-        elif any(creature in monster_name for creature in ["ooze", "abomination", "medusa", "beholder", "eyes", "squid"]):
-            self.monster_type = "Aberration"
-        elif any(creature in monster_name for creature in ["elemental", "fire", "lightning"]):
-            self.monster_type = "Elemental"
-        elif any(creature in monster_name for creature in ["angel", "celestial"]):
-            self.monster_type = "Celestial"
-        elif any(creature in monster_name for creature in ["snail", "hornet", "crab", "adder", "python", "lizard", "gecko", "snake", "tarantula"]):
-            self.monster_type = "Beast"
-        elif any(creature in monster_name for creature in ["treant", "vine", "ent"]):
-            self.monster_type = "Plant"
-        else:
-            # Default monster type if none of the above match
-            self.monster_type = "Monstrosity"
-        
-        monster_image_path = monster_data["image"]
+        self.monster_type = self.sprite_file_path.split("/")[-2] # class name comes directly before the monster name in the file path
         
         # Create a new surface based on the card surface
         card_width, card_height = card_surface.get_width(), card_surface.get_height()
         new_surface = pygame.Surface((card_width, card_height), pygame.SRCALPHA)
         new_surface.blit(card_surface, (0, 0))
-                
+        
         # Load, resize, and recolour monster image
-        monster_img = ResourceLoader.load_image(monster_image_path, cache=False)
+        monster_img = ResourceLoader.load_image(self.sprite_file_path, cache=False)
         
         # Scale monster from 32x32 to 96x96
         monster_size = 96
         monster_img = pygame.transform.scale(monster_img, (monster_size, monster_size))
-        
-        # Recolour the monster using pygame surfaces
         monster_surface = pygame.Surface((monster_size, monster_size), pygame.SRCALPHA)
-        for y in range(monster_size):
-            for x in range(monster_size):
-                colour = monster_img.get_at((x, y))
-                # If not transparent (alpha > 0) and not white, apply the suit colour
-                if colour.r == 255 and colour.g == 255 and colour.b == 255 and colour.a > 0:
-                    monster_surface.set_at((x, y), pygame.Color(0, 0, 0, 255))
-
+        
+        # Blit the monster image onto the surface
+        monster_surface.blit(monster_img, (0, 0))
+        
         # Calculate center position to place the monster
         monster_pos = ((card_width - monster_size) // 2, (card_height - monster_size) // 2)
         
@@ -369,7 +334,12 @@ class Card:
         elif self.suit == "hearts":
             return "potion"
         return "unknown"
-    
+
+    def determine_monster_sprite_path(self):
+        difficulty = MONSTER_RANKS[self.value]
+        monster_file_path = random.choice(MONSTER_DIFFICULTY_MAP[difficulty])
+        return monster_file_path
+
     def update_position(self, pos):
         self.rect.topleft = (int(pos[0]), int(pos[1]))
         if not self.is_flipping:
