@@ -33,10 +33,10 @@ MONSTER_RANKS = {
     6: "medium",
     7: "medium",
     8: "medium",
-    9: "hard",
+    9: "medium",
     10: "hard",
     11: "hard",
-    12: "insane",
+    12: "hard",
     13: "insane",
     14: "insane"
 }
