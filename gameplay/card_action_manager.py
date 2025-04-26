@@ -397,12 +397,12 @@ class CardActionManager:
                 
                 # Check which half was clicked
                 if event_pos[1] < center_y:
-                    # Top half clicked - use card (equip weapon or use potion)
-                    discard_only = False
+                    # Top half clicked - discard card
+                    discard_only = True
                     card.hover_selection = "top"
                 else:
-                    # Bottom half clicked - discard card
-                    discard_only = True
+                    # Bottom half clicked - use card (equip weapon or use potion)
+                    discard_only = False
                     card.hover_selection = "bottom"
             
             # Reset inventory flag since it's being removed
