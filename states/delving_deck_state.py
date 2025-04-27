@@ -185,8 +185,8 @@ class DelvingDeckState(GameState):
                 new_card.can_show_attack_options = False
                 self.delving_deck_cards.append(new_card)
         else:
-            # Initialize with default cards for a new player
-            self._initialize_default_deck()
+            # Initialise with default cards for a new player
+            self._initialise_default_deck()
         
         # Load the player's card library
         if hasattr(self.game_manager, 'card_library') and self.game_manager.card_library:
@@ -219,12 +219,12 @@ class DelvingDeckState(GameState):
                     unique_cards[card_key] = new_card
                     self.card_library.append(new_card)
     
-    def _initialize_default_deck(self):
-        """Initialize the default starter deck for a new player"""
+    def _initialise_default_deck(self):
+        """Initialise the default starter deck for a new player"""
         self.delving_deck_cards = []
         
-        # Add 5 potion cards (hearts) of values 3, 4, 5, 7, 9
-        potion_values = [3, 4, 5, 7, 9]
+        # Add 4 potion cards (hearts) of values 4, 5, 7, 9
+        potion_values = [4, 5, 7, 9]
         for value in potion_values:
             # Add to delving deck
             new_card = Card("hearts", value)
@@ -234,8 +234,8 @@ class DelvingDeckState(GameState):
             new_card.can_show_attack_options = False
             self.delving_deck_cards.append(new_card)
         
-        # Add 5 weapon cards (diamonds) of values 3, 4, 5, 7, 9
-        weapon_values = [3, 4, 5, 7, 9]
+        # Add 4 weapon cards (diamonds) of values 4, 5, 7, 9
+        weapon_values = [4, 5, 7, 9]
         for value in weapon_values:
             # Add to delving deck
             new_card = Card("diamonds", value)
@@ -251,13 +251,13 @@ class DelvingDeckState(GameState):
     def _position_cards(self):
         """Position the cards for display based on the current view (delving deck or library)"""
         if not self.show_library:
-            # Just show the delving deck cards (always exactly 10 cards in 2 rows of 5)
+            # Just show the delving deck cards (always exactly 8 cards in 2 rows of 4)
             cards_to_display = self.delving_deck_cards
             
-            # Fixed layout for delving deck - 5 cards per row, 2 rows
+            # Fixed layout for delving deck - 4 cards per row, 2 rows
             card_spacing_x = 30
             card_spacing_y = 40
-            cards_per_row = 5
+            cards_per_row = 4
             rows = 2
             
             # Calculate dimensions of the entire grid
@@ -503,7 +503,7 @@ class DelvingDeckState(GameState):
     def _move_card_from_library_to_deck(self, card):
         """Move a card from the library to the delving deck"""
         # Check if the delving deck is already full
-        if len(self.delving_deck_cards) >= 10:
+        if len(self.delving_deck_cards) >= 8:
             return
             
         # Find the card in the library
@@ -566,7 +566,7 @@ class DelvingDeckState(GameState):
                         self._move_card_from_deck_to_library(self.selected_card)
                     elif self.swap_source == "library":
                         # Move the selected card from library to deck
-                        if len(self.delving_deck_cards) < 10:  # Check if deck has room
+                        if len(self.delving_deck_cards) < 8:  # Check if deck has room
                             self._move_card_from_library_to_deck(self.selected_card)
                 
                     # Reset selection after swap
@@ -742,7 +742,7 @@ class DelvingDeckState(GameState):
         if self.selected_card:
             if (self.swap_source == "deck" and self.show_library) or (self.swap_source == "library" and not self.show_library):
                 # Card can be swapped in current view
-                if self.swap_source == "library" and len(self.delving_deck_cards) >= 10:
+                if self.swap_source == "library" and len(self.delving_deck_cards) >= 8:
                     # Delving deck is full
                     self.swap_button = Button(
                         self.swap_button.rect,
@@ -807,7 +807,7 @@ class DelvingDeckState(GameState):
         
         # Draw subtitle with info about the current view
         if not self.show_library:
-            subtitle = f"Your current deck ({len(self.delving_deck_cards)}/10 cards)"
+            subtitle = f"Your current deck ({len(self.delving_deck_cards)}/8 cards)"
             subtitle_render = self.header_font.render(subtitle, True, WHITE)
             subtitle_rect = subtitle_render.get_rect(centerx=SCREEN_WIDTH//2, top=title_rect.bottom + 10)
             surface.blit(subtitle_render, subtitle_rect)
@@ -830,7 +830,7 @@ class DelvingDeckState(GameState):
             surface.blit(collection_render, collection_rect)
             
             # Also show the deck count below
-            deck_text = f"Delving Deck: {len(self.delving_deck_cards)}/10"
+            deck_text = f"Delving Deck: {len(self.delving_deck_cards)}/8"
             deck_render = self.body_font.render(deck_text, True, (230, 180, 50))  # Gold color
             deck_rect = deck_render.get_rect(topright=(self.main_panel.rect.right - 20, collection_rect.bottom + 10))
             surface.blit(deck_render, deck_rect)
@@ -1468,32 +1468,11 @@ class DelvingDeckState(GameState):
             # Update current_y for next line (add header height + 5px spacing)
             current_y = name_rect.bottom + 5
             
-            # Determine weapon type based on value if not already set
-            weapon_type = None
-            if hasattr(card, 'weapon_type') and card.weapon_type:
-                weapon_type = card.weapon_type
-            else:
-                # Fallback to determine type based on card value
-                from roguelike_constants import WEAPON_MAPPINGS
-                if card.value == 0: # non-valued
-                    weapon_type = "arrow"
-                elif card.value in [11, 13]:  # Longbow and Crossbow are ranged
-                    weapon_type = "ranged"
-                else:
-                    weapon_type = "melee"
-            
             # Weapon type text
-            type_text = f"Weapon - "
-            if weapon_type == "ranged":
-                type_text += "Ranged"
-            elif weapon_type == "melee":
-                type_text += "Melee"
-            elif weapon_type == "arrow":
-                type_text += "Arrow (Ammo)"
-                    
-            type_render = self.body_font.render(type_text, True, GOLD_COLOR)
-            type_rect = type_render.get_rect(centerx=info_x + info_width//2, top=current_y)
-            surface.blit(type_render, type_rect)
+            difficulty_text = f"Weapon - {self.weapon_difficulty.capitalize()}"        
+            difficulty_render = self.body_font.render(difficulty_text, True, GOLD_COLOR)
+            difficulty_rect = difficulty_render.get_rect(centerx=info_x + info_width//2, top=current_y)
+            surface.blit(difficulty_render, difficulty_rect)
             
             # Update current_y for next line
             current_y = type_rect.bottom + 5
@@ -1646,11 +1625,7 @@ class DelvingDeckState(GameState):
             if item.get("suit") == "hearts":
                 type_hint = "Potion"
             elif item.get("suit") == "diamonds":
-                # Special case for diamonds 0 (non-valued), which are arrows
-                if item.get("value") == 0:
-                    type_hint = "Arrow"
-                else:
-                    type_hint = "Weapon"
+                type_hint = "Weapon"
             elif item.get("suit") == "spades" or item.get("suit") == "clubs":
                 type_hint = "Monster"
         

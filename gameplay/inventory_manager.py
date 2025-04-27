@@ -6,7 +6,7 @@ class InventoryManager:
     """Manages the player's inventory of cards."""
     
     def __init__(self, playing_state):
-        """Initialize with a reference to the playing state."""
+        """Initialise with a reference to the playing state."""
         self.playing_state = playing_state
     
     def position_inventory_cards(self):

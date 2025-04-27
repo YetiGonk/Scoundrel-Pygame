@@ -293,7 +293,7 @@ class DestructionAnimation(Animation):
                             size
                         )
             elif progress < 0.7:  # Second phase: card burns away
-                burn_progress = (progress - 0.4) / 0.3  # Normalize to 0-1
+                burn_progress = (progress - 0.4) / 0.3  # Normalise to 0-1
                 # Draw partially burned card (decreasing height)
                 height = int(self.target_object.rect.height * (1 - burn_progress))
                 if height > 0:
@@ -317,7 +317,7 @@ class DestructionAnimation(Animation):
                         )
             # In final phase: card is completely gone, just some lingering particles
             else:
-                fade_progress = (progress - 0.7) / 0.3  # Normalize to 0-1
+                fade_progress = (progress - 0.7) / 0.3  # Normalise to 0-1
                 # Draw fading particles
                 for particle in self.particles:
                     alpha = int(255 * (1 - fade_progress))
@@ -346,7 +346,7 @@ class DestructionAnimation(Animation):
                 self.target_object.update_position((shake_x, shake_y))
                 self.target_object.draw(surface)
             else:  # Second phase: card shatters
-                shatter_progress = (progress - 0.3) / 0.7  # Normalize to 0-1
+                shatter_progress = (progress - 0.3) / 0.7  # Normalise to 0-1
                 
                 # Draw fading original card
                 if shatter_progress < 0.5:
@@ -405,7 +405,7 @@ class DestructionAnimation(Animation):
         return completed
 
 
-class MaterializeAnimation(Animation):
+class MaterialiseAnimation(Animation):
     """Animation for making a card appear at a destination."""
     
     def __init__(self, target_object, position, effect_type="sparkle", duration=0.3, on_complete=None):
@@ -419,7 +419,7 @@ class MaterializeAnimation(Animation):
         self.target_object.update_position(position)
         self.target_object.is_visible = True
         
-        # Initialize effect
+        # Initialise effect
         if effect_type == "sparkle":
             # Create sparkle particles
             for _ in range(20):
@@ -700,7 +700,7 @@ class AnimationManager:
         self.animations.append(animation)
         
         # Check what type of animation this is
-        if isinstance(animation, (DestructionAnimation, MaterializeAnimation)):
+        if isinstance(animation, (DestructionAnimation, MaterialiseAnimation)):
             self.effect_animations.append(animation)
         elif isinstance(animation, (HealthChangeAnimation, GoldChangeAnimation)):
             self.ui_animations.append(animation)
@@ -709,7 +709,7 @@ class AnimationManager:
         # Update all animations and remove completed ones
         self.animations = [anim for anim in self.animations if not anim.update(delta_time)]
         
-        # Also update specialized animation lists
+        # Also update specialised animation lists
         self.effect_animations = [anim for anim in self.effect_animations if not anim.is_completed]
         self.ui_animations = [anim for anim in self.ui_animations if not anim.is_completed]
     

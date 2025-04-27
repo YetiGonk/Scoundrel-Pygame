@@ -16,13 +16,13 @@ class GameManager:
     """Manager for game states with roguelike elements."""
     
     def __init__(self):
-        # Initialize roguelike managers
+        # Initialise roguelike managers
         self.floor_manager = FloorManager(self)
         
-        # Initialize player attributes
+        # Initialise player attributes
         self.player_gold = STARTING_ATTRIBUTES["gold"]
         
-        # Initialize game states
+        # Initialise game states
         self.states = {
             "title": TitleState(self),  # New title state
             "menu": MenuState(self),    # Keep menu state for compatibility
@@ -33,7 +33,7 @@ class GameManager:
             "delving_deck": DelvingDeckState(self)  # Add delving deck state
         }
         
-        # Initialize player deck system
+        # Initialise player deck system
         self.delving_deck = []  # The cards player brings into dungeons
         self.card_library = []  # All cards player has collected
         
@@ -65,9 +65,9 @@ class GameManager:
             self.coming_from_treasure = False
             self.last_card_data = None
             
-        # Initialize floors when going to title screen if they're not set
+        # Initialise floors when going to title screen if they're not set
         if state_name == "title" and not self.floor_manager.floors:
-            self.floor_manager.initialize_run()
+            self.floor_manager.initialise_run()
             
         self.current_state = self.states[state_name]
         self.current_state.enter()
@@ -85,7 +85,7 @@ class GameManager:
             self.current_state.draw(surface)
     
     def start_new_run(self):
-        """Initialize a new roguelike run."""
+        """Initialise a new roguelike run."""
         # Reset player attributes
         self.player_gold = STARTING_ATTRIBUTES["gold"]
         self.game_data["life_points"] = STARTING_ATTRIBUTES["life_points"]
@@ -96,8 +96,8 @@ class GameManager:
         # Reset purchased cards for this run
         self.purchased_cards = []
         
-        # Initialize the floor sequence
-        self.floor_manager.initialize_run()
+        # Initialise the floor sequence
+        self.floor_manager.initialise_run()
         
         # Set a flag to indicate this is a new run
         self.is_new_run = True

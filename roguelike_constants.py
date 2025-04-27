@@ -41,17 +41,27 @@ MONSTER_RANKS = {
     14: "insane"
 }
 
+MONSTER_CLASSES = ["Animal", "Adventurer", "Dragon", "Ghost", "Goblin", "Other", "Slime"]
+
+MONSTER_CLASS_MAP = {
+    "Adventurer": ["Archer", "Bard", "Berserker", "Druid", "Fighter", "Magician", "Prisoner", "Samurai", "Shooter", "Thief", "Tamer", "Warrior"],
+    "Animal": ["Basilisk", "Giant Ant", "Giant Brown Bats", "Giant Centipede", "Giant Fire Ant", "Giant Scorpion", "Giant Tarantula", "Giant Wolf Spider", "Lion", "Rat", "Rat King", "Snake", "Tiger", "Vampire Bats", "Wolf"],
+    "Dragon": ["Armoured Dragon", "Black Dragon", "Black Drake", "Blue Dragon", "Blue Drake", "Chromatic Dragon", "Earth Dragon", "Energy Dragon", "Evil Dragon", "Gold Dragon", "Gold Drake", "Green Dragon", "Green Drake", "Magic Dragon", "Orange Dragon", "Orange Drake", "Red Dragon", "Red Drake", "Undead Dragon"],
+    "Ghost": ["Banshee", "Ghost Dragon", "Painting Ghost", "Goblin Ghost", "Lantern Ghost", "Little Ghost", "Magic Ghost", "Three-Headed Ghost", "Will-O'-The-Wisp"],
+    "Goblin": ["Goblin", "Goblin Archer", "Goblin King", "Goblin Magician", "Goblin Merchant", "Goblin Thief", "Goblin Warrior", "Three-Headed Troll"],
+    "Other": ["Blue Myconid", "Centaur", "Cerberus", "Celestial", "Ent", "Fire Elemental", "Hydra", "Mummy", "Pegasus", "Stone Golem", "Unicorn"],
+    "Slime": ["Black Slime", "Blue Slime", "Green Slime", "Orange Slime", "Ooze Dragon", "Slime King"]
+}
+
 MONSTER_DIFFICULTY_MAP = {
     "easy": [
         "monsters/Animal/Giant Brown Bats.png",
         "monsters/Animal/Giant Fruit Bats.png",
         "monsters/Animal/Rat.png",
         "monsters/Animal/Snake.png",
-        "monsters/Class/Clown .png",
-        "monsters/Class/Merchant.png",
         "monsters/Dragon/Dragon Egg.png",
-        "monsters/Ghost/Little ghost.png",
-        "monsters/Ghost/Will-o'-the-wisp.png",
+        "monsters/Ghost/Little Ghost.png",
+        "monsters/Ghost/Will-O'-The-Wisp.png",
         "monsters/Goblin/Goblin.png",
         "monsters/Slime/Blue Slime.png",
         "monsters/Slime/Green Slime.png",
@@ -63,25 +73,22 @@ MONSTER_DIFFICULTY_MAP = {
         "monsters/Animal/Giant Fire Ant.png",
         "monsters/Animal/Vampire Bats.png",
         "monsters/Animal/Wolf.png",
-        "monsters/Class/Archer.png",
-        "monsters/Class/Bard.png",
-        "monsters/Class/Blacksmith.png",
-        "monsters/Class/Fighter.png",
-        "monsters/Class/Miner.png",
-        "monsters/Class/Nun.png",
-        "monsters/Class/Prisoner.png",
-        "monsters/Class/Shooter.png",
-        "monsters/Class/Thief.png",
+        "monsters/Adventurer/Archer.png",
+        "monsters/Adventurer/Bard.png",
+        "monsters/Adventurer/Fighter.png",
+        "monsters/Adventurer/Prisoner.png",
+        "monsters/Adventurer/Shooter.png",
+        "monsters/Adventurer/Thief.png",
         "monsters/Dragon/Black Drake.png",
         "monsters/Dragon/Blue Drake.png",
         "monsters/Dragon/Gold Drake.png",
         "monsters/Dragon/Green Drake.png",
         "monsters/Dragon/Orange Drake.png",
         "monsters/Dragon/Red Drake.png",
-        "monsters/Ghost/Female ghost.png",
+        "monsters/Ghost/Banshee.png",
         "monsters/Ghost/Ghost.png",
-        "monsters/Ghost/Ghost in painting.png",
-        "monsters/Ghost/Lantern ghost.png",
+        "monsters/Ghost/Painting Ghost.png",
+        "monsters/Ghost/Lantern Ghost.png",
         "monsters/Goblin/Goblin Archer.png",
         "monsters/Goblin/Goblin Magician.png",
         "monsters/Goblin/Goblin Merchant.png",
@@ -100,22 +107,22 @@ MONSTER_DIFFICULTY_MAP = {
         "monsters/Animal/Lion.png",
         "monsters/Animal/Rat King.png",
         "monsters/Animal/Tiger.png",
-        "monsters/Class/Berserker.png",
-        "monsters/Class/Druid.png",
-        "monsters/Class/Magician.png",
-        "monsters/Class/Samurai .png",
-        "monsters/Class/Tamer.png",
-        "monsters/Class/Warrior.png",
+        "monsters/Adventurer/Berserker.png",
+        "monsters/Adventurer/Druid.png",
+        "monsters/Adventurer/Magician.png",
+        "monsters/Adventurer/Samurai .png",
+        "monsters/Adventurer/Tamer.png",
+        "monsters/Adventurer/Warrior.png",
         "monsters/Dragon/Black Dragon.png",
         "monsters/Dragon/Blue Dragon.png",
         "monsters/Dragon/Earth Dragon.png",
         "monsters/Dragon/Green Dragon.png",
         "monsters/Dragon/Orange Dragon.png",
         "monsters/Dragon/Red Dragon.png",
-        "monsters/Ghost/Ghost dragon.png",
+        "monsters/Ghost/Ghost Dragon.png",
         "monsters/Ghost/Goblin Ghost.png",
-        "monsters/Ghost/Magic ghost.png",
-        "monsters/Ghost/Three headed ghost.png",
+        "monsters/Ghost/Magic Ghost.png",
+        "monsters/Ghost/Three-Headed Ghost.png",
         "monsters/Goblin/Goblin King.png",
         "monsters/Goblin/Troll.png",
         "monsters/Other/Centaur.png",
@@ -143,25 +150,50 @@ MONSTER_DIFFICULTY_MAP = {
     ]
 }
 
-WEAPON_MAPPINGS = {
-    0: "arrow",  # Non-valued card for arrow
-    2: "shortsword",
-    3: "shortsword",
-    4: "shield",
-    5: "axe",
-    6: "warhammer",
-    7: "flail",
-    8: "axe",
-    9: "greatsword",
-    10: "greatsword",
-    11: "longbow",
-    12: "warhammer",
-    13: "crossbow",
-    14: "greatsword"
+WEAPON_RANKS = {
+    2: "novice",
+    3: "novice",
+    4: "novice",
+    5: "novice",
+    6: "intermediate",
+    7: "intermediate",
+    8: "intermediate",
+    9: "intermediate",
+    10: "adept",
+    11: "adept",
+    12: "adept",
+    13: "master",
+    14: "master"
+}
+
+WEAPON_RANK_MAP = {
+    "novice": [
+        "dagger",
+        "shortsword",
+        "shield",
+        "small sword",
+        "mace"
+    ],
+    "intermediate": [
+        "broadsword",
+        "spear",
+        "axe",
+        "sword",
+        "rapier"
+    ],
+    "adept": [
+        "warhammer",
+        "flail",
+        "battleaxe",
+        "greatsword",
+        "halberd"
+    ],
+    "master": [
+        "greatsword"
+    ]
 }
 
 WEAPON_DAMAGE_TYPES = {
-    "arrow": "piercing",
     "shortsword": "slashing",
     "shield": "bludgeoning",
     "axe": "slashing",
@@ -169,6 +201,52 @@ WEAPON_DAMAGE_TYPES = {
     "flail": "bludgeoning",
     "greatsword": "slashing",
     "crossbow": "piercing",
-    "longbow": "piercing"
+    "longbow": "piercing",
+    "spear": "piercing",
+    "dagger": "piercing",
+    "wand": "magic",
+    "halberd": "slashing",
+    "battleaxe": "slashing",
+    "mace": "bludgeoning",
+    "rapier": "piercing",
+    "pickaxe": "piercing"
 }
 
+TREASURE_FILE_PATHS = [
+    "ui/treasure_sprites/gilded obsidian.png",
+    "ui/treasure_sprites/gilded wooden.png",
+    "ui/treasure_sprites/golden skull.png",
+    "ui/treasure_sprites/golden.png",
+    "ui/treasure_sprites/iron.png",
+    "ui/treasure_sprites/obsidian skull.png",
+    "ui/treasure_sprites/obsidian.png",
+    "ui/treasure_sprites/platinum.png",
+    "ui/treasure_sprites/royal.png",
+    "ui/treasure_sprites/wooden.png"
+]
+
+TREASURE_CHEST_RARITY = {
+    "wooden": 0.5,
+    "iron": 0.2,
+    "golden": 0.125,
+    "platinum": 0.075,
+    "obsidian": 0.05,
+    "gilded wooden": 0.01,
+    "golden skull": 0.01,
+    "gilded obsidian": 0.01,
+    "obsidian skull": 0.01,
+    "royal": 0.01   
+}
+
+TREASURE_CHEST_COLOURS = {
+    "wooden": (139, 69, 19), # Brown
+    "gilded wooden": (139, 69, 19),
+    "golden": (255, 215, 0), # Gold
+    "golden skull": (255, 215, 0),
+    "gilded obsidian": (255, 215, 0),
+    "obsidian skull": (0, 0, 205), # Blue
+    "royal": (0, 0, 205),
+    "obsidian": (0, 0, 205),
+    "iron": (192, 192, 192), # Silver
+    "platinum": (192, 192, 192)
+}

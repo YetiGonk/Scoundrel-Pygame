@@ -7,7 +7,7 @@ import os
 import sys
 import random
 
-# Initialize pygame
+# Initialise pygame
 pygame.init()
 
 # Constants

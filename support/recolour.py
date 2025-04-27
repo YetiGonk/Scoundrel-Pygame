@@ -9,11 +9,7 @@ def replace_colour(image_path, old_colour, new_colour):
         
         new_data = []
         for item in data:
-            # print the colour code if it is within 20 of the old_colour
-            if abs(item[0] - old_colour[0]) < 20 and abs(item[1] - old_colour[1]) < 20 and abs(item[2] - old_colour[2]) < 20:
-                print(item)
             if item == old_colour:
-                print(item)
                 new_data.append(new_colour)
             else:
                 new_data.append(item)
@@ -25,6 +21,8 @@ def replace_colour(image_path, old_colour, new_colour):
         print(f"Error processing {image_path}: {e}")
 
 if __name__ == "__main__":
-    replace_colour("assets/weapons/weapons1.png", (233, 157, 32, 255), (206, 45, 11, 255))
+    replace_colour("assets/weapons/dagger.png", (239, 172, 40, 255), (155, 26, 10, 255))
+    replace_colour("assets/weapons/dagger.png", (236, 196, 105, 255), (206, 45, 11, 255))
+    replace_colour("assets/weapons/dagger.png", (239, 216, 161, 255), (239, 58, 12, 255))
 
 

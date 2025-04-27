@@ -14,7 +14,7 @@ from states.game_manager import GameManager
 def main():
     """ Main entry point for the game. """
     
-    # Initialize pygame
+    # Initialise pygame
     pygame.init()
     
     # Create the screen

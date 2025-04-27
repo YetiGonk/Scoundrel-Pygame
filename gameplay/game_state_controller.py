@@ -6,7 +6,7 @@ class GameStateController:
     """Manages game state transitions and end game conditions."""
     
     def __init__(self, playing_state):
-        """Initialize with a reference to the playing state."""
+        """Initialise with a reference to the playing state."""
         self.playing_state = playing_state
     
     def check_game_over(self):

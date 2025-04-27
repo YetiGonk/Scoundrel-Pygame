@@ -151,7 +151,6 @@ SUITS = ["diamonds", "hearts", "spades", "clubs"]
 
 STANDARD_DECK = {
     "diamonds": {  
-        0: 2,
         2: 1,
         3: 1,
         4: 1,  
@@ -207,7 +206,6 @@ STANDARD_DECK = {
 
 EASY_DECK = {
     "diamonds": {  
-        0: 2,
         2: 1,
         3: 1,
         4: 1,  
@@ -263,7 +261,6 @@ EASY_DECK = {
 
 HARD_DECK = {
     "diamonds": {  
-        0: 2,
         2: 1,
         3: 1,
         4: 1,  
@@ -319,7 +316,6 @@ HARD_DECK = {
 
 DUNGEON_DECK = {
     "diamonds": {  
-        0: 2,
         2: 1,
         3: 1,
         4: 1,  
@@ -375,7 +371,6 @@ DUNGEON_DECK = {
 
 FOREST_DECK = {
     "diamonds": {  
-        0: 2,
         2: 1,
         3: 1,
         4: 1,  
@@ -431,7 +426,6 @@ FOREST_DECK = {
 
 LIBRARY_DECK = {
     "diamonds": {  
-        0: 2,
         2: 1,
         3: 1,
         4: 1,  
@@ -487,7 +481,6 @@ LIBRARY_DECK = {
 
 CRYPT_DECK = {
     "diamonds": {  
-        0: 2,
         2: 1,
         3: 1,
         4: 1,  
@@ -543,7 +536,6 @@ CRYPT_DECK = {
 
 MOLTEN_DECK = {
     "diamonds": {  
-        0: 2,
         2: 1,
         3: 1,
         4: 1,  

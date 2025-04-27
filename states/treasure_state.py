@@ -88,7 +88,7 @@ class TreasureState(GameState):
         # Create UI elements
         self.create_ui()
         
-        # Initialize StatusUI with custom position
+        # Initialise StatusUI with custom position
         self.status_ui = StatusUI(self.game_manager)
         self.status_ui.update_fonts(self.header_font, self.normal_font)
         # Adjust StatusUI position to be on the left side and not covered by main panel
@@ -102,7 +102,7 @@ class TreasureState(GameState):
         
         # Create the treasure chest in the bottom left corner
         chest_pos = (0, SCREEN_HEIGHT-50)  # Position is the bottom left of the chest
-        self.treasure_chest = TreasureChest(chest_pos, scale=9)
+        self.treasure_chest = TreasureChest(chest_pos, self.floor, scale=9)
         
         # Preserve the playing state's equipped weapon, defeated monsters and remaining card
         playing_state = self.game_manager.states["playing"]

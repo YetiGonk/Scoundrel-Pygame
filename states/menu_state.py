@@ -38,7 +38,7 @@ class MenuState(GameState):
     def handle_event(self, event):
         if event.type == MOUSEBUTTONDOWN and event.button == 1:  # Left click
             if self.start_button_rect and self.start_button_rect.collidepoint(event.pos):
-                # Initialize a new roguelike run
+                # Initialise a new roguelike run
                 self.game_manager.start_new_run()
                 
                 # This will now go to floor_start state instead of directly to rules

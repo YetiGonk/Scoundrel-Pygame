@@ -42,10 +42,10 @@ def split_image(image_path, output_dir, rows, cols):
 
 if __name__ == "__main__":
     # Example usage
-    pngs_dir = "assets/weapons/weapons1.png"
+    pngs_dir = "assets/weapons/dagger.png"
     pngs_list = glob(pngs_dir)
     output_dir = "assets/weapons"
-    rows = 3
-    cols = 3
+    rows = 10
+    cols = 1
     for img_path in pngs_list:
         split_image(img_path, output_dir, rows, cols)

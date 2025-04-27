@@ -50,9 +50,9 @@ class TitleState(GameState):
         self.seen_taglines = set()  # Keep track of which taglines have been seen
     
     def enter(self):
-        # Make sure floor manager is initialized
+        # Make sure floor manager is initialised
         if not self.game_manager.floor_manager.floors:
-            self.game_manager.floor_manager.initialize_run()
+            self.game_manager.floor_manager.initialise_run()
             
         # Load fonts
         self.title_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 72)
@@ -156,10 +156,10 @@ class TitleState(GameState):
             border_colour=(80, 120, 160)  # Brighter blue border
         )
         
-        # Initialize torch lights
+        # Initialise torch lights
         self._create_torch_lights()
         
-        # Initialize animated cards
+        # Initialise animated cards
         self._load_card_images()
         self._create_animated_cards()
     
@@ -324,7 +324,7 @@ class TitleState(GameState):
             if not card_clicked:
                 # Check for button clicks
                 if self.start_button.is_clicked(mouse_pos):
-                    # Initialize a new roguelike run
+                    # Initialise a new roguelike run
                     self.game_manager.start_new_run()
                     
                     # Go directly to playing state, skipping rules screen

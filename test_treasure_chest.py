@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from utils.treasure_chest import TreasureChest
 
-# Initialize pygame
+# Initialise pygame
 pygame.init()
 
 # Set up display

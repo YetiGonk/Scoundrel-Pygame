@@ -372,7 +372,7 @@ class HUD:
             # Fade out gradually
             min_fade, max_fade = GOLD_PARTICLE_FADE_SPEED
             particle['alpha'] -= random.uniform(min_fade, max_fade)
-            # Slightly randomize x position for shimmering effect
+            # Slightly randomise x position for shimmering effect
             particle['x'] += random.uniform(-0.2, 0.2)
     
     def _draw_gold_particles(self, surface):

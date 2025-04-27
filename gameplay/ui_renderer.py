@@ -10,7 +10,7 @@ class UIRenderer:
     """Handles rendering of UI elements and game objects."""
     
     def __init__(self, playing_state):
-        """Initialize with a reference to the playing state."""
+        """Initialise with a reference to the playing state."""
         self.playing_state = playing_state
     
     def draw_health_display(self, surface):

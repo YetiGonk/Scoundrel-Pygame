@@ -13,8 +13,8 @@ class FloorManager:
         self.current_room = 0
         self.total_floors = len(FLOOR_TYPES)
         
-    def initialize_run(self):
-        """Initialize a new run with randomized floor order."""
+    def initialise_run(self):
+        """Initialise a new run with randomised floor order."""
         self.floors = random.sample(FLOOR_TYPES, self.total_floors)
         self.current_floor_index = 0
         self.current_room = 0
@@ -23,9 +23,9 @@ class FloorManager:
     def get_current_floor(self):
         """Get the current floor type."""
         if not self.floors or self.current_floor_index >= len(self.floors):
-            # If floors aren't initialized yet, do it now
+            # If floors aren't initialised yet, do it now
             if not self.floors:
-                self.initialize_run()
+                self.initialise_run()
                 
             # Check again after initialization
             if not self.floors or self.current_floor_index >= len(self.floors):

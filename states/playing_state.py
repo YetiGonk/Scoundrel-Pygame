@@ -34,7 +34,7 @@ class PlayingState(GameState):
     """The main gameplay state of the game with roguelike elements."""
     
     def __init__(self, game_manager):
-        """Initialize the playing state."""
+        """Initialise the playing state."""
         super().__init__(game_manager)
         
         # Make constants accessible to the class
@@ -102,13 +102,13 @@ class PlayingState(GameState):
         self.room_completion_in_progress = False
         self.treasure_transition_started = False
         
-        # Initialize message display
+        # Initialise message display
         self.message = None
         
-        # Initialize resource loader
+        # Initialise resource loader
         self.resource_loader = ResourceLoader
 
-        # Initialize our modular managers
+        # Initialise our modular managers
         self.card_action_manager = CardActionManager(self)
         self.room_manager = RoomManager(self)
         self.animation_controller = AnimationController(self)
@@ -119,7 +119,7 @@ class PlayingState(GameState):
         self.ui_factory = UIFactory(self)
 
     def enter(self):
-        """Initialize the playing state when entering."""
+        """Initialise the playing state when entering."""
         # Load fonts
         self.title_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 60)
         self.header_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 36)
@@ -155,14 +155,14 @@ class PlayingState(GameState):
         # Scale the floor to the correct dimensions
         self.floor = pygame.transform.scale(self.floor, (FLOOR_WIDTH, FLOOR_HEIGHT))
 
-        # Initialize game components
+        # Initialise game components
         floor_manager = self.game_manager.floor_manager
         self.current_floor = floor_manager.get_current_floor()
         self.current_room_number = floor_manager.current_room
         
         # Make sure we have a valid floor
         if not self.current_floor:
-            print(f"Warning: Floor is not initialized. Using fallback.")
+            print(f"Warning: Floor is not initialised. Using fallback.")
             self.current_floor = "dungeon"  # Fallback to dungeon if floor is None
         
         # If this is a new run or we don't have a deck, setup the appropriate deck
@@ -207,12 +207,12 @@ class PlayingState(GameState):
         # Check if we're coming from treasure room
         coming_from_treasure = hasattr(self.game_manager, 'coming_from_treasure') and self.game_manager.coming_from_treasure
         
-        # Initialize the deck if needed
+        # Initialise the deck if needed
         if not coming_from_treasure:
             # Get player's delving deck if it exists
             player_deck = self.game_manager.delving_deck if hasattr(self.game_manager, 'delving_deck') else None
             
-            # Initialize deck with player cards shuffled in
+            # Initialise deck with player cards shuffled in
             self.deck.initialise_deck(player_deck)
             
             # Also clear the discard pile when starting a new floor (not from merchant)
@@ -221,7 +221,7 @@ class PlayingState(GameState):
                 if hasattr(self.discard_pile, 'card_stack'):
                     self.discard_pile.card_stack = []
         
-        # Initialize last_card variable
+        # Initialise last_card variable
         last_card_from_merchant = None
         
         # Debug: print our current state when coming from treasure room
@@ -272,7 +272,7 @@ class PlayingState(GameState):
         # Reset room counter if starting a new floor
         if self.current_room_number == 0:
             self.completed_rooms = 0
-        # Initialize completed_rooms if not already set
+        # Initialise completed_rooms if not already set
         elif not hasattr(self, 'completed_rooms'):
             self.completed_rooms = self.current_room_number
 
@@ -301,36 +301,10 @@ class PlayingState(GameState):
                 if hasattr(card, 'can_show_attack_options') and card.can_show_attack_options:
                     card.weapon_available = bool(self.equipped_weapon)
                     
-                    # First check if we have a ranged weapon equipped but no arrows
-                    ranged_weapon_without_arrows = False
-                    if self.equipped_weapon:
-                        # Get the weapon node
-                        weapon_node = self.equipped_weapon.get("node", None)
-                        # Check if it's a ranged weapon
-                        if weapon_node and hasattr(weapon_node, "weapon_type") and weapon_node.weapon_type == "ranged":
-                            # Check if we have arrows in inventory
-                            has_arrow = False
-                            for inv_card in self.inventory:
-                                if (hasattr(inv_card, "weapon_type") and inv_card.weapon_type == "arrow") or \
-                                   (inv_card.type == "weapon" and inv_card.value == 0):  # 0 value diamonds is arrow
-                                    has_arrow = True
-                                    break
-                            
-                            # If we have a ranged weapon but no arrows, mark attack as not viable
-                            if not has_arrow:
-                                ranged_weapon_without_arrows = True
-                    
-                    # Check if this monster's value is higher than or equal to the last defeated monster
-                    # If we have defeated monsters and a weapon equipped, check if this monster is too powerful
-                    if ranged_weapon_without_arrows:
-                        card.weapon_attack_not_viable = True
-                        card.no_arrows = True  # Additional flag to specify no arrows reason
-                    elif self.equipped_weapon and self.defeated_monsters:
+                    if self.equipped_weapon and self.defeated_monsters:
                         card.weapon_attack_not_viable = card.value >= self.defeated_monsters[-1].value
-                        card.no_arrows = False
                     else:
                         card.weapon_attack_not_viable = False
-                        card.no_arrows = False
                 
                 # For cards that can be added to inventory, check if inventory is full
                 if hasattr(card, 'can_add_to_inventory') and card.can_add_to_inventory:
@@ -669,18 +643,16 @@ class PlayingState(GameState):
                 if card.type == "weapon" and hasattr(card, 'weapon_type') and card.weapon_type:
                     weapon_type = card.weapon_type.upper()
                     # Show damage type for weapons
-                    if hasattr(card, 'damage_type') and card.damage_type and card.weapon_type != "arrow":
+                    if hasattr(card, 'damage_type') and card.damage_type:
                         damage_type = card.damage_type.upper()
                         type_text = f"{weapon_type} ({damage_type})"
-                    else:
-                        type_text = weapon_type
                 elif card.type == "potion":
                     type_text = "HEALING"
             
         # Draw room cards LAST always
         self.room.draw(surface)
         
-        # Draw any visual effects (destruction/materialize animations)
+        # Draw any visual effects (destruction/materialise animations)
         self.animation_manager.draw_effects(surface)
         
         # Draw hover text for inventory cards

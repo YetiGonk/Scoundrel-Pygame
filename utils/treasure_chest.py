@@ -4,14 +4,18 @@ import random
 import math
 from utils.resource_loader import ResourceLoader
 from utils.animation import Animation, EasingFunctions
+from roguelike_constants import TREASURE_CHEST_RARITY, TREASURE_FILE_PATHS, TREASURE_CHEST_COLOURS
 
 class TreasureChest:
     """Represents the treasure chest with opening animation."""
     
-    def __init__(self, position, scale=1):
+    def __init__(self, position, floor, scale=1):
         # Sprite dimensions
         self.sprite_width = 48
         self.sprite_height = 40
+        
+        # Game Context
+        self.floor = floor
         
         # Position
         self.position = position
@@ -42,6 +46,8 @@ class TreasureChest:
         
         # Select a random rarity based on probabilities
         self.rarity = self.select_rarity()
+        self.rarity_index = list(TREASURE_CHEST_RARITY.keys()).index(self.rarity) + 1
+        self.rarity_color = TREASURE_CHEST_COLOURS[self.rarity]
         
         # Load the treasure sprite for the selected rarity
         self.load_treasure_sprite()
@@ -51,22 +57,9 @@ class TreasureChest:
     
     def select_rarity(self):
         """Select a random rarity based on probabilities."""
-        # Probabilities for each rarity (1-10)
-        # Higher number = rarer chest
-        probabilities = [
-            0.30,  # Common - 1 (30%)
-            0.25,  # Uncommon - 2 (25%)
-            0.17,  # 3 (17%)
-            0.10,  # 4 (10%)
-            0.07,  # 5 (7%)
-            0.05,  # 6 (5%)
-            0.03,  # 7 (3%)
-            0.02,  # 8 (2%)
-            0.01,  # 9 (1%)
-            0.005  # Legendary - 10 (0.5%)
-        ]
+        probabilities = list(TREASURE_CHEST_RARITY.values())
         
-        # Normalize probabilities if they don't sum to 1
+        # Normalise probabilities if they don't sum to 1
         total = sum(probabilities)
         if total != 1:
             probabilities = [p/total for p in probabilities]
@@ -74,50 +67,36 @@ class TreasureChest:
         # Random selection
         roll = random.random()
         cumulative = 0
-        for i, prob in enumerate(probabilities):
+        for chest, prob in TREASURE_CHEST_RARITY.items():
             cumulative += prob
             if roll <= cumulative:
-                return i + 1  # Return 1-based rarity
+                return chest
         
         # Fallback to most common
-        return 1
+        return TREASURE_CHEST_RARITY.keys()[0]
     
     def load_treasure_sprite(self):
         """Load the treasure sprite for the selected rarity."""
         try:
-            sprite_path = f"ui/treasure_sprites/treasure_{self.rarity}.png"
+            sprite_path = f"ui/treasure_sprites/{self.rarity}.png"
             self.sprite = ResourceLoader.load_image(sprite_path)
         except Exception as e:
             print(f"Error loading treasure sprite: {e}")
             # Create a default colored square as fallback
             self.sprite = pygame.Surface((self.sprite_width * self.total_frames, self.sprite_height), pygame.SRCALPHA)
-            
-            # Fill with color based on rarity
-            colors = [
-                (139, 69, 19),  # Brown (common)
-                (0, 128, 0),    # Green (uncommon)
-                (0, 0, 205),    # Blue
-                (128, 0, 128),  # Purple
-                (255, 140, 0),  # Orange
-                (255, 0, 0),    # Red
-                (192, 192, 192), # Silver
-                (75, 0, 130),   # Indigo
-                (0, 255, 255),  # Cyan
-                (255, 215, 0)   # Gold (legendary)
-            ]
-            # Use rarity-1 as index (rarity is 1-based, arrays are 0-based)
-            color_index = min(self.rarity-1, len(colors)-1)
-            
+
+            colour = TREASURE_CHEST_COLOURS[self.rarity]            
+
             # Draw a simple chest for each frame
             for i in range(self.total_frames):
                 x = i * self.sprite_width
                 
                 # Draw chest base (adjusted for animation)
                 if i < 10:  # Closed/opening
-                    pygame.draw.rect(self.sprite, colors[color_index], 
+                    pygame.draw.rect(self.sprite, colour, 
                                     (x + 5, 20, 38, 15))
                 else:  # Open
-                    pygame.draw.rect(self.sprite, colors[color_index], 
+                    pygame.draw.rect(self.sprite, colour, 
                                     (x + 5, 20, 38, 15))
                     # Add treasure
                     pygame.draw.ellipse(self.sprite, (255, 215, 0),
@@ -142,35 +121,21 @@ class TreasureChest:
             
             # Extract the frame
             frame_surf.blit(self.sprite, (0, 0), 
-                           (src_x, src_y, self.sprite_width, self.sprite_height))
+                (src_x, src_y, self.sprite_width, self.sprite_height)
+            )
             
             # Scale the frame if needed
             if self.scale != 1:
                 frame_surf = pygame.transform.scale(frame_surf, 
-                                                  (self.scaled_width, self.scaled_height))
+                    (self.scaled_width, self.scaled_height)
+                )
             
             # Add to frames
             self.frames.append(frame_surf)
     
     def get_particle_color(self):
         """Get a color for particles based on chest rarity."""
-        # Base colors for each rarity level
-        rarity_colors = [
-            (255, 255, 0),    # Common - yellow/gold
-            (0, 255, 0),      # Uncommon - green
-            (0, 150, 255),    # Blue
-            (255, 0, 255),    # Purple/magenta
-            (255, 165, 0),    # Orange
-            (255, 0, 0),      # Red
-            (255, 255, 255),  # Silver/white
-            (180, 0, 255),    # Indigo/purple
-            (0, 255, 255),    # Cyan
-            (255, 215, 0)     # Legendary - gold
-        ]
-        
-        # Get base color
-        color_index = min(self.rarity - 1, len(rarity_colors) - 1)
-        base_color = rarity_colors[color_index]
+        base_color = self.rarity_color
         
         # Add some variation
         if random.random() < 0.3:
@@ -203,9 +168,9 @@ class TreasureChest:
         particle_count = 1
         
         # More particles for higher rarities
-        if self.rarity >= 8:  # Very high rarity
-            particle_count = random.randint(2, 4)
-        elif self.rarity >= 5:  # Mid-high rarity
+        if self.rarity_index >= 6:  # Very high rarity
+            particle_count = random.randint(4, 6)
+        elif self.rarity >= 2:  # Mid-high rarity
             particle_count = random.randint(1, 3)
             
         # Even more particles during the "pop" of opening (frames 14-16)
@@ -215,11 +180,11 @@ class TreasureChest:
         # Create particles
         for _ in range(particle_count):
             # Basic particle properties
-            size = random.uniform(1.5, 4.0) * (1 + (self.rarity * 0.1))  # Bigger for higher rarities
+            size = random.uniform(1.5, 4.0) * (1 + (self.rarity_index * 0.1))  # Bigger for higher rarities
             
             # Calculate trajectory
             angle = random.uniform(0.7, 2.44)  # Mostly upward (π/4 to 3π/4)
-            speed = random.uniform(30, 90) * (1 + (self.rarity * 0.05))
+            speed = random.uniform(30, 90) * (1 + (self.rarity_index * 0.05))
             
             # Calculate velocity components
             vx = math.cos(angle) * speed
@@ -426,15 +391,15 @@ class TreasureChest:
             (0, 255, 255),    # Cyan
             (255, 215, 0)     # Legendary - gold
         ]
-        color_index = min(self.rarity - 1, len(rarity_colors) - 1)
-        glow_color = rarity_colors[color_index]
+        glow_color = self.rarity_color
         
         # Animate glow based on time
         alpha = int(50 + 30 * math.sin(self.time_passed * 3.0))
         
         # Draw elliptical glow
         pygame.draw.ellipse(glow_surf, (*glow_color, alpha), 
-                          (0, 0, int(glow_width), int(glow_height)))
+            (0, 0, int(glow_width), int(glow_height))
+        )
         
         # Position and draw
         glow_pos = (chest_rect.centerx-glow_width//2, chest_rect.centery-glow_height//2+100)

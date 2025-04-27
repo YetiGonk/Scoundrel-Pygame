@@ -6,7 +6,7 @@ class PlayerStateManager:
     """Manages player state such as health and gold."""
     
     def __init__(self, playing_state):
-        """Initialize with a reference to the playing state."""
+        """Initialise with a reference to the playing state."""
         self.playing_state = playing_state
     
     def change_health(self, amount):

@@ -4,7 +4,7 @@ import pygame
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT, INVENTORY_PANEL_WIDTH, INVENTORY_PANEL_HEIGHT, INVENTORY_PANEL_X, INVENTORY_PANEL_Y, FLOOR_WIDTH
 
 from utils.animation import (
-    Animation, MoveAnimation, DestructionAnimation, MaterializeAnimation, 
+    Animation, MoveAnimation, DestructionAnimation, MaterialiseAnimation, 
     HealthChangeAnimation, GoldChangeAnimation, EasingFunctions
 )
 
@@ -13,7 +13,7 @@ class AnimationController:
     """Manages all animations in the game."""
     
     def __init__(self, playing_state):
-        """Initialize with a reference to the playing state."""
+        """Initialise with a reference to the playing state."""
         self.playing_state = playing_state
     
     def animate_card_to_discard(self, card):
@@ -34,18 +34,18 @@ class AnimationController:
             card,
             effect_type,
             duration=0.5,
-            on_complete=lambda: self.materialize_card_at_discard(card)
+            on_complete=lambda: self.materialise_card_at_discard(card)
         )
         
         self.playing_state.animation_manager.add_animation(destroy_anim)
     
-    def materialize_card_at_discard(self, card):
-        """Materialize the card at the discard pile position."""
+    def materialise_card_at_discard(self, card):
+        """Materialise the card at the discard pile position."""
         # Update card position to discard pile
         card.update_position(self.playing_state.discard_pile.position)
         
-        # Create materialize animation
-        materialize_anim = MaterializeAnimation(
+        # Create materialise animation
+        materialise_anim = MaterialiseAnimation(
             card,
             self.playing_state.discard_pile.position,
             effect_type="sparkle",
@@ -53,7 +53,7 @@ class AnimationController:
             on_complete=lambda: self.playing_state.room_manager.remove_and_discard(card)
         )
         
-        self.playing_state.animation_manager.add_animation(materialize_anim)
+        self.playing_state.animation_manager.add_animation(materialise_anim)
 
     def animate_card_movement(self, card, target_pos, duration=0.3, easing=None, 
         on_complete=None):

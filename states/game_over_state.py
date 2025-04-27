@@ -112,7 +112,7 @@ class GameOverState(GameState):
             border_colour=(100, 100, 160)
         )
         
-        # Initialize particles based on victory/defeat
+        # Initialise particles based on victory/defeat
         self._create_particles()
     
     def _create_particles(self):

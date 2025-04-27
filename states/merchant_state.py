@@ -298,7 +298,7 @@ class MerchantState(GameState):
         # Create UI elements
         self.create_ui()
         
-        # Initialize StatusUI with custom position
+        # Initialise StatusUI with custom position
         self.status_ui = StatusUI(self.game_manager)
         self.status_ui.update_fonts(self.header_font, self.normal_font)
         # Adjust StatusUI position to be on the left side and not covered by main panel

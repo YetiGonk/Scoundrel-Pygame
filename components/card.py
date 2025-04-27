@@ -5,7 +5,7 @@ import random
 from glob import glob
 from constants import CARD_WIDTH, CARD_HEIGHT, CARD_RED, BLACK, WHITE, DARK_GRAY, GOLD_COLOR, FONTS_PATH
 from utils.resource_loader import ResourceLoader
-from roguelike_constants import MONSTER_RANKS, MONSTER_DIFFICULTY_MAP, WEAPON_DAMAGE_TYPES, WEAPON_MAPPINGS
+from roguelike_constants import MONSTER_RANKS, MONSTER_DIFFICULTY_MAP, WEAPON_DAMAGE_TYPES, WEAPON_RANK_MAP, WEAPON_RANKS
 
 class Card:
     """ Represents a card in the game with support for rotation and scaling. """
@@ -103,8 +103,8 @@ class Card:
         self.name = None
         
         # Card subtype properties
-        self.weapon_type = None  # "melee" or "ranged" for weapons
         self.damage_type = None  # "piercing", "slashing", or "bludgeoning" for weapons
+        self.weapon_difficulty = None  # Difficulty level for weapons
         self.monster_type = None  # D&D style monster type for monsters
         
         self.sprite_file_path = None if self.suit in ("diamonds", "hearts") else self.determine_monster_sprite_path()
@@ -114,7 +114,7 @@ class Card:
             self.name = f"Potion {self._to_roman(self.value)}"
         elif self.type == "weapon":
             # Weapon type will be set in add_weapon_to_card based on the weapon name
-            # Initialize with a generic name that will be overridden later
+            # Initialise with a generic name that will be overridden later
             self.name = f"Weapon {self._to_roman(self.value)}"
         elif self.type == "monster":
             # Monster name will be set later in add_monster_to_card
@@ -148,48 +148,30 @@ class Card:
         self.weapon_attack_colour = (0, 100, 200, 100)  # Blue with transparency (weapon attack)
         self.bare_hands_colour = (200, 50, 50, 100)  # Red with transparency (bare-handed attack)
         self.is_selected = False  # Track if the card has been clicked/selected
-        self.icon_size = 50  # Size of the selection icons
+        self.icon_size = 50  # Sise of the selection icons
         
-        # Flags to track state (will be updated by the playing state)
-        self.weapon_available = False     # For monsters: is weapon equipped?
-        self.inventory_available = True   # For potions/weapons: is there inventory space?
-        self.weapon_attack_not_viable = False  # For monsters: is weapon attack not viable based on last defeated monster?
-        self.no_arrows = False  # For monsters: is weapon attack not viable due to no arrows?
+        self.weapon_available = False
+        self.inventory_available = True
+        self.weapon_attack_not_viable = False
         
-        # Special handling for arrow cards (ranged ammo)
-        if self.type == "weapon" and self.value == 0:  # 0 value diamonds is arrow
-            self.weapon_type = "arrow"
-            self.name = "Arrow"
-        
-        # Load the card texture - handle non-valued cards (value 0)
         if self.value == 0:
-            # Use a special texture for non-valued cards
-            # For arrow cards - use diamonds_0 if it exists, otherwise create a custom one
             try:
                 texture = ResourceLoader.load_image(f"cards/{self.suit}_{self.value}.png")
             except:
-                # Create a custom card texture for arrows
-                # Use a base diamond card as template or create from scratch
                 if self.suit == "diamonds":
-                    # Try to load a template diamond card
                     try:
-                        texture = ResourceLoader.load_image(f"cards/{self.suit}_14.png")  # Use ace of diamonds as template
+                        texture = ResourceLoader.load_image(f"cards/{self.suit}_14.png")
                     except:
-                        # Create a blank card with diamond suit symbol
                         texture = self._create_blank_card("diamonds")
                 else:
                     texture = self._create_blank_card(self.suit)
         else:
-            # Normal valued card
             texture = ResourceLoader.load_image(f"cards/{self.suit}_{self.value}.png")
             
-        # If this is a monster card (spades or clubs), add monster image
         if self.type == "monster" and (self.value >= 2 and self.value <= 14):
             texture = self.add_monster_to_card(texture)
-        # If this is a weapon card (diamonds), add weapon image
         elif self.type == "weapon" and (self.value >= 2 and self.value <= 14):
             texture = self.add_weapon_to_card(texture)
-        # If this is a potion card (hearts), add potion image
         elif self.type == "potion" and (self.value >= 2 and self.value <= 14):
             texture = self.add_potion_to_card(texture)
             
@@ -212,116 +194,66 @@ class Card:
     
     def add_monster_to_card(self, card_surface):
         """Add monster image to card surface based on suit, value and floor type"""    
-        # Store monster name for hover display
         self.name = f"{self.sprite_file_path.split("/")[-1].split(".")[0].upper()} {self._to_roman(self.value)}"
-        
-        # Determine monster type based on the name (D&D style types)
         monster_name = self.name.lower()
+        self.monster_type = self.sprite_file_path.split("/")[-2]
         
-        self.monster_type = self.sprite_file_path.split("/")[-2] # class name comes directly before the monster name in the file path
-        
-        # Create a new surface based on the card surface
         card_width, card_height = card_surface.get_width(), card_surface.get_height()
         new_surface = pygame.Surface((card_width, card_height), pygame.SRCALPHA)
         new_surface.blit(card_surface, (0, 0))
         
-        # Load, resize, and recolour monster image
         monster_img = ResourceLoader.load_image(self.sprite_file_path, cache=False)
-        
-        # Scale monster from 32x32 to 96x96
         monster_size = 96
         monster_img = pygame.transform.scale(monster_img, (monster_size, monster_size))
         monster_surface = pygame.Surface((monster_size, monster_size), pygame.SRCALPHA)
-        
-        # Blit the monster image onto the surface
         monster_surface.blit(monster_img, (0, 0))
         
-        # Calculate center position to place the monster
         monster_pos = ((card_width - monster_size) // 2, (card_height - monster_size) // 2)
-        
-        # Blit monster onto the card
         new_surface.blit(monster_surface, monster_pos)
         
         return new_surface
         
     def add_weapon_to_card(self, card_surface):
         """Add weapon image to card surface based on value"""
-        # Create a new surface based on the card surface
         card_width, card_height = card_surface.get_width(), card_surface.get_height()
         new_surface = pygame.Surface((card_width, card_height), pygame.SRCALPHA)
         new_surface.blit(card_surface, (0, 0))
         
-        # Default weapon in case value isn't in mapping
-        weapon_name = WEAPON_MAPPINGS.get(self.value, "shortsword")
+        self.weapon_difficulty = WEAPON_RANKS[self.value]
+        weapon_name = random.choice(WEAPON_RANK_MAP[self.weapon_difficulty])
+        self.damage_type = WEAPON_DAMAGE_TYPES[weapon_name]
         
-        # Determine weapon type based on the weapon name
-        if weapon_name in ["crossbow", "longbow"]:
-            self.weapon_type = "ranged"
-        elif weapon_name == "arrow":
-            self.weapon_type = "arrow"
-        else:
-            # All other weapons (warhammer, flail, shortsword, etc.) are melee
-            self.weapon_type = "melee"
-                
-        # Set damage type based on weapon name
-        self.damage_type = WEAPON_DAMAGE_TYPES.get(weapon_name, "piercing")
+        weapon_display_name = weapon_name.capitalize()
+        self.name = f"{weapon_display_name} {self._to_roman(self.value)}"
         
-        # Set the card name based on the weapon
-        if self.weapon_type == "arrow":
-            self.name = "Arrow"
-        else:
-            # Convert the name to title case (first letter capitalized)
-            weapon_display_name = weapon_name.capitalize()
-            # Add Roman numeral suffix based on card value (like monsters and potions)
-            self.name = f"{weapon_display_name} {self._to_roman(self.value)}"
-        
-        # Load weapon image
         weapon_path = f"weapons/{weapon_name}.png"
         try:
             weapon_img = ResourceLoader.load_image(weapon_path)
-            
-            # Scale weapon to appropriate size for the card
-            weapon_size = 120  # Same size as monster images
+            weapon_size = 120
             weapon_img = pygame.transform.scale(weapon_img, (weapon_size, weapon_size))
-            
-            # Calculate center position
             weapon_pos = ((card_width - weapon_size) // 2, (card_height - weapon_size) // 2)
-            
-            # Blit weapon onto the card
             new_surface.blit(weapon_img, weapon_pos)
-            
         except Exception as e:
             print(f"Error loading weapon image: {e}")
-            # Return original card if image can't be loaded
             return card_surface
             
         return new_surface
 
     def add_potion_to_card(self, card_surface):
         """Add potion image to card surface based on value"""
-        # Create a new surface based on the card surface
         card_width, card_height = card_surface.get_width(), card_surface.get_height()
         new_surface = pygame.Surface((card_width, card_height), pygame.SRCALPHA)
         new_surface.blit(card_surface, (0, 0))
         
-        # Load random image from assets/potion
         potion_path = f"potions/{random.randint(1,20)}.png"
         try:
             potion_img = ResourceLoader.load_image(potion_path)
-            
-            # Scale potion to appropriate size for the card
-            potion_size = 120  # Same size as monster images
+            potion_size = 120
             potion_img = pygame.transform.scale(potion_img, (potion_size, potion_size))
-            
-            # Calculate center position
             potion_pos = ((card_width - potion_size) // 2, (card_height - potion_size) // 2)
-            
-            # Blit potion onto the card
             new_surface.blit(potion_img, potion_pos)
-            
         except Exception as e:
             print(f"Error loading potion image: {e}")
-            # Return original card if image can't be loaded
             return card_surface
             
         return new_surface
@@ -531,8 +463,7 @@ class Card:
                 x_offset = (self.width - scaled_width) / 2
                 
                 # Draw shadow behind the card
-                surface.blit(scaled_shadow, (self.rect.x + x_offset + shadow_offset_x, 
-                                            self.rect.y + shadow_offset_y))
+                surface.blit(scaled_shadow, (self.rect.x + x_offset + shadow_offset_x, self.rect.y + shadow_offset_y))
             
             # Now draw the main card
             # Calculate card width based on flip progress
@@ -652,35 +583,62 @@ class Card:
                 
                 # Check if this is an inventory card (show split discard/equip or discard/use)
                 elif hasattr(self, 'in_inventory') and self.in_inventory:
-                    if self.weapon_type == "arrow":
-                        # Full overlay with single color for discard
-                        full_overlay = pygame.Surface((overlay_width, overlay_height*2), pygame.SRCALPHA)
-                        full_overlay.fill((200, 60, 60))  # Bright red color for discard
-                        full_overlay.set_alpha(150)  # More opacity
-                        surface.blit(full_overlay, (pos_x, pos_y))
-                    else:
-                        # Create top overlay
+                    # Create top overlay
+                    top_overlay = pygame.Surface((overlay_width, overlay_height), pygame.SRCALPHA)
+                    top_overlay.fill((200, 60, 60))  # Bright red color for discard
+                    
+                    # Create bottom overlay (red for discard)
+                    bottom_overlay = pygame.Surface((overlay_width, overlay_height), pygame.SRCALPHA)
+                    
+                    # Choose top color based on card type
+                    if self.type == "weapon":
+                        bottom_overlay.fill((60, 180, 60))  # Bright green for equipping
+                    elif self.type == "potion":
+                        bottom_overlay.fill((220, 160, 50))  # Bright orange for potion use
+                    
+                    # Highlight the currently hovered section more intensely
+                    top_alpha = 120  # Higher base opacity
+                    bottom_alpha = 120  # Higher base opacity
+                    if self.hover_selection == "top":
+                        top_alpha = 180
+                        bottom_alpha = 100
+                    elif self.hover_selection == "bottom":
+                        top_alpha = 100
+                        bottom_alpha = 180
+                    
+                    top_overlay.set_alpha(top_alpha)
+                    bottom_overlay.set_alpha(bottom_alpha)
+                    
+                    # Draw the overlays
+                    surface.blit(top_overlay, (pos_x, pos_y))
+                    surface.blit(bottom_overlay, (pos_x, pos_y + overlay_height))
+                
+                # Handle inventory/use overlay for regular room cards (potions and weapons)
+                elif self.can_add_to_inventory:
+                    if hasattr(self, 'inventory_available') and self.inventory_available:
+                        # When inventory has space - show both options
+                        # Create top overlay (purple for inventory)
                         top_overlay = pygame.Surface((overlay_width, overlay_height), pygame.SRCALPHA)
-                        top_overlay.fill((200, 60, 60))  # Bright red color for discard
+                        top_overlay.fill(self.inventory_colour)
                         
-                        # Create bottom overlay (red for discard)
+                        # Create bottom overlay (orange for potions use, green for weapon equip)
                         bottom_overlay = pygame.Surface((overlay_width, overlay_height), pygame.SRCALPHA)
-                        
-                        # Choose top color based on card type
                         if self.type == "weapon":
-                            bottom_overlay.fill((60, 180, 60))  # Bright green for equipping
-                        elif self.type == "potion":
-                            bottom_overlay.fill((220, 160, 50))  # Bright orange for potion use
-                        
+                            bottom_overlay.fill(self.equip_colour)  # Green for weapon equipping
+                        else:
+                            bottom_overlay.fill(self.use_colour)  # Orange for potion use
+                            
                         # Highlight the currently hovered section more intensely
-                        top_alpha = 120  # Higher base opacity
-                        bottom_alpha = 120  # Higher base opacity
+                        top_alpha = 100
+                        bottom_alpha = 100
                         if self.hover_selection == "top":
-                            top_alpha = 180
+                            # Make the top overlay more opaque
+                            top_alpha = 150
                             bottom_alpha = 100
                         elif self.hover_selection == "bottom":
+                            # Make the top overlay more opaque
                             top_alpha = 100
-                            bottom_alpha = 180
+                            bottom_alpha = 150
                         
                         top_overlay.set_alpha(top_alpha)
                         bottom_overlay.set_alpha(bottom_alpha)
@@ -688,48 +646,6 @@ class Card:
                         # Draw the overlays
                         surface.blit(top_overlay, (pos_x, pos_y))
                         surface.blit(bottom_overlay, (pos_x, pos_y + overlay_height))
-                
-                # Handle inventory/use overlay for regular room cards (potions and weapons)
-                elif self.can_add_to_inventory:
-                    if hasattr(self, 'inventory_available') and self.inventory_available:
-                        if self.weapon_type == "arrow":
-                            # Can only add to arrows to inventory
-                            # Full overlay with single color for inventory
-                            full_overlay = pygame.Surface((overlay_width, overlay_height*2), pygame.SRCALPHA)
-                            full_overlay.fill(self.inventory_colour) # Purple for inventory
-                            full_overlay.set_alpha(150)  # More opacity
-                            surface.blit(full_overlay, (pos_x, pos_y))
-                        else:
-                            # When inventory has space - show both options
-                            # Create top overlay (purple for inventory)
-                            top_overlay = pygame.Surface((overlay_width, overlay_height), pygame.SRCALPHA)
-                            top_overlay.fill(self.inventory_colour)
-                            
-                            # Create bottom overlay (orange for potions use, green for weapon equip)
-                            bottom_overlay = pygame.Surface((overlay_width, overlay_height), pygame.SRCALPHA)
-                            if self.type == "weapon":
-                                bottom_overlay.fill(self.equip_colour)  # Green for weapon equipping
-                            else:
-                                bottom_overlay.fill(self.use_colour)  # Orange for potion use
-                            
-                            # Highlight the currently hovered section more intensely
-                            top_alpha = 100
-                            bottom_alpha = 100
-                            if self.hover_selection == "top":
-                                # Make the top overlay more opaque
-                                top_alpha = 150
-                                bottom_alpha = 100
-                            elif self.hover_selection == "bottom":
-                                # Make the top overlay more opaque
-                                top_alpha = 100
-                                bottom_alpha = 150
-                            
-                            top_overlay.set_alpha(top_alpha)
-                            bottom_overlay.set_alpha(bottom_alpha)
-                            
-                            # Draw the overlays
-                            surface.blit(top_overlay, (pos_x, pos_y))
-                            surface.blit(bottom_overlay, (pos_x, pos_y + overlay_height))
 
                     else:
                         # When inventory is full - only show use/equip option
@@ -844,27 +760,8 @@ class Card:
             # Start with the card name
             card_name = self.name if hasattr(self, 'name') and self.name else f"Weapon {self.value}"
             
-            # Determine weapon type based on value if not already set
-            weapon_type = None
-            if hasattr(self, 'weapon_type') and self.weapon_type:
-                weapon_type = self.weapon_type
-            else:
-                # Fallback to determine type based on card value
-                if self.value in [2, 3]:
-                    weapon_type = "arrow"
-                elif self.value in [11, 13]:  # Longbow and Crossbow are ranged
-                    weapon_type = "ranged"
-                else:
-                    weapon_type = "melee"
-            
             # Weapon type text
-            type_text = f"Weapon - "
-            if weapon_type == "ranged":
-                type_text += "Ranged"
-            elif weapon_type == "melee":
-                type_text += "Melee"
-            elif weapon_type == "arrow":
-                type_text += "Arrow (Ammo)"
+            type_text = f"Weapon - {self.weapon_difficulty.upper()}"
             
             # Damage text
             damage_text = f"Damage: {self.value}"
@@ -875,35 +772,29 @@ class Card:
             
             # Check if this is an inventory card
             if hasattr(self, 'in_inventory') and self.in_inventory:
-                # check if this card is an arrow
-                if self.weapon_type != "arrow":
-                    if self.hover_selection == "top":
-                        action_text = "DISCARD"
-                        action_color = (255, 120, 120)  # Bright red
-                    elif self.hover_selection == "bottom":
-                        if self.type == "weapon":
-                            action_text = "EQUIP"
-                            action_color = (120, 255, 120)  # Bright green
-                        elif self.type == "potion":
-                            action_text = "USE"
-                            action_color = (255, 220, 100)  # Bright gold/yellow
+                # all cards are treated the same
+                if self.hover_selection == "top":
+                    action_text = "DISCARD"
+                    action_color = (255, 120, 120)  # Bright red
+                elif self.hover_selection == "bottom":
+                    if self.type == "weapon":
+                        action_text = "EQUIP"
+                        action_color = (120, 255, 120)  # Bright green
+                    elif self.type == "potion":
+                        action_text = "USE"
+                        action_color = (255, 220, 100)  # Bright gold/yellow
                     else:
                         # When no hover selection (just hovering on card)
                         if self.type == "weapon":
                             action_text = "EQUIP or DISCARD"
                         elif self.type == "potion":
                             action_text = "USE or DISCARD"
-                else:
-                    # If this is an arrow, show discard only
-                    action_text = "DISCARD"
-                    action_color = (255, 120, 120)
             # Check if this is an equipped weapon
             elif hasattr(self, 'is_equipped') and self.is_equipped:
                 action_text = "DISCARD"
                 action_color = (255, 120, 120)  # Bright red
             # Standard room card
             else:
-                if self.weapon_type != "arrow":
                     if self.hover_selection == "top":
                         action_text = "INVENTORY"
                         action_color = (120, 120, 255)  # Bright blue
@@ -914,10 +805,6 @@ class Card:
                         elif self.type == "potion":
                             action_text = "USE"
                             action_color = (255, 220, 100)  # Bright gold/yellow
-                else:
-                    # If this is an arrow, show discard only
-                    action_text = "INVENTORY"
-                    action_color = (120, 120, 255)  # Bright blue
             
             # Create complete lines list
             info_lines = [
@@ -1029,10 +916,7 @@ class Card:
                         action_text = "BARE HANDS"
                         action_color = (255, 120, 120)  # Bright red
                 elif self.weapon_available and self.weapon_attack_not_viable:
-                    if self.no_arrows:
-                        warning_text = "NO ARROWS AVAILABLE"
-                    else:
-                        warning_text = "TOO POWERFUL FOR WEAPON"
+                    warning_text = "TOO POWERFUL FOR WEAPON"
                     action_text = "BARE HANDS ONLY"
                     action_color = (255, 120, 120)  # Bright red
                 else:
