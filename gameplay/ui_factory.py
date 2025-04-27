@@ -35,3 +35,27 @@ class UIFactory:
             panel_colour=(70, 20, 20),  # Dark red for urgency
             border_colour=(120, 40, 40)  # Red border for danger/action
         )
+        
+    def create_save_exit_button(self):
+        """Create a Save & Exit button in the top right corner."""
+        # Define button size
+        button_width = 120
+        button_height = 40
+        
+        # Position in top right with some margin
+        margin = 20
+        button_x = SCREEN_WIDTH - button_width - margin
+        button_y = margin
+        
+        button_rect = pygame.Rect(button_x, button_y, button_width, button_height)
+        
+        # Use the body font with dungeon styling
+        self.playing_state.save_exit_button = Button(
+            button_rect,
+            "SAVE & EXIT",
+            self.playing_state.body_font,
+            text_colour=WHITE,
+            dungeon_style=True,
+            panel_colour=(40, 40, 70),  # Blue-ish color
+            border_colour=(80, 80, 120)  # Lighter blue border
+        )

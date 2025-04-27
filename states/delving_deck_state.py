@@ -12,6 +12,7 @@ from ui.panel import Panel
 from ui.button import Button
 from components.card import Card
 from utils.resource_loader import ResourceLoader
+from card_library import CARD_LIBRARY
 
 class DelvingDeckState(GameState):
     """State for viewing and managing the player's delving deck."""
@@ -41,6 +42,9 @@ class DelvingDeckState(GameState):
             "epic": (120, 120, 255),          # Blue
             "relic": (255, 120, 255)         # Purple
         }
+        
+        # Import card data from card_library.py
+        self.card_data = CARD_LIBRARY
         
         # Interaction tracking
         self.dragging_card = None
@@ -183,6 +187,15 @@ class DelvingDeckState(GameState):
                 # Disable split button functionality in this state
                 new_card.can_add_to_inventory = False
                 new_card.can_show_attack_options = False
+                
+                # Add additional attributes from card_library if available
+                card_key = f"{card_data['suit']}_{card_data['value']}"
+                if card_key in self.card_data:
+                    new_card.rarity = self.card_data[card_key]['rarity']
+                    new_card.description = self.card_data[card_key]['description']
+                    new_card.hireable = self.card_data[card_key]['hireable']
+                    new_card.hireable_type = self.card_data[card_key]['hireable_type']
+                
                 self.delving_deck_cards.append(new_card)
         else:
             # Initialise with default cards for a new player
@@ -216,6 +229,13 @@ class DelvingDeckState(GameState):
                     # Store count of duplicates
                     new_card.count = card_counts[card_key]
                     
+                    # Add additional attributes from card_library if available
+                    if card_key in self.card_data:
+                        new_card.rarity = self.card_data[card_key]['rarity']
+                        new_card.description = self.card_data[card_key]['description']
+                        new_card.hireable = self.card_data[card_key]['hireable']
+                        new_card.hireable_type = self.card_data[card_key]['hireable_type']
+                    
                     unique_cards[card_key] = new_card
                     self.card_library.append(new_card)
     
@@ -232,6 +252,15 @@ class DelvingDeckState(GameState):
             # Disable split button functionality in this state
             new_card.can_add_to_inventory = False
             new_card.can_show_attack_options = False
+            
+            # Add additional attributes from card_library if available
+            card_key = f"hearts_{value}"
+            if card_key in self.card_data:
+                new_card.rarity = self.card_data[card_key]['rarity']
+                new_card.description = self.card_data[card_key]['description']
+                new_card.hireable = self.card_data[card_key]['hireable']
+                new_card.hireable_type = self.card_data[card_key]['hireable_type']
+            
             self.delving_deck_cards.append(new_card)
         
         # Add 4 weapon cards (diamonds) of values 4, 5, 7, 9
@@ -243,6 +272,15 @@ class DelvingDeckState(GameState):
             # Disable split button functionality in this state
             new_card.can_add_to_inventory = False
             new_card.can_show_attack_options = False
+            
+            # Add additional attributes from card_library if available
+            card_key = f"diamonds_{value}"
+            if card_key in self.card_data:
+                new_card.rarity = self.card_data[card_key]['rarity']
+                new_card.description = self.card_data[card_key]['description']
+                new_card.hireable = self.card_data[card_key]['hireable']
+                new_card.hireable_type = self.card_data[card_key]['hireable_type']
+            
             self.delving_deck_cards.append(new_card)
         
         # Save both collections to game manager
@@ -336,14 +374,38 @@ class DelvingDeckState(GameState):
             })
             
         # Helper function to add a card to the catalog
-        def add_card_slot(suit, value, rarity, position):
+        def add_card_slot(card_key, position):
+            # Extract suit and value from the card key
+            if '_' in card_key:
+                parts = card_key.split('_')
+                suit = parts[0]
+                # Handle special hireable cards with format like "diamonds_11_archer"
+                if len(parts) > 2:
+                    value = int(parts[1])
+                    hireable_type = parts[2]
+                else:
+                    value = int(parts[1])
+                    hireable_type = None
+            else:
+                # Handle wildcard keys
+                suit = "wildcard"
+                value = int(card_key.replace("wildcard_", ""))
+                hireable_type = None
+            
+            # Get card data from card library
+            card_data = self.card_data.get(card_key, None)
+            if not card_data:
+                return
+                
+            rarity = card_data['rarity']
+            
             # Check if player owns this card (in library or deck)
-            key = f"{suit}_{value}"
-            owned = key in owned_cards
-            in_deck = key in deck_cards
+            owned_key = f"{suit}_{value}"
+            owned = owned_key in owned_cards
+            in_deck = owned_key in deck_cards
             
             # If owned, use the actual card from library
-            card = owned_cards.get(key, None)
+            card = owned_cards.get(owned_key, None)
             
             # Add to catalog
             self.card_catalog.append({
@@ -353,10 +415,12 @@ class DelvingDeckState(GameState):
                 "value": value,
                 "owned": owned,
                 "in_deck": in_deck,
-                "deck_count": deck_cards.get(key, 0),
+                "deck_count": deck_cards.get(owned_key, 0),
                 "rarity": rarity,
                 "position": position,
-                "small": True  # Flag that this is a catalog card (smaller size)
+                "small": True,  # Flag that this is a catalog card (smaller size)
+                "hireable_type": hireable_type,
+                "description": card_data.get('description', "")
             })
             
         # Helper to add placeholder
@@ -369,7 +433,7 @@ class DelvingDeckState(GameState):
             })
             
         # Helper function to position a column of cards
-        def position_column(column_index, rarity, title, card_count, add_func):
+        def position_column(column_index, rarity, title, card_list):
             # Calculate column position
             column_x = start_x + (column_width + column_spacing) * column_index
             column_y = start_y
@@ -380,52 +444,38 @@ class DelvingDeckState(GameState):
             column_y += 30  # Space after header
             
             # Setup card grid (filling by rows)
-            for i in range(card_count):
+            for i, card_key in enumerate(card_list):
                 row = i // cards_per_row  # Move down after filling a row
                 col = i % cards_per_row   # Position within a row
                 
                 card_x = column_x + col * (self.catalog_card_width + card_spacing_x)
                 card_y = column_y + row * (self.catalog_card_height + card_spacing_y)
                 
-                # Call appropriate add function with position and index
-                add_func(card_x, card_y, i)
+                # Add card to the catalog at this position
+                add_card_slot(card_key, (card_x, card_y))
         
-        # 1. COMMON CARDS (Hearts & Diamonds 2-10) - 18 cards total
-        def add_common(x, y, i):
-            if i < 9:  # Hearts 2-10
-                add_card_slot("hearts", i+2, "common", (x, y))
-            elif i < 18:  # Diamonds 2-10
-                add_card_slot("diamonds", i-7, "common", (x, y))
-            # Leave any extra slots empty
-                
-        position_column(0, "common", "COMMON", 18, add_common)
+        # Group cards by rarity
+        common_cards = []
+        rare_cards = []
+        epic_cards = []
+        relic_cards = []
         
-        # 2. RARE CARDS (Hearts & Diamonds J-A) - 18 cards
-        def add_rare(x, y, i):
-            if i < 3:  # Hearts J-K
-                add_card_slot("hearts", i+11, "rare", (x, y))
-            elif i < 6:  # Diamonds J-K
-                add_card_slot("diamonds", i+8, "rare", (x, y))
-            elif i < 18:  # Placeholders for remaining rare slots
-                add_placeholder("rare", (x, y))
-                
-        position_column(1, "rare", "RARE", 18, add_rare)
+        # Organize cards by rarity
+        for card_key, card_data in self.card_data.items():
+            if card_data['rarity'] == 'common':
+                common_cards.append(card_key)
+            elif card_data['rarity'] == 'rare':
+                rare_cards.append(card_key)
+            elif card_data['rarity'] == 'epic':
+                epic_cards.append(card_key)
+            elif card_data['rarity'] == 'relic':
+                relic_cards.append(card_key)
         
-        # 3. EPIC CARDS (Placeholders) - 18 cards
-        def add_epic(x, y, i):
-            if i < 1:  # Hearts A
-                add_card_slot("hearts", i+14, "epic", (x, y))
-            elif i < 2:  # Diamonds A
-                add_card_slot("diamonds", i+13, "epic", (x, y))
-            elif i < 18:  # Placeholders for remaining epic slots
-                add_placeholder("epic", (x, y))
-        
-        position_column(2, "epic", "EPIC", 18, add_epic)
-        
-        # 4. RELIC CARDS (Placeholders) - 12 cards
-        position_column(3, "relic", "RELIC", 12, 
-            lambda x, y, i: add_placeholder("relic", (x, y))
-        )
+        # Position cards by rarity
+        position_column(0, "common", "COMMON", common_cards)
+        position_column(1, "rare", "RARE", rare_cards)
+        position_column(2, "epic", "EPIC", epic_cards)
+        position_column(3, "relic", "RELIC", relic_cards)
         
         # After building the catalog, update all position for owned cards to match catalog positions
         for catalog_item in self.card_catalog:
@@ -1386,21 +1436,62 @@ class DelvingDeckState(GameState):
         # Determine if we need to display count
         has_count = hasattr(card, 'count') and card.count > 1
         
+        # Check if this is a hireable card
+        is_hireable = hasattr(card, 'hireable') and card.hireable
+        
+        # Check if card has a description
+        has_description = hasattr(card, 'description') and card.description
+
+        # Get the card key for CARD_LIBRARY lookup
+        card_key = f"{card.suit}_{card.value}"
+        if is_hireable and hasattr(card, 'hireable_type') and card.hireable_type:
+            card_key = f"{card.suit}_{card.value}_{card.hireable_type}"
+            
         # Calculate text heights
         header_height = self.header_font.get_height()
         body_height = self.body_font.get_height()
         
         # Calculate info box dimensions
-        info_width = 300
+        info_width = 380  # Wider to accommodate descriptions
         
-        # Calculate height based on number of text lines plus padding
-        # Top padding (10px) + header + (spacing + body) * N + bottom padding (10px)
+        # Calculate height based on content
+        lines_count = 2  # Always have at least name and type
+        
+        if card.suit == "diamonds" or card.suit == "hearts":
+            lines_count += 1  # Add damage/heal line
+            
         if has_count:
-            # 4 lines: name, type, damage/heal, count
-            info_height = 10 + header_height + 5 + (body_height + 5) * 3 + 5
-        else:
-            # 3 lines: name, type, damage/heal
-            info_height = 10 + header_height + 5 + (body_height + 5) * 2 + 5
+            lines_count += 1  # Add count line
+            
+        if is_hireable:
+            lines_count += 1  # Add hireable type line
+            
+        if has_description:
+            # Description might need multiple lines
+            description_text = card.description
+            description_words = description_text.split()
+            
+            # Calculate how many lines this will take (approximately, with word wrapping)
+            chars_per_line = info_width // 9  # Approximate character width
+            description_lines = 0
+            current_line_length = 0
+            
+            for word in description_words:
+                if current_line_length + len(word) + 1 <= chars_per_line:
+                    current_line_length += len(word) + 1
+                else:
+                    description_lines += 1
+                    current_line_length = len(word)
+            
+            # Add one more line if there's remaining text
+            if current_line_length > 0:
+                description_lines += 1
+                
+            # Add description lines
+            lines_count += description_lines
+            
+        # Calculate total height
+        info_height = 10 + header_height + 5 + (body_height + 5) * (lines_count - 1) + 5
         
         # Get the card position and dimensions
         card_center_x = card.rect.centerx
@@ -1458,75 +1549,141 @@ class DelvingDeckState(GameState):
         # Start vertical position with top padding
         current_y = info_y + 10  # 10px top padding
         
-        if card.type == "weapon" or card.suit == "diamonds":  # Check by both type and suit
-            # Card name - use card name property if available
-            card_name = card.name if hasattr(card, 'name') and card.name else f"Weapon {card.value}"
-            name_text = self.header_font.render(card_name, True, WHITE)
-            name_rect = name_text.get_rect(centerx=info_x + info_width//2, top=current_y)
-            surface.blit(name_text, name_rect)
+        # Card name
+        if is_hireable and hasattr(card, 'hireable_type') and card.hireable_type:
+            # For hireable cards, use their type as the name
+            card_name = f"{card.hireable_type.capitalize()}"
+        elif card.suit == "diamonds":
+            card_name = f"Weapon {card.value}"
+        elif card.suit == "hearts":
+            card_name = f"Potion {card.value}"
+        elif hasattr(card, 'name') and card.name:
+            card_name = card.name
+        else:
+            card_name = f"{card.suit.capitalize()} {card.value}"
             
-            # Update current_y for next line (add header height + 5px spacing)
-            current_y = name_rect.bottom + 5
-            
-            # Weapon type text
-            difficulty_text = f"Weapon - {self.weapon_difficulty.capitalize()}"        
-            difficulty_render = self.body_font.render(difficulty_text, True, GOLD_COLOR)
-            difficulty_rect = difficulty_render.get_rect(centerx=info_x + info_width//2, top=current_y)
-            surface.blit(difficulty_render, difficulty_rect)
-            
-            # Update current_y for next line
-            current_y = type_rect.bottom + 5
-            
-            # Damage text
-            damage_text = f"Damage: {card.value}"
-            damage_render = self.body_font.render(damage_text, True, WHITE)
-            damage_rect = damage_render.get_rect(centerx=info_x + info_width//2, top=current_y)
-            surface.blit(damage_render, damage_rect)
-            
-            # Update current_y for next line
-            current_y = damage_rect.bottom + 5
-            
-            # Add count line if multiple copies exist
-            if has_count:
-                count_text = f"Owned: {card.count}"
-                count_render = self.body_font.render(count_text, True, GOLD_COLOR)
-                count_rect = count_render.get_rect(centerx=info_x + info_width//2, top=current_y)
-                surface.blit(count_render, count_rect)
-            
-        elif card.type == "potion" or card.suit == "hearts":  # Check by both type and suit
-            # Card name - use card name property if available
-            card_name = card.name if hasattr(card, 'name') and card.name else f"Potion {card.value}"
-            name_text = self.header_font.render(card_name, True, WHITE)
-            name_rect = name_text.get_rect(centerx=info_x + info_width//2, top=current_y)
-            surface.blit(name_text, name_rect)
-            
-            # Update current_y for next line (add header height + 5px spacing)
-            current_y = name_rect.bottom + 5
-            
-            # Potion type text
+        name_text = self.header_font.render(card_name, True, WHITE)
+        name_rect = name_text.get_rect(centerx=info_x + info_width//2, top=current_y)
+        surface.blit(name_text, name_rect)
+        
+        # Update current_y for next line
+        current_y = name_rect.bottom + 5
+        
+        # Card type info based on suit
+        if is_hireable:
+            # Hireable face card
+            if card.suit == "diamonds":
+                type_text = f"Hireable Warrior - {card.value}"
+            elif card.suit == "hearts":
+                type_text = f"Hireable Support - {card.value}"
+            else:
+                type_text = f"Hireable - {card.value}"
+                
+            # Determine rarity from value
+            if card.value == 11:  # Jack
+                rarity_text = "Rare"
+            elif card.value == 12:  # Queen
+                rarity_text = "Epic"
+            elif card.value == 13:  # King
+                rarity_text = "Relic"
+            else:
+                rarity_text = "Unknown"
+                
+            type_text = f"{type_text} ({rarity_text})"
+                
+        elif card.suit == "diamonds":
+            # Get weapon difficulty from roguelike_constants if available
+            from roguelike_constants import WEAPON_RANKS
+            difficulty = WEAPON_RANKS.get(card.value, "Unknown")
+            type_text = f"Weapon - {difficulty.capitalize()}"
+        elif card.suit == "hearts":
             type_text = "Potion - Healing"
-            type_render = self.body_font.render(type_text, True, GOLD_COLOR)
-            type_rect = type_render.get_rect(centerx=info_x + info_width//2, top=current_y)
-            surface.blit(type_render, type_rect)
+        elif card.suit == "wildcard":
+            type_text = "Wildcard"
+        else:
+            type_text = f"{card.suit.capitalize()} Card"
+            
+        type_render = self.body_font.render(type_text, True, GOLD_COLOR)
+        type_rect = type_render.get_rect(centerx=info_x + info_width//2, top=current_y)
+        surface.blit(type_render, type_rect)
+        
+        # Update current_y for next line
+        current_y = type_rect.bottom + 5
+        
+        # Hireable type if applicable
+        if is_hireable and hasattr(card, 'hireable_type') and card.hireable_type:
+            hireable_text = f"Class: {card.hireable_type.capitalize()}"
+            hireable_render = self.body_font.render(hireable_text, True, (200, 200, 255))
+            hireable_rect = hireable_render.get_rect(centerx=info_x + info_width//2, top=current_y)
+            surface.blit(hireable_render, hireable_rect)
             
             # Update current_y for next line
-            current_y = type_rect.bottom + 5
+            current_y = hireable_rect.bottom + 5
+        
+        # Effect text based on suit
+        if card.suit == "diamonds":
+            effect_text = f"Damage: {card.value}"
+            effect_color = (255, 150, 150)  # Reddish
+        elif card.suit == "hearts":
+            effect_text = f"Restores {card.value} health"
+            effect_color = (150, 255, 150)  # Greenish
+        else:
+            # Skip effect text for other card types
+            effect_text = None
             
-            # Healing effect text
-            heal_text = f"Restores {card.value} health"
-            heal_render = self.body_font.render(heal_text, True, WHITE)
-            heal_rect = heal_render.get_rect(centerx=info_x + info_width//2, top=current_y)
-            surface.blit(heal_render, heal_rect)
+        if effect_text:
+            effect_render = self.body_font.render(effect_text, True, effect_color)
+            effect_rect = effect_render.get_rect(centerx=info_x + info_width//2, top=current_y)
+            surface.blit(effect_render, effect_rect)
             
             # Update current_y for next line
-            current_y = heal_rect.bottom + 5
+            current_y = effect_rect.bottom + 5
             
-            # Add count line if multiple copies exist
-            if has_count:
-                count_text = f"Owned: {card.count}"
-                count_render = self.body_font.render(count_text, True, GOLD_COLOR)
-                count_rect = count_render.get_rect(centerx=info_x + info_width//2, top=current_y)
-                surface.blit(count_render, count_rect)
+        # Add count line if multiple copies exist
+        if has_count:
+            count_text = f"Owned: {card.count}"
+            count_render = self.body_font.render(count_text, True, GOLD_COLOR)
+            count_rect = count_render.get_rect(centerx=info_x + info_width//2, top=current_y)
+            surface.blit(count_render, count_rect)
+            
+            # Update current_y for next line
+            current_y = count_rect.bottom + 5
+            
+        # Add description if available
+        if has_description:
+            # Use a slightly smaller font for description
+            description_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 18)
+            
+            # Create word-wrapped text renderer
+            # This is a simple implementation - we'll split by words and add them to lines
+            desc_words = card.description.split()
+            desc_lines = []
+            current_line = ""
+            
+            # Approximate character width
+            avg_char_width = 9
+            max_chars = info_width // avg_char_width
+            
+            for word in desc_words:
+                test_line = current_line + " " + word if current_line else word
+                if len(test_line) <= max_chars:
+                    current_line = test_line
+                else:
+                    desc_lines.append(current_line)
+                    current_line = word
+                    
+            # Add the last line if not empty
+            if current_line:
+                desc_lines.append(current_line)
+                
+            # Render each line
+            for line in desc_lines:
+                line_render = description_font.render(line, True, (220, 220, 220))
+                line_rect = line_render.get_rect(centerx=info_x + info_width//2, top=current_y)
+                surface.blit(line_render, line_rect)
+                
+                # Move to next line
+                current_y = line_rect.bottom + 2  # Tighter line spacing for description
     
     def _draw_mystery_info(self, surface, item):
         """Draw mystery info for an unowned card or placeholder"""
@@ -1537,25 +1694,43 @@ class DelvingDeckState(GameState):
         # Check for required properties
         if "position" not in item:
             return
+        
+        # Check if we have actual card data from card_library
+        card_key = None
+        card_data = None
+        
+        if item.get("type") == "card" and "suit" in item and "value" in item:
+            # For cards with suit and value, try to find them in card_library
+            if item.get("hireable_type"):
+                card_key = f"{item['suit']}_{item['value']}_{item['hireable_type']}"
+            else:
+                card_key = f"{item['suit']}_{item['value']}"
+                
+            card_data = self.card_data.get(card_key)
             
         # Determine if we have rarity info
-        has_rarity = "rarity" in item
+        has_rarity = "rarity" in item or (card_data and "rarity" in card_data)
+        rarity = item.get("rarity") or (card_data and card_data.get("rarity"))
         
         # Calculate text heights
         header_height = self.header_font.get_height()
         body_height = self.body_font.get_height()
         
         # Calculate info box dimensions
-        info_width = 200  # Slightly smaller info panel
+        info_width = 250  # Slightly wider for more text
         
-        # Calculate height based on number of text lines plus padding
-        # Top padding (10px) + header + (spacing + body) * N + bottom padding (10px)
+        # Calculate lines based on content
+        lines_count = 2  # Always name and type
+        
         if has_rarity:
-            # 3 lines: name, type, rarity
-            info_height = 10 + header_height + 5 + (body_height + 5) * 2 + 5
-        else:
-            # 2 lines: name, type
-            info_height = 10 + header_height + 5 + (body_height + 5) + 5
+            lines_count += 1  # Add rarity line
+            
+        # If we have card data with a description but unlocked is False, add a hint line
+        if card_data and "description" in card_data and card_data.get("unlocked", True) == False:
+            lines_count += 1  # Add "Locked" hint line
+            
+        # Calculate total height
+        info_height = 10 + header_height + 5 + (body_height + 5) * (lines_count - 1) + 5
         
         # Get the item position - adjust for catalog card size if needed
         position = item["position"]
@@ -1617,52 +1792,64 @@ class DelvingDeckState(GameState):
         )
         info_panel.draw(surface)
         
-        # Determine the item type for all cards and placeholders
+        # Determine the item type and name
         type_hint = "Unknown"
+        name_text = "???"
         
-        # For actual card slots, determine type based on suit and value
-        if item.get("type") == "card":
-            if item.get("suit") == "hearts":
-                type_hint = "Potion"
-            elif item.get("suit") == "diamonds":
-                type_hint = "Weapon"
-            elif item.get("suit") == "spades" or item.get("suit") == "clubs":
-                type_hint = "Monster"
-        
-        # For epic and relic placeholders, make a reasonable guess based on section
-        elif item.get("type") == "placeholder" or item.get("type") == "unknown":
-            # If it's in the epic or relic section, show a more specific type hint
-            rarity = item.get("rarity", "")
-            if rarity == "epic":
-                # Distribute types evenly for epic cards
-                # Use the card's position to deterministically assign a type
-                # This ensures the same card always shows the same type
-                pos = item.get("position", (0, 0))
-                idx = (pos[0] * 31 + pos[1] * 17) % 4  # Simple hash for consistency
-                if idx == 0:
-                    type_hint = "Weapon"
-                elif idx == 1:
-                    type_hint = "Potion"
-                elif idx == 2:
-                    type_hint = "Spell"
+        # If we have card data, use that info
+        if card_data:
+            # Determine card type based on suit and special properties
+            if card_data.get("hireable", False):
+                if card_data.get("hireable_type"):
+                    # For hireable cards, use hireable type as part of the hint
+                    type_hint = f"Hireable ({card_data['hireable_type'].capitalize()})"
+                    name_text = "Unknown Hireable"
                 else:
-                    type_hint = "Artifact"
-            elif rarity == "relic":
-                # For relic cards, they're special items
-                type_hint = "Artifact"
-        
+                    type_hint = "Hireable"
+                    name_text = "Unknown Hireable"
+            elif "suit" in item:
+                if item["suit"] == "hearts":
+                    type_hint = "Potion"
+                    name_text = "Unknown Potion"
+                elif item["suit"] == "diamonds":
+                    type_hint = "Weapon" 
+                    name_text = "Unknown Weapon"
+                elif item["suit"] == "wildcard":
+                    type_hint = "Wildcard"
+                    name_text = "Unknown Wildcard"
+        else:
+            # For items without card data
+            if item.get("type") == "card":
+                if item.get("suit") == "hearts":
+                    type_hint = "Potion"
+                    name_text = "Unknown Potion"
+                elif item.get("suit") == "diamonds":
+                    type_hint = "Weapon"
+                    name_text = "Unknown Weapon"
+                elif item.get("suit") == "wildcard":
+                    type_hint = "Wildcard"
+                    name_text = "Unknown Wildcard"
+            elif item.get("type") == "unknown":
+                # For placeholders, use rarity to guess
+                if rarity == "rare":
+                    type_hint = "Rare Item"
+                elif rarity == "epic":
+                    type_hint = "Epic Treasure"
+                elif rarity == "relic":
+                    type_hint = "Ancient Relic"
+                    
         # Start vertical position with top padding
         current_y = info_y + 10  # 10px top padding
         
-        # Draw mystery card name (???)
-        mystery_text = self.header_font.render("???", True, WHITE)
-        mystery_rect = mystery_text.get_rect(centerx=info_x + info_width//2, top=current_y)
-        surface.blit(mystery_text, mystery_rect)
+        # Draw mystery card name
+        name_render = self.header_font.render(name_text, True, WHITE)
+        name_rect = name_render.get_rect(centerx=info_x + info_width//2, top=current_y)
+        surface.blit(name_render, name_rect)
         
         # Update current_y for next line
-        current_y = mystery_rect.bottom + 5
+        current_y = name_rect.bottom + 5
         
-        # Show type info for ALL unknown cards
+        # Show type info
         type_render = self.body_font.render(f"Type: {type_hint}", True, (180, 180, 180))
         type_rect = type_render.get_rect(centerx=info_x + info_width//2, top=current_y)
         surface.blit(type_render, type_rect)
@@ -1671,7 +1858,20 @@ class DelvingDeckState(GameState):
         current_y = type_rect.bottom + 5
         
         # Show rarity text if available
-        if has_rarity:
-            rarity_render = self.body_font.render(f"{item['rarity'].capitalize()}", True, self.rarity_colors[item["rarity"]])
+        if has_rarity and rarity:
+            # Convert rarity to display string
+            rarity_display = rarity.capitalize()
+            
+            rarity_render = self.body_font.render(rarity_display, True, self.rarity_colors[rarity])
             rarity_rect = rarity_render.get_rect(centerx=info_x + info_width//2, top=current_y)
             surface.blit(rarity_render, rarity_rect)
+            
+            # Update current_y for next line
+            current_y = rarity_rect.bottom + 5
+            
+        # If card is locked, show a hint
+        if card_data and card_data.get("unlocked") == False:
+            locked_text = "Locked - Not Yet Discovered"
+            locked_render = self.body_font.render(locked_text, True, (255, 150, 150))
+            locked_rect = locked_render.get_rect(centerx=info_x + info_width//2, top=current_y)
+            surface.blit(locked_render, locked_rect)

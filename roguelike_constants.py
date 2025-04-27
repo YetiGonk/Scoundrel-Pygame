@@ -41,10 +41,9 @@ MONSTER_RANKS = {
     14: "insane"
 }
 
-MONSTER_CLASSES = ["Animal", "Adventurer", "Dragon", "Ghost", "Goblin", "Other", "Slime"]
+MONSTER_CLASSES = ["Animal", "Dragon", "Ghost", "Goblin", "Other", "Slime"]
 
 MONSTER_CLASS_MAP = {
-    "Adventurer": ["Archer", "Bard", "Berserker", "Druid", "Fighter", "Magician", "Prisoner", "Samurai", "Shooter", "Thief", "Tamer", "Warrior"],
     "Animal": ["Basilisk", "Giant Ant", "Giant Brown Bats", "Giant Centipede", "Giant Fire Ant", "Giant Scorpion", "Giant Tarantula", "Giant Wolf Spider", "Lion", "Rat", "Rat King", "Snake", "Tiger", "Vampire Bats", "Wolf"],
     "Dragon": ["Armoured Dragon", "Black Dragon", "Black Drake", "Blue Dragon", "Blue Drake", "Chromatic Dragon", "Earth Dragon", "Energy Dragon", "Evil Dragon", "Gold Dragon", "Gold Drake", "Green Dragon", "Green Drake", "Magic Dragon", "Orange Dragon", "Orange Drake", "Red Dragon", "Red Drake", "Undead Dragon"],
     "Ghost": ["Banshee", "Ghost Dragon", "Painting Ghost", "Goblin Ghost", "Lantern Ghost", "Little Ghost", "Magic Ghost", "Three-Headed Ghost", "Will-O'-The-Wisp"],
@@ -73,12 +72,6 @@ MONSTER_DIFFICULTY_MAP = {
         "monsters/Animal/Giant Fire Ant.png",
         "monsters/Animal/Vampire Bats.png",
         "monsters/Animal/Wolf.png",
-        "monsters/Adventurer/Archer.png",
-        "monsters/Adventurer/Bard.png",
-        "monsters/Adventurer/Fighter.png",
-        "monsters/Adventurer/Prisoner.png",
-        "monsters/Adventurer/Shooter.png",
-        "monsters/Adventurer/Thief.png",
         "monsters/Dragon/Black Drake.png",
         "monsters/Dragon/Blue Drake.png",
         "monsters/Dragon/Gold Drake.png",
@@ -107,12 +100,6 @@ MONSTER_DIFFICULTY_MAP = {
         "monsters/Animal/Lion.png",
         "monsters/Animal/Rat King.png",
         "monsters/Animal/Tiger.png",
-        "monsters/Adventurer/Berserker.png",
-        "monsters/Adventurer/Druid.png",
-        "monsters/Adventurer/Magician.png",
-        "monsters/Adventurer/Samurai .png",
-        "monsters/Adventurer/Tamer.png",
-        "monsters/Adventurer/Warrior.png",
         "monsters/Dragon/Black Dragon.png",
         "monsters/Dragon/Blue Dragon.png",
         "monsters/Dragon/Earth Dragon.png",
@@ -171,25 +158,33 @@ WEAPON_RANK_MAP = {
         "dagger",
         "shortsword",
         "shield",
-        "small sword",
-        "mace"
+        "axe",
+        "mace",
+        "wand",
+        "spear",
     ],
     "intermediate": [
-        "broadsword",
         "spear",
+        "flail",
         "axe",
-        "sword",
-        "rapier"
+        "pickaxe",
+        "club",
+        "shortsword",
+        "rapier",
     ],
     "adept": [
         "warhammer",
-        "flail",
+        "longbow",
         "battleaxe",
+        "scythe",
+        "halberd",
         "greatsword",
-        "halberd"
     ],
     "master": [
-        "greatsword"
+        "greatsword",
+        "crossbow",
+        "battleaxe",
+        "warhammer",
     ]
 }
 
@@ -199,6 +194,8 @@ WEAPON_DAMAGE_TYPES = {
     "axe": "slashing",
     "warhammer": "bludgeoning",
     "flail": "bludgeoning",
+    "club": "bludgeoning",
+    "scythe": "slashing",
     "greatsword": "slashing",
     "crossbow": "piercing",
     "longbow": "piercing",

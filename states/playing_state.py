@@ -77,6 +77,7 @@ class PlayingState(GameState):
         self.body_font = None
         self.normal_font = None
         self.run_button = None
+        self.save_exit_button = None
         self.background = None
         self.floor = None
 
@@ -180,8 +181,9 @@ class PlayingState(GameState):
             self.discard_pile = DiscardPile()
             self.room = Room(self.animation_manager)
 
-        # Create run button
+        # Create UI buttons
         self.ui_factory.create_run_button()
+        self.ui_factory.create_save_exit_button()
 
         # Reset player stats
         self.life_points = self.game_manager.game_data["life_points"]
@@ -367,13 +369,22 @@ class PlayingState(GameState):
                 if closest_card:
                     closest_card.check_hover(event.pos)
             
-            # Check hover for run button
+            # Check hover for buttons
             self.run_button.check_hover(event.pos)
+            self.save_exit_button.check_hover(event.pos)
                     
         elif event.type == MOUSEBUTTONDOWN and event.button == 1:  # Left click
             if self.life_points <= 0:
                 return  # Don't handle clicks if player is dead
             
+            # Check if save & exit button was clicked
+            if self.save_exit_button.is_clicked(event.pos):
+                # Save the current game state
+                self.exit()
+                # Return to the title screen
+                self.game_manager.change_state("title")
+                return
+                
             # Check if run button was clicked
             if self.run_button.is_clicked(event.pos) and not self.ran_last_turn and len(self.room.cards) == 4:
                 self.room_manager.run_from_room()
@@ -682,6 +693,9 @@ class PlayingState(GameState):
         # Draw UI animations (health changes, etc.)
         self.animation_manager.draw_ui_effects(surface)
         
+        # Draw save & exit button - always active
+        self.save_exit_button.draw(surface)
+            
         # Draw run button
         if not self.ran_last_turn and len(self.room.cards) == 4 and not self.animation_manager.is_animating():
             self.run_button.draw(surface)
