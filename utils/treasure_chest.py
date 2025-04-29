@@ -170,7 +170,7 @@ class TreasureChest:
         # More particles for higher rarities
         if self.rarity_index >= 6:  # Very high rarity
             particle_count = random.randint(4, 6)
-        elif self.rarity >= 2:  # Mid-high rarity
+        elif self.rarity_index >= 2:  # Mid-high rarity
             particle_count = random.randint(1, 3)
             
         # Even more particles during the "pop" of opening (frames 14-16)

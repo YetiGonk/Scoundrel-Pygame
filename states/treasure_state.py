@@ -212,11 +212,17 @@ class TreasureState(GameState):
         elif event.type == MOUSEBUTTONDOWN and event.button == 1:  # Left click
             # Check if continue button was clicked
             if self.continue_button.is_clicked(event.pos):
-                # Don't increment the room counter for treasure rooms
-                # The current_room still points to the room before the treasure
-                
                 # Explicitly set the flag to indicate we're coming from treasure
                 self.game_manager.coming_from_treasure = True
+                
+                # Only increment room number if this is a natural treasure room
+                # (not one that appears after floor completion or game completion)
+                is_natural_treasure = hasattr(self.game_manager, 'is_bonus_treasure') and not self.game_manager.is_bonus_treasure
+                
+                if is_natural_treasure:
+                    # Increment the room counter to advance to the next room after treasure
+                    # This ensures we don't stay on the same room number
+                    self.game_manager.floor_manager.advance_room()
                 
                 # Change state to playing
                 self.game_manager.change_state("playing")

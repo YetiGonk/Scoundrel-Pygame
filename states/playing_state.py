@@ -77,7 +77,6 @@ class PlayingState(GameState):
         self.body_font = None
         self.normal_font = None
         self.run_button = None
-        self.save_exit_button = None
         self.background = None
         self.floor = None
 
@@ -166,24 +165,24 @@ class PlayingState(GameState):
             print(f"Warning: Floor is not initialised. Using fallback.")
             self.current_floor = "dungeon"  # Fallback to dungeon if floor is None
         
-        # If this is a new run or we don't have a deck, setup the appropriate deck
-        if hasattr(self.game_manager, 'is_new_run') and self.game_manager.is_new_run:
-            # Clear the flag
-            self.game_manager.is_new_run = False
+        # Create a new deck and discard pile
+        self.deck = Deck(self.current_floor)
+        self.discard_pile = DiscardPile()
+        self.room = Room(self.animation_manager)
+        
+        # Initialize the visual representation for deck and discard pile
+        if hasattr(self.deck, "initialise_visuals"):
+            self.deck.initialise_visuals()
             
-            # Create a new deck with the current floor
-            self.deck = Deck(self.current_floor)
-            self.discard_pile = DiscardPile()
-            self.room = Room(self.animation_manager)
-        elif not hasattr(self, 'deck') or not self.deck:
-            # Create a new deck with the current floor
-            self.deck = Deck(self.current_floor)
-            self.discard_pile = DiscardPile()
-            self.room = Room(self.animation_manager)
+        if hasattr(self.discard_pile, "initialise_visuals"):
+            self.discard_pile.initialise_visuals()
+            
+        # Position inventory cards
+        if hasattr(self, "inventory_manager") and hasattr(self.inventory_manager, "position_inventory_cards"):
+            self.inventory_manager.position_inventory_cards()
 
         # Create UI buttons
         self.ui_factory.create_run_button()
-        self.ui_factory.create_save_exit_button()
 
         # Reset player stats
         self.life_points = self.game_manager.game_data["life_points"]
@@ -192,13 +191,74 @@ class PlayingState(GameState):
         
         # Check if coming back from treasure room - restore equipped weapon and defeated monsters
         if hasattr(self.game_manager, 'equipped_weapon') and self.game_manager.equipped_weapon:
+            # This is from treasure room
             self.equipped_weapon = self.game_manager.equipped_weapon
-            self.defeated_monsters = self.game_manager.defeated_monsters
             
-            # Ensure all defeated monsters have the is_defeated flag set
-            for monster in self.defeated_monsters:
-                monster.is_defeated = True
+            # Ensure weapon has all required properties
+            if "node" in self.equipped_weapon:
+                weapon_card = self.equipped_weapon["node"]
                 
+                # Make sure type is set
+                weapon_card.type = "weapon"
+                weapon_card.is_equipped = True
+                
+                # Make sure weapon_type is set
+                if not hasattr(weapon_card, 'weapon_type') or not weapon_card.weapon_type:
+                    from roguelike_constants import WEAPON_RANKS, WEAPON_RANK_MAP
+                    import random
+                    rank = WEAPON_RANKS.get(weapon_card.value, "novice")
+                    weapon_options = WEAPON_RANK_MAP.get(rank, ["dagger"])
+                    weapon_card.weapon_type = random.choice(weapon_options)
+                
+                # Make sure weapon_difficulty is set
+                if not hasattr(weapon_card, 'weapon_difficulty') or not weapon_card.weapon_difficulty:
+                    from roguelike_constants import WEAPON_RANKS
+                    weapon_card.weapon_difficulty = WEAPON_RANKS.get(weapon_card.value, "novice")
+                
+                # Make sure damage_type is set
+                if not hasattr(weapon_card, 'damage_type') or not weapon_card.damage_type:
+                    from roguelike_constants import WEAPON_DAMAGE_TYPES
+                    weapon_card.damage_type = WEAPON_DAMAGE_TYPES.get(weapon_card.weapon_type, "slashing")
+                
+                # Make sure name is set
+                if not hasattr(weapon_card, 'name') or not weapon_card.name:
+                    weapon_display_name = weapon_card.weapon_type.capitalize()
+                    weapon_card.name = f"{weapon_display_name} {weapon_card._to_roman(weapon_card.value)}"
+                    
+                # Set default position for the weapon
+                from constants import WEAPON_POSITION
+                weapon_card.update_position(WEAPON_POSITION)
+        
+            # Handle defeated monsters
+            if hasattr(self.game_manager, 'defeated_monsters') and self.game_manager.defeated_monsters:
+                # Get monsters from treasure room
+                self.defeated_monsters = self.game_manager.defeated_monsters
+                
+                # Ensure all defeated monsters have the required properties set
+                for monster in self.defeated_monsters:
+                    monster.is_defeated = True
+                    monster.type = "monster"
+                    
+                    # Set sprite file path if missing
+                    if not hasattr(monster, 'sprite_file_path') or not monster.sprite_file_path:
+                        from roguelike_constants import MONSTER_RANKS, MONSTER_DIFFICULTY_MAP
+                        import random
+                        difficulty = MONSTER_RANKS.get(monster.value, "easy")
+                        monster.sprite_file_path = random.choice(MONSTER_DIFFICULTY_MAP[difficulty])
+                    
+                    # Set monster type if missing
+                    if not hasattr(monster, 'monster_type') or not monster.monster_type:
+                        monster.monster_type = monster.sprite_file_path.split("/")[-2] if hasattr(monster, 'sprite_file_path') and monster.sprite_file_path else "Unknown"
+                    
+                    # Set name if missing
+                    if not hasattr(monster, 'name') or not monster.name:
+                        sprite_name = monster.sprite_file_path.split("/")[-1].split(".")[0].upper() if hasattr(monster, 'sprite_file_path') and monster.sprite_file_path else "Monster"
+                        monster.name = f"{sprite_name} {monster._to_roman(monster.value)}"
+                
+                # Position monster stack
+                if hasattr(self, "animation_controller") and hasattr(self.animation_controller, "position_monster_stack"):
+                    self.animation_controller.position_monster_stack()
+            
             # Clear the stored data
             self.game_manager.equipped_weapon = {}
             self.game_manager.defeated_monsters = []
@@ -225,13 +285,6 @@ class PlayingState(GameState):
         
         # Initialise last_card variable
         last_card_from_merchant = None
-        
-        # Debug: print our current state when coming from treasure room
-        if coming_from_treasure:
-            print("Coming from treasure room")
-            print(f"Has last_card_data: {hasattr(self.game_manager, 'last_card_data')}")
-            if hasattr(self.game_manager, 'last_card_data'):
-                print(f"last_card_data is None: {self.game_manager.last_card_data is None}")
         
         # If we have preserved card data, prepare it for the next room
         if coming_from_treasure and hasattr(self.game_manager, 'last_card_data') and self.game_manager.last_card_data:
@@ -371,19 +424,10 @@ class PlayingState(GameState):
             
             # Check hover for buttons
             self.run_button.check_hover(event.pos)
-            self.save_exit_button.check_hover(event.pos)
                     
         elif event.type == MOUSEBUTTONDOWN and event.button == 1:  # Left click
             if self.life_points <= 0:
                 return  # Don't handle clicks if player is dead
-            
-            # Check if save & exit button was clicked
-            if self.save_exit_button.is_clicked(event.pos):
-                # Save the current game state
-                self.exit()
-                # Return to the title screen
-                self.game_manager.change_state("title")
-                return
                 
             # Check if run button was clicked
             if self.run_button.is_clicked(event.pos) and not self.ran_last_turn and len(self.room.cards) == 4:
@@ -692,9 +736,6 @@ class PlayingState(GameState):
         
         # Draw UI animations (health changes, etc.)
         self.animation_manager.draw_ui_effects(surface)
-        
-        # Draw save & exit button - always active
-        self.save_exit_button.draw(surface)
             
         # Draw run button
         if not self.ran_last_turn and len(self.room.cards) == 4 and not self.animation_manager.is_animating():

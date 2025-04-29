@@ -578,7 +578,7 @@ class Card:
                     # Full overlay with single color for discard
                     full_overlay = pygame.Surface((overlay_width, overlay_height*2), pygame.SRCALPHA)
                     full_overlay.fill((200, 60, 60))  # Bright red color for discard
-                    full_overlay.set_alpha(150)  # More opacity
+                    full_overlay.set_alpha(120)  # More opacity
                     surface.blit(full_overlay, (pos_x, pos_y))
                 
                 # Check if this is an inventory card (show split discard/equip or discard/use)
@@ -629,16 +629,16 @@ class Card:
                             bottom_overlay.fill(self.use_colour)  # Orange for potion use
                             
                         # Highlight the currently hovered section more intensely
-                        top_alpha = 100
-                        bottom_alpha = 100
+                        top_alpha = 120
+                        bottom_alpha = 120
                         if self.hover_selection == "top":
                             # Make the top overlay more opaque
-                            top_alpha = 150
-                            bottom_alpha = 100
+                            top_alpha = 180
+                            bottom_alpha = 120
                         elif self.hover_selection == "bottom":
                             # Make the top overlay more opaque
-                            top_alpha = 100
-                            bottom_alpha = 150
+                            top_alpha = 120
+                            bottom_alpha = 180
                         
                         top_overlay.set_alpha(top_alpha)
                         bottom_overlay.set_alpha(bottom_alpha)
@@ -677,16 +677,16 @@ class Card:
                         bottom_overlay.fill(self.bare_hands_colour)
                         
                         # Highlight the currently hovered section more intensely
-                        top_alpha = 100
-                        bottom_alpha = 100
+                        top_alpha = 120
+                        bottom_alpha = 120
                         if self.hover_selection == "top":
                             # Make the top overlay more opaque
-                            top_alpha = 150
-                            bottom_alpha = 100
+                            top_alpha = 180
+                            bottom_alpha = 120
                         elif self.hover_selection == "bottom":
                             # Make the bottom overlay more opaque
-                            top_alpha = 100
-                            bottom_alpha = 150
+                            top_alpha = 120
+                            bottom_alpha = 180
                         
                         top_overlay.set_alpha(top_alpha)
                         bottom_overlay.set_alpha(bottom_alpha)

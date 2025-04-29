@@ -72,27 +72,47 @@ class AnimationController:
         
         self.playing_state.animation_manager.add_animation(animation)
 
-    def position_monster_stack(self):
-        """Position defeated monsters in a stack."""
+    def position_monster_stack(self, preserve_positions=False):
+        """Position defeated monsters in a stack.
+        
+        Args:
+            preserve_positions: If True, don't change positions of cards that already have positions
+        """
         if not self.playing_state.defeated_monsters or "node" not in self.playing_state.equipped_weapon:
             return
             
-        from constants import MONSTER_STACK_OFFSET, MONSTER_START_OFFSET
-        total_width = MONSTER_STACK_OFFSET[0] * (len(self.playing_state.defeated_monsters) - 1)
-        start_x = self.playing_state.equipped_weapon["node"].rect.x + MONSTER_START_OFFSET[0]
+        from constants import MONSTER_STACK_OFFSET, MONSTER_START_OFFSET, WEAPON_POSITION
         
+        # Determine if weapon is at default position or has a custom position
+        weapon_card = self.playing_state.equipped_weapon["node"]
+        is_default_weapon_position = (weapon_card.rect.x == WEAPON_POSITION[0] and weapon_card.rect.y == WEAPON_POSITION[1])
+        
+        # Calculate starting position for monster stack
+        start_x = weapon_card.rect.x + MONSTER_START_OFFSET[0]
+        
+        # Position each monster card in the stack
         for i, monster in enumerate(self.playing_state.defeated_monsters):
+            # Check if monster already has a valid position and we're preserving positions
+            has_valid_position = hasattr(monster, 'rect') and monster.rect.x > 0 and monster.rect.y > 0
+            
+            # Calculate new position for this monster
             new_stack_position = (
                 start_x + i * MONSTER_STACK_OFFSET[0],
-                self.playing_state.equipped_weapon["node"].rect.y + MONSTER_STACK_OFFSET[1] * i
+                weapon_card.rect.y + MONSTER_STACK_OFFSET[1] * i
             )
-            self.animate_card_movement(monster, new_stack_position)
-
-        new_weapon_position = (
-            self.playing_state.equipped_weapon["node"].rect.x - MONSTER_STACK_OFFSET[1]*2,
-            self.playing_state.equipped_weapon["node"].rect.y
-        )
-        self.animate_card_movement(self.playing_state.equipped_weapon["node"], new_weapon_position)
+            
+            # Only position if doesn't have valid position or we're not preserving positions
+            if not has_valid_position or not preserve_positions:
+                self.animate_card_movement(monster, new_stack_position)
+        
+        # Move the weapon slightly left to make room for monster stack
+        # Only do this if weapon is at the default position (not custom loaded position)
+        if is_default_weapon_position:
+            new_weapon_position = (
+                weapon_card.rect.x - MONSTER_STACK_OFFSET[1]*2,
+                weapon_card.rect.y
+            )
+            self.animate_card_movement(weapon_card, new_weapon_position)
     
     def schedule_delayed_animation(self, delay, callback):
         """Schedule an animation to start after a delay."""

@@ -42,6 +42,7 @@ class GameOverState(GameState):
         # Get the PlayingState instance for rendering
         self.playing_state = self.game_manager.states["playing"]
         
+        
         # Load fonts
         self.title_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 48)
         self.header_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 36)

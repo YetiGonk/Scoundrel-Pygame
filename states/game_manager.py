@@ -49,8 +49,9 @@ class GameManager:
         self.equipped_weapon = {}
         self.defeated_monsters = []
         self.last_card_data = None
-        # Flag to track if coming from treasure room
+        # Flags to track treasure room transitions
         self.coming_from_treasure = False
+        self.is_bonus_treasure = False  # False = natural treasure room, True = bonus treasure room
         
         # Start with the new title state
         self.change_state("title")
@@ -123,11 +124,15 @@ class GameManager:
         if "is_floor_start" in room_info and room_info["is_floor_start"]:
             # Add treasure room when floor changes - reward for completing the floor
             if self.floor_manager.current_floor_index > 0:  # Not at the very beginning of the game
+                # Set a flag to indicate this is a bonus treasure room (not a natural one)
+                self.is_bonus_treasure = True
                 self.change_state("treasure")
             return
         
         # Check if this is a treasure room
         if "is_treasure" in room_info and room_info["is_treasure"]:
+            # Set a flag to indicate this is a natural treasure room
+            self.is_bonus_treasure = False
             self.change_state("treasure")
             return
         
@@ -138,6 +143,8 @@ class GameManager:
         """Check if the game is over."""
         if self.game_data["life_points"] <= 0:
             self.game_data["victory"] = False
+            
+            
             self.change_state("game_over")
             return True
         return False

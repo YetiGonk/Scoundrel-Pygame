@@ -103,9 +103,9 @@ class TitleState(GameState):
         button_width = 300
         button_height = 60
         button_spacing = 10
-        buttons_y = panel_y + panel_height - button_height*3 - button_spacing*2 - 25
+        buttons_y = panel_y + panel_height - button_height*4 - button_spacing*3 - 25
         
-        # Start button (center)
+        # Start button (top)
         start_button_rect = pygame.Rect(
             (SCREEN_WIDTH - button_width) // 2,
             buttons_y,
@@ -122,10 +122,11 @@ class TitleState(GameState):
             border_colour=(150, 70, 70)  # Brighter red border
         )
         
+        
         # Delving deck button (below start)
         delving_deck_rect = pygame.Rect(
             (SCREEN_WIDTH - button_width) // 2,
-            buttons_y + button_height + button_spacing,
+            buttons_y + (button_height + button_spacing),
             button_width, 
             button_height
         )
