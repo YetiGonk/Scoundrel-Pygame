@@ -10,14 +10,16 @@ class FloorManager:
         self.FLOOR_STRUCTURE = FLOOR_STRUCTURE
         self.floors = []
         self.current_floor_index = 0
-        self.current_room = 0
+        # Room numbers now start at 1 - makes displaying in UI easier
+        self.current_room = 1
         self.total_floors = len(FLOOR_TYPES)
         
     def initialise_run(self):
         """Initialise a new run with randomised floor order."""
         self.floors = random.sample(FLOOR_TYPES, self.total_floors)
         self.current_floor_index = 0
-        self.current_room = 0
+        # Start at room 1
+        self.current_room = 1
         return self.get_current_floor()
     
     def get_current_floor(self):
@@ -35,7 +37,9 @@ class FloorManager:
     
     def advance_room(self):
         """Move to the next room in the current floor."""
+        old_room = self.current_room
         self.current_room += 1
+        print(f"FloorManager.advance_room: incremented room number from {old_room} to {self.current_room}")
         
         # Check if we've reached the end of the floor
         if self.current_room > FLOOR_STRUCTURE["rooms_per_floor"]:
@@ -53,8 +57,8 @@ class FloorManager:
     def advance_floor(self):
         """Move to the next floor."""
         self.current_floor_index += 1
-        # Reset room counter when moving to a new floor
-        self.current_room = 0
+        # Reset room counter to 1 (not 0) when moving to a new floor
+        self.current_room = 1
         
         # Check if run is complete
         if self.current_floor_index >= len(self.floors):

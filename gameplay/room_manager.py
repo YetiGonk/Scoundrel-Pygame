@@ -13,11 +13,21 @@ class RoomManager:
     
     def start_new_room(self, last_card=None):
         """Start a new room with cards from the deck."""
+        print(f"RoomManager.start_new_room called - current room: {self.playing_state.game_manager.floor_manager.current_room}")
+        
         if self.playing_state.life_points <= 0:
+            print("  Player is dead, not starting room")
             return
         
         if self.playing_state.animation_manager.is_animating():
+            print("  Animations running, not starting room")
             return  # Don't start a new room if animations are running
+            
+        # If we're re-entering the playing state and the flag is already set, we've already started a room
+        # in the enter method, so we should avoid starting a new one again in an upcoming update
+        if hasattr(self.playing_state, 'room_started_in_enter') and self.playing_state.room_started_in_enter:
+            print("  Room already started in enter(), not starting again")
+            return
         
         # Check if we should transition to a treasure room instead of starting a new room
         if not self.playing_state.treasure_transition_started:
@@ -25,8 +35,8 @@ class RoomManager:
             if is_treasure_next:
                 # Set flag to prevent multiple treasure transitions
                 self.playing_state.treasure_transition_started = True
-                # Set the floor manager's current room for the treasure room
-                self.playing_state.game_manager.floor_manager.current_room = self.playing_state.completed_rooms - 1
+                # DO NOT change the floor manager's current_room as it's now our source of truth
+                # This line was causing the room number to jump incorrectly
                 # Flag that we're coming from treasure room so we preserve state
                 self.playing_state.game_manager.coming_from_treasure = True
                 # Advance to treasure room

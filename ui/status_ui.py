@@ -30,12 +30,8 @@ class StatusUI:
         current_floor = floor_manager.get_current_floor()  # Now safely returns "unknown" if needed
         current_floor_index = max(1, floor_manager.current_floor_index + 1)  # Ensure index is at least 1
         
-        # For room count, use the completed_rooms from playing state if available
-        playing_state = self.game_manager.states["playing"]
-        if hasattr(playing_state, 'completed_rooms'):
-            current_room = playing_state.completed_rooms
-        else:
-            current_room = floor_manager.current_room
+        # Use the floor manager's current_room which is now 1-based
+        current_room = floor_manager.current_room
             
         total_rooms = floor_manager.FLOOR_STRUCTURE["rooms_per_floor"]
         

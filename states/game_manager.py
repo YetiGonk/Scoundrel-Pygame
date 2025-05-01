@@ -57,6 +57,15 @@ class GameManager:
         self.change_state("title")
     
     def change_state(self, state_name):
+        current_state_name = "None" if not self.current_state else self.current_state.__class__.__name__
+        
+        # If we're already in the requested state, don't change states
+        if self.current_state and self.current_state == self.states[state_name]:
+            print(f"Already in state {state_name}, not changing")
+            return
+            
+        print(f"Changing state from {current_state_name} to {state_name}")
+        
         if self.current_state:
             self.current_state.exit()
         
@@ -70,8 +79,18 @@ class GameManager:
         if state_name == "title" and not self.floor_manager.floors:
             self.floor_manager.initialise_run()
             
+        # Set the current state
         self.current_state = self.states[state_name]
+        
+        # Check if we're going back to PlayingState from a treasure room
+        # In this case, ensure PlayingState.enter() isn't called twice due to flag changes
+        is_treasure_to_playing = (state_name == "playing" and 
+                                 hasattr(self, 'coming_from_treasure') and 
+                                 self.coming_from_treasure)
+                                 
+        print(f"Calling enter() on {state_name}")
         self.current_state.enter()
+        print(f"enter() completed for {state_name}")
     
     def handle_event(self, event):
         if self.current_state:
@@ -108,8 +127,10 @@ class GameManager:
     
     def advance_to_next_room(self):
         """Advance to the next room in the current floor."""
+        print(f"GameManager.advance_to_next_room called - current room before: {self.floor_manager.current_room}")
         # Get next room info
         room_info = self.floor_manager.advance_room()
+        print(f"After advance_room - room now: {self.floor_manager.current_room}")
         
         # Check if the run is complete
         if "run_complete" in room_info and room_info["run_complete"]:

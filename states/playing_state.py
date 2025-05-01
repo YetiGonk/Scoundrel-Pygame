@@ -1,12 +1,15 @@
 """ Playing state for the Roguelike Scoundrel game. """
 import pygame
 import random
-import math
 from pygame.locals import *
 
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT, FLOOR_WIDTH, CARD_WIDTH, CARD_HEIGHT, INVENTORY_PANEL_WIDTH, INVENTORY_PANEL_HEIGHT, INVENTORY_PANEL_X, INVENTORY_PANEL_Y, WHITE, BLACK, GRAY, DARK_GRAY, LIGHT_GRAY, FONTS_PATH
+from constants import (
+    SCREEN_WIDTH, SCREEN_HEIGHT, FLOOR_WIDTH, CARD_WIDTH, CARD_HEIGHT,
+    INVENTORY_PANEL_WIDTH, INVENTORY_PANEL_HEIGHT, INVENTORY_PANEL_X, INVENTORY_PANEL_Y,
+    WHITE, BLACK, GRAY, DARK_GRAY, LIGHT_GRAY, FONTS_PATH, WEAPON_POSITION
+)
 
-from roguelike_constants import FLOOR_STRUCTURE
+from roguelike_constants import FLOOR_STRUCTURE, WEAPON_RANKS, WEAPON_RANK_MAP, WEAPON_DAMAGE_TYPES, MONSTER_RANKS, MONSTER_DIFFICULTY_MAP
 from components.card import Card
 from components.deck import Deck
 from components.discard_pile import DiscardPile
@@ -37,6 +40,41 @@ class PlayingState(GameState):
         """Initialise the playing state."""
         super().__init__(game_manager)
         
+        # Initialize managers and controllers
+        self._initialize_managers()
+        
+        # Initialize game state variables
+        self._initialize_state_variables()
+        
+        # Initialize player state
+        self._initialize_player_state()
+        
+        # Initialize game components
+        self._initialize_game_components()
+        
+        # Initialize UI elements
+        self._initialize_ui_elements()
+    
+    def _initialize_managers(self):
+        """Initialize all manager and controller classes."""
+        # Initialize animation manager
+        self.animation_manager = AnimationManager()
+        
+        # Initialize resource loader
+        self.resource_loader = ResourceLoader
+        
+        # Initialize our modular managers
+        self.card_action_manager = CardActionManager(self)
+        self.room_manager = RoomManager(self)
+        self.animation_controller = AnimationController(self)
+        self.player_state_manager = PlayerStateManager(self)
+        self.inventory_manager = InventoryManager(self)
+        self.ui_renderer = UIRenderer(self)
+        self.game_state_controller = GameStateController(self)
+        self.ui_factory = UIFactory(self)
+    
+    def _initialize_state_variables(self):
+        """Initialize general state variables."""
         # Make constants accessible to the class
         self.SCREEN_WIDTH = SCREEN_WIDTH
         self.SCREEN_HEIGHT = SCREEN_HEIGHT
@@ -46,80 +84,84 @@ class PlayingState(GameState):
         self.DARK_GRAY = DARK_GRAY
         self.LIGHT_GRAY = LIGHT_GRAY
         
-        # Game components
+        # Animation and state flags
+        self.is_running = False
+        self.ran_last_turn = False
+        self.show_debug = False
+        self.z_index_counter = 0
+        
+        # Roguelike components
+        self.FLOOR_STRUCTURE = FLOOR_STRUCTURE
+        
+        # Room state tracking
+        self.completed_rooms = 0
+        self.total_rooms_on_floor = 0
+        self.floor_completed = False
+        self.gold_reward_given = False
+        self.room_completion_in_progress = False 
+        self.treasure_transition_started = False
+        self.room_started_in_enter = False  # Flag to track if a room was started in enter()
+        
+        # Message display
+        self.message = None
+    
+    def _initialize_player_state(self):
+        """Initialize player stats and inventory."""
+        # Player stats
+        self.life_points = 20
+        self.max_life = 20
+        self.gold = 0
+        self.equipped_weapon = {}
+        self.defeated_monsters = []
+        
+        # Player inventory
+        self.inventory = []
+        self.MAX_INVENTORY_SIZE = 2
+    
+    def _initialize_game_components(self):
+        """Initialize game components like deck, discard pile, room."""
         self.deck = None
         self.discard_pile = None
         self.room = None
         self.current_floor = None
-        
-        # Player stats
-        self.life_points = 20
-        self.max_life = 20
-        self.gold = 0  # Add gold counter
-        self.equipped_weapon = {}
-        self.defeated_monsters = []
-        
-        # Player inventory (supports 2 cards max)
-        self.inventory = []
-        self.MAX_INVENTORY_SIZE = 2
-        
-        # Animation
-        self.animation_manager = AnimationManager()
-        self.is_running = False
-        self.ran_last_turn = False
-        
-        # Roguelike components
-        self.current_room_number = 0
-        self.FLOOR_STRUCTURE = FLOOR_STRUCTURE
-        
-        # UI elements
+    
+    def _initialize_ui_elements(self):
+        """Initialize UI elements and resources."""
         self.header_font = None
         self.body_font = None
         self.normal_font = None
         self.run_button = None
         self.background = None
         self.floor = None
-
-        # State variables
-        self.show_debug = False
-
-        # Layer management
-        self.z_index_counter = 0
-
+        
         # Status UI & HUD
-        self.status_ui = StatusUI(game_manager)
-        self.hud = HUD(game_manager)
-        
-        # Add completed room counter
-        self.completed_rooms = 0
-        self.total_rooms_on_floor = 0
-        
-        # Add flag for completed floor
-        self.floor_completed = False
-        
-        # Add flags for room state tracking
-        self.gold_reward_given = False
-        self.room_completion_in_progress = False
-        self.treasure_transition_started = False
-        
-        # Initialise message display
-        self.message = None
-        
-        # Initialise resource loader
-        self.resource_loader = ResourceLoader
-
-        # Initialise our modular managers
-        self.card_action_manager = CardActionManager(self)
-        self.room_manager = RoomManager(self)
-        self.animation_controller = AnimationController(self)
-        self.player_state_manager = PlayerStateManager(self)
-        self.inventory_manager = InventoryManager(self)
-        self.ui_renderer = UIRenderer(self)
-        self.game_state_controller = GameStateController(self)
-        self.ui_factory = UIFactory(self)
+        self.status_ui = StatusUI(self.game_manager)
+        self.hud = HUD(self.game_manager)
 
     def enter(self):
         """Initialise the playing state when entering."""
+        print(f"PlayingState.enter() called - current room: {self.game_manager.floor_manager.current_room}")
+        
+        # Load resources
+        self._load_resources()
+        
+        # Initialize game components 
+        self._setup_game_components()
+        
+        # Handle player state setup
+        self._setup_player_state()
+        
+        # Handle treasure room transition if needed
+        self._handle_treasure_transition()
+        
+        # Start initial room
+        self._start_initial_room()
+        
+        # Reset state tracking
+        self._reset_state_tracking()
+    
+    def _load_resources(self):
+        """Load fonts, background and floor image."""
         # Load fonts
         self.title_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 60)
         self.header_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 36)
@@ -154,11 +196,12 @@ class PlayingState(GameState):
             
         # Scale the floor to the correct dimensions
         self.floor = pygame.transform.scale(self.floor, (FLOOR_WIDTH, FLOOR_HEIGHT))
-
-        # Initialise game components
+    
+    def _setup_game_components(self):
+        """Initialize deck, discard pile, and room."""
+        # Initialize floor information
         floor_manager = self.game_manager.floor_manager
         self.current_floor = floor_manager.get_current_floor()
-        self.current_room_number = floor_manager.current_room
         
         # Make sure we have a valid floor
         if not self.current_floor:
@@ -183,12 +226,16 @@ class PlayingState(GameState):
 
         # Create UI buttons
         self.ui_factory.create_run_button()
-
+    
+    def _setup_player_state(self):
+        """Set up player stats and equipped weapon."""
         # Reset player stats
         self.life_points = self.game_manager.game_data["life_points"]
         self.max_life = self.game_manager.game_data["max_life"]
         self.gold = self.game_manager.game_data.get("gold", 0)  # Get gold from game data
-        
+    
+    def _handle_treasure_transition(self):
+        """Handle treasure room transition and weapon/monster restoration."""
         # Check if coming back from treasure room - restore equipped weapon and defeated monsters
         if hasattr(self.game_manager, 'equipped_weapon') and self.game_manager.equipped_weapon:
             # This is from treasure room
@@ -204,7 +251,6 @@ class PlayingState(GameState):
                 
                 # Make sure weapon_type is set
                 if not hasattr(weapon_card, 'weapon_type') or not weapon_card.weapon_type:
-                    from roguelike_constants import WEAPON_RANKS, WEAPON_RANK_MAP
                     import random
                     rank = WEAPON_RANKS.get(weapon_card.value, "novice")
                     weapon_options = WEAPON_RANK_MAP.get(rank, ["dagger"])
@@ -212,12 +258,10 @@ class PlayingState(GameState):
                 
                 # Make sure weapon_difficulty is set
                 if not hasattr(weapon_card, 'weapon_difficulty') or not weapon_card.weapon_difficulty:
-                    from roguelike_constants import WEAPON_RANKS
                     weapon_card.weapon_difficulty = WEAPON_RANKS.get(weapon_card.value, "novice")
                 
                 # Make sure damage_type is set
                 if not hasattr(weapon_card, 'damage_type') or not weapon_card.damage_type:
-                    from roguelike_constants import WEAPON_DAMAGE_TYPES
                     weapon_card.damage_type = WEAPON_DAMAGE_TYPES.get(weapon_card.weapon_type, "slashing")
                 
                 # Make sure name is set
@@ -226,7 +270,6 @@ class PlayingState(GameState):
                     weapon_card.name = f"{weapon_display_name} {weapon_card._to_roman(weapon_card.value)}"
                     
                 # Set default position for the weapon
-                from constants import WEAPON_POSITION
                 weapon_card.update_position(WEAPON_POSITION)
         
             # Handle defeated monsters
@@ -241,7 +284,6 @@ class PlayingState(GameState):
                     
                     # Set sprite file path if missing
                     if not hasattr(monster, 'sprite_file_path') or not monster.sprite_file_path:
-                        from roguelike_constants import MONSTER_RANKS, MONSTER_DIFFICULTY_MAP
                         import random
                         difficulty = MONSTER_RANKS.get(monster.value, "easy")
                         monster.sprite_file_path = random.choice(MONSTER_DIFFICULTY_MAP[difficulty])
@@ -265,16 +307,18 @@ class PlayingState(GameState):
         else:
             self.equipped_weapon = {}
             self.defeated_monsters = []
-        
+    
+    def _start_initial_room(self):
+        """Start the initial room either with a card from merchant or fresh."""
         # Check if we're coming from treasure room
         coming_from_treasure = hasattr(self.game_manager, 'coming_from_treasure') and self.game_manager.coming_from_treasure
         
-        # Initialise the deck if needed
+        # Initialize the deck if needed
         if not coming_from_treasure:
             # Get player's delving deck if it exists
             player_deck = self.game_manager.delving_deck if hasattr(self.game_manager, 'delving_deck') else None
             
-            # Initialise deck with player cards shuffled in
+            # Initialize deck with player cards shuffled in
             self.deck.initialise_deck(player_deck)
             
             # Also clear the discard pile when starting a new floor (not from merchant)
@@ -283,7 +327,7 @@ class PlayingState(GameState):
                 if hasattr(self.discard_pile, 'card_stack'):
                     self.discard_pile.card_stack = []
         
-        # Initialise last_card variable
+        # Initialize last_card variable
         last_card_from_merchant = None
         
         # If we have preserved card data, prepare it for the next room
@@ -306,10 +350,16 @@ class PlayingState(GameState):
             self.game_manager.last_card_data = None
             
             # Start a new room with the preserved card
+            print(f"Starting room with preserved card in enter() - room: {self.game_manager.floor_manager.current_room}")
             self.room_manager.start_new_room(last_card_from_merchant)
+            # Set flag that we've started a room in enter
+            self.room_started_in_enter = True
         else:
             # No card was preserved or not coming from merchant, start a normal room
+            print(f"Starting normal room in enter() - room: {self.game_manager.floor_manager.current_room}")
             self.room_manager.start_new_room()
+            # Set flag that we've started a room in enter
+            self.room_started_in_enter = True
         
         # Reset coming_from_treasure flag after handling the transition
         self.game_manager.coming_from_treasure = False
@@ -319,17 +369,16 @@ class PlayingState(GameState):
 
         # Update HUD fonts
         self.hud.update_fonts(self.normal_font, self.normal_font)
-
+    
+    def _reset_state_tracking(self):
+        """Reset game state tracking variables."""
         # Reset floor completion tracking
         self.floor_completed = False
         self.treasure_transition_started = False
 
-        # Reset room counter if starting a new floor
-        if self.current_room_number == 0:
+        # Reset completed_rooms counter if starting a new floor
+        if self.game_manager.floor_manager.current_room == 1:
             self.completed_rooms = 0
-        # Initialise completed_rooms if not already set
-        elif not hasattr(self, 'completed_rooms'):
-            self.completed_rooms = self.current_room_number
 
     def exit(self):
         """Save state when exiting playing state."""
@@ -344,118 +393,134 @@ class PlayingState(GameState):
             return  # Don't handle events while animating
         
         if event.type == MOUSEMOTION:
-            # Check hover for cards in the room
-            inventory_is_full = len(self.inventory) >= self.MAX_INVENTORY_SIZE
-            
-            # Prepare all cards for hover detection
-            all_hoverable_cards = []
-            
-            # Setup room cards
-            for card in self.room.cards:
-                # For monster cards, set the weapon_available flag based on equipped weapon
-                if hasattr(card, 'can_show_attack_options') and card.can_show_attack_options:
-                    card.weapon_available = bool(self.equipped_weapon)
-                    
-                    if self.equipped_weapon and self.defeated_monsters:
-                        card.weapon_attack_not_viable = card.value >= self.defeated_monsters[-1].value
-                    else:
-                        card.weapon_attack_not_viable = False
-                
-                # For cards that can be added to inventory, check if inventory is full
-                if hasattr(card, 'can_add_to_inventory') and card.can_add_to_inventory:
-                    card.inventory_available = not inventory_is_full
-                
-                # Add card to hoverable cards if it collides with mouse
-                # Reset hover status first
-                card.is_hovered = False
-                if card.rect.collidepoint(event.pos):
-                    all_hoverable_cards.append(card)
-            
-            # Setup inventory cards
-            for card in self.inventory:
-                # Reset hover status first
-                card.is_hovered = False
-                if card.rect.collidepoint(event.pos):
-                    all_hoverable_cards.append(card)
-                
-            # Setup equipped weapon
-            if "node" in self.equipped_weapon:
-                weapon_card = self.equipped_weapon["node"]
-                # Reset hover status first
-                weapon_card.is_hovered = False
-                if weapon_card.rect.collidepoint(event.pos):
-                    all_hoverable_cards.append(weapon_card)
-            
-            # Setup defeated monsters
-            for monster in self.defeated_monsters:
-                # Reset hover status first
-                monster.is_hovered = False
-                if monster.rect.collidepoint(event.pos):
-                    all_hoverable_cards.append(monster)
-            
-            # Find the closest card to mouse cursor
-            if all_hoverable_cards:
-                closest_card = None
-                closest_distance = float('inf')
-                
-                for card in all_hoverable_cards:
-                    # Calculate distance from mouse to card center
-                    card_center_x = card.rect.centerx
-                    card_center_y = card.rect.centery
-                    
-                    # Calculate total float offset for more accurate hover detection
-                    total_float_offset = 0
-                    if hasattr(card, 'idle_float_offset') and hasattr(card, 'hover_float_offset'):
-                        total_float_offset = card.idle_float_offset + card.hover_float_offset
-                    
-                    # Adjust center Y with float offset
-                    card_center_y -= total_float_offset
-                    
-                    # Calculate squared distance (faster than sqrt)
-                    dist_sq = (event.pos[0] - card_center_x) ** 2 + (event.pos[1] - card_center_y) ** 2
-                    
-                    if dist_sq < closest_distance:
-                        closest_distance = dist_sq
-                        closest_card = card
-                
-                # Only set the closest card as hovered
-                if closest_card:
-                    closest_card.check_hover(event.pos)
-            
-            # Check hover for buttons
-            self.run_button.check_hover(event.pos)
+            self._handle_hover(event)
                     
         elif event.type == MOUSEBUTTONDOWN and event.button == 1:  # Left click
-            if self.life_points <= 0:
-                return  # Don't handle clicks if player is dead
-                
-            # Check if run button was clicked
-            if self.run_button.is_clicked(event.pos) and not self.ran_last_turn and len(self.room.cards) == 4:
-                self.room_manager.run_from_room()
-                return
-                        
-            # Check if a card was clicked
-            clicked_card = None
-            
-            # First check room cards
-            card = self.room.get_card_at_position(event.pos)
-            if card:
-                self.card_action_manager.resolve_card(card, event_pos=event.pos)
-                return  # Important: Return to prevent checking inventory cards
-            
-            # If no room card was clicked, check inventory cards
-            clicked_inventory_card = self.inventory_manager.get_inventory_card_at_position(event.pos)
-            if clicked_inventory_card:
-                self.card_action_manager.use_inventory_card(clicked_inventory_card, event.pos)
-                return  # Important: Return to prevent checking equipped weapon
-            
-            # If no room card or inventory card was clicked, check equipped weapon
-            if "node" in self.equipped_weapon and self.equipped_weapon["node"].rect.collidepoint(event.pos):
-                self.card_action_manager.discard_equipped_weapon()
+            self._handle_click(event)
     
+    def _handle_hover(self, event):
+        """Handle mouse hover events over cards and buttons."""
+        # Check hover for cards in the room
+        inventory_is_full = len(self.inventory) >= self.MAX_INVENTORY_SIZE
+        
+        # Prepare all cards for hover detection
+        all_hoverable_cards = []
+        
+        # Setup room cards
+        for card in self.room.cards:
+            # For monster cards, set the weapon_available flag based on equipped weapon
+            if hasattr(card, 'can_show_attack_options') and card.can_show_attack_options:
+                card.weapon_available = bool(self.equipped_weapon)
+                
+                if self.equipped_weapon and self.defeated_monsters:
+                    card.weapon_attack_not_viable = card.value >= self.defeated_monsters[-1].value
+                else:
+                    card.weapon_attack_not_viable = False
+            
+            # For cards that can be added to inventory, check if inventory is full
+            if hasattr(card, 'can_add_to_inventory') and card.can_add_to_inventory:
+                card.inventory_available = not inventory_is_full
+            
+            # Add card to hoverable cards if it collides with mouse
+            # Reset hover status first
+            card.is_hovered = False
+            if card.rect.collidepoint(event.pos):
+                all_hoverable_cards.append(card)
+        
+        # Setup inventory cards
+        for card in self.inventory:
+            # Reset hover status first
+            card.is_hovered = False
+            if card.rect.collidepoint(event.pos):
+                all_hoverable_cards.append(card)
+            
+        # Setup equipped weapon
+        if "node" in self.equipped_weapon:
+            weapon_card = self.equipped_weapon["node"]
+            # Reset hover status first
+            weapon_card.is_hovered = False
+            if weapon_card.rect.collidepoint(event.pos):
+                all_hoverable_cards.append(weapon_card)
+        
+        # Setup defeated monsters
+        for monster in self.defeated_monsters:
+            # Reset hover status first
+            monster.is_hovered = False
+            if monster.rect.collidepoint(event.pos):
+                all_hoverable_cards.append(monster)
+        
+        # Find the closest card to mouse cursor
+        if all_hoverable_cards:
+            closest_card = self._find_closest_card(event.pos, all_hoverable_cards)
+            # Only set the closest card as hovered
+            if closest_card:
+                closest_card.check_hover(event.pos)
+        
+        # Check hover for buttons
+        self.run_button.check_hover(event.pos)
+    
+    def _find_closest_card(self, pos, cards):
+        """Find the card closest to the given position."""
+        if not cards:
+            return None
+            
+        closest_card = None
+        closest_distance = float('inf')
+        
+        for card in cards:
+            # Calculate distance from mouse to card center
+            card_center_x = card.rect.centerx
+            card_center_y = card.rect.centery
+            
+            # Calculate total float offset for more accurate hover detection
+            total_float_offset = 0
+            if hasattr(card, 'idle_float_offset') and hasattr(card, 'hover_float_offset'):
+                total_float_offset = card.idle_float_offset + card.hover_float_offset
+            
+            # Adjust center Y with float offset
+            card_center_y -= total_float_offset
+            
+            # Calculate squared distance (faster than sqrt)
+            dist_sq = (pos[0] - card_center_x) ** 2 + (pos[1] - card_center_y) ** 2
+            
+            if dist_sq < closest_distance:
+                closest_distance = dist_sq
+                closest_card = card
+        
+        return closest_card
+    
+    def _handle_click(self, event):
+        """Handle mouse click events."""
+        if self.life_points <= 0:
+            return  # Don't handle clicks if player is dead
+            
+        # Check if run button was clicked
+        if self.run_button.is_clicked(event.pos) and not self.ran_last_turn and len(self.room.cards) == 4:
+            self.room_manager.run_from_room()
+            return
+                    
+        # Check if a card was clicked
+        clicked_card = None
+        
+        # First check room cards
+        card = self.room.get_card_at_position(event.pos)
+        if card:
+            self.card_action_manager.resolve_card(card, event_pos=event.pos)
+            return  # Important: Return to prevent checking inventory cards
+        
+        # If no room card was clicked, check inventory cards
+        clicked_inventory_card = self.inventory_manager.get_inventory_card_at_position(event.pos)
+        if clicked_inventory_card:
+            self.card_action_manager.use_inventory_card(clicked_inventory_card, event.pos)
+            return  # Important: Return to prevent checking equipped weapon
+        
+        # If no room card or inventory card was clicked, check equipped weapon
+        if "node" in self.equipped_weapon and self.equipped_weapon["node"].rect.collidepoint(event.pos):
+            self.card_action_manager.discard_equipped_weapon()
+
     def update(self, delta_time):
         """Update game state for this frame."""
-        # First, update animations
+        # Update animations
         previous_animating = self.animation_manager.is_animating()
         self.animation_manager.update(delta_time)
         current_animating = self.animation_manager.is_animating()
@@ -463,7 +528,19 @@ class PlayingState(GameState):
         # Check if animations just finished
         animations_just_finished = previous_animating and not current_animating
         
-        # Update any active message fade animation
+        # Update message and cards
+        self._update_message(delta_time)
+        self._update_cards(delta_time)
+        
+        # Only process game state changes if we're not animating or animations just finished
+        if not current_animating:
+            self._process_game_state(animations_just_finished)
+        
+        # Check for game over
+        self.game_state_controller.check_game_over()
+    
+    def _update_message(self, delta_time):
+        """Update any active message fade animation."""
         if hasattr(self, 'message') and self.message and 'alpha' in self.message:
             # Update fade-in/fade-out animation
             if self.message['fade_in']:
@@ -481,8 +558,10 @@ class PlayingState(GameState):
                     # Clear message when fully transparent
                     if self.message['alpha'] <= 0:
                         self.message = None
-        
-        # Update card animations
+    
+    def _update_cards(self, delta_time):
+        """Update all card animations."""
+        # Update room cards
         for card in self.room.cards:
             # Update idle hover and hover animations
             card.update(delta_time)
@@ -503,100 +582,133 @@ class PlayingState(GameState):
             
         for monster in self.defeated_monsters:
             monster.update(delta_time)
+    
+    def _process_game_state(self, animations_just_finished):
+        """Process game state changes after animations."""
+        # If we were running and animations finished, complete the run
+        if self.is_running:
+            self.room_manager.on_run_completed()
+            return
         
-        # Only process game state changes if we're not animating or animations just finished
-        if not current_animating:
-            # If we were running and animations finished, complete the run
-            if self.is_running:
-                self.room_manager.on_run_completed()
-                return
+        # Process room state only when no animations are running
+        # If we just started a room in enter, room_started_in_enter will be True
+        if self.room_started_in_enter:
+            print(f"Skipping room completion in update because room_started_in_enter=True")
+            self.room_started_in_enter = False
+            return
+        
+        # Handle empty room - check for room completion
+        if len(self.room.cards) == 0:
+            self._handle_empty_room()
+        
+        # If we have only one card left and animations just finished, start a new room
+        # But only if we didn't just start one in enter()
+        elif len(self.room.cards) == 1 and animations_just_finished and len(self.deck.cards) > 0:
+            self._handle_single_card_room()
+    
+    def _handle_empty_room(self):
+        """Handle logic for when the room is empty (all cards processed)."""
+        # Only trigger room completion once
+        if not self.room_completion_in_progress:
+            # Set flag to prevent multiple room completions
+            self.room_completion_in_progress = True
             
-            # Process room state only when no animations are running
-            if len(self.room.cards) == 0:
-                # Only trigger room completion once
-                if not self.room_completion_in_progress:
-                    # Set flag to prevent multiple room completions
-                    self.room_completion_in_progress = True
-                    
-                    # Increment room count when completing a room
-                    self.completed_rooms += 1
-                    
-                    # Award gold for completing the room (2-5 gold)
-                    # More difficult floors could give more gold
-                    floor_bonus = min(2, self.game_manager.floor_manager.current_floor_index)  # 0-2 bonus based on floor
-                    gold_reward = random.randint(2, 5) + floor_bonus
-                    self.player_state_manager.change_gold(gold_reward)
+            # Increment room count when completing a room
+            self.completed_rooms += 1
+            
+            # Award gold for completing the room (2-5 gold)
+            # More difficult floors could give more gold
+            floor_bonus = min(2, self.game_manager.floor_manager.current_floor_index)  # 0-2 bonus based on floor
+            gold_reward = random.randint(2, 5) + floor_bonus
+            self.player_state_manager.change_gold(gold_reward)
 
-                # Go directly to the next room if we have cards
-                if len(self.deck.cards) > 0:
-                    # More cards in deck - advance to next room
-                    self.game_manager.advance_to_next_room()
-                    
-                    # Check if we're still in the playing state (not moved to merchant or other state)
-                    if self.game_manager.current_state == self:
-                        # Start a new room
-                        self.room_manager.start_new_room()
-                else:
-                    # No more cards in the deck - floor completed
-                    if not self.floor_completed:
-                        self.floor_completed = True
-                        
-                        # Mark this floor as completed
-                        self.game_manager.floor_manager.current_room = self.FLOOR_STRUCTURE["rooms_per_floor"]
-                        
-                        # Check if this is the last floor
-                        if self.game_manager.floor_manager.current_floor_index >= len(self.game_manager.floor_manager.floors) - 1:
-                            # Last floor completed - victory!
-                            # Add any purchased cards to the player's permanent collection
-                            self._add_purchased_cards_to_library()
-                            
-                            self.game_manager.game_data["victory"] = True
-                            self.game_manager.game_data["run_complete"] = True
-                            self.game_manager.change_state("game_over")
-                        else:
-                            # Not the last floor, show a brief message and advance to next floor
-                            # Add any purchased cards to the player's permanent collection
-                            self._add_purchased_cards_to_library()
-                            
-                            floor_type = self.game_manager.floor_manager.get_current_floor()
-                            next_floor_index = self.game_manager.floor_manager.current_floor_index + 1
-                            next_floor_type = self.game_manager.floor_manager.floors[next_floor_index]
-                            self.game_state_controller.show_message(f"Floor {floor_type.capitalize()} completed! Moving to {next_floor_type.capitalize()}...")
-                            
-                            # Schedule transition to next floor after a short delay
-                            self.animation_controller.schedule_delayed_animation(
-                                3.0,  # 3 second delay to show the message
-                                lambda: self.room_manager.transition_to_next_floor()
-                            )
+        # Go directly to the next room if we have cards
+        if len(self.deck.cards) > 0:
+            print(f"Room completed with empty room, advancing to next room. Cards in deck: {len(self.deck.cards)}")
+            # More cards in deck - advance to next room
+            self.game_manager.advance_to_next_room()
             
-            # If we have only one card left and animations just finished, start a new room 
-            elif len(self.room.cards) == 1 and animations_just_finished and len(self.deck.cards) > 0:
-                # Only trigger room completion once
-                if not self.room_completion_in_progress:
-                    # Set flag to prevent multiple room completions
-                    self.room_completion_in_progress = True
-                    
-                    # Increment completed rooms because we're moving to the next room with a card
-                    self.completed_rooms += 1
-                    
-                    # Award gold for completing the room (2-5 gold)
-                    # More difficult floors could give more gold
-                    floor_bonus = min(2, self.game_manager.floor_manager.current_floor_index)  # 0-2 bonus based on floor
-                    gold_reward = random.randint(2, 5) + floor_bonus
-                    self.player_state_manager.change_gold(gold_reward)
-                
-                # Start a new room with the remaining card - merchant check happens inside start_new_room
-                self.room_manager.start_new_room(self.room.cards[0])
+            # Check if we're still in the playing state (not moved to merchant or other state)
+            if self.game_manager.current_state == self:
+                # Start a new room
+                self.room_manager.start_new_room()
+        else:
+            # No more cards in the deck - floor completed
+            self._handle_floor_completion()
+    
+    def _handle_single_card_room(self):
+        """Handle logic for rooms with a single card remaining."""
+        # Only trigger room completion once
+        if not self.room_completion_in_progress:
+            # Set flag to prevent multiple room completions
+            self.room_completion_in_progress = True
+            
+            # Increment completed rooms because we're moving to the next room with a card
+            self.completed_rooms += 1
+            
+            # Award gold for completing the room (2-5 gold)
+            # More difficult floors could give more gold
+            floor_bonus = min(2, self.game_manager.floor_manager.current_floor_index)  # 0-2 bonus based on floor
+            gold_reward = random.randint(2, 5) + floor_bonus
+            self.player_state_manager.change_gold(gold_reward)
         
-        # Check for game over
-        self.game_state_controller.check_game_over()
+        # Start a new room with the remaining card - merchant check happens inside start_new_room
+        self.room_manager.start_new_room(self.room.cards[0])
+    
+    def _handle_floor_completion(self):
+        """Handle logic for when the floor is completed."""
+        if not self.floor_completed:
+            self.floor_completed = True
+            
+            # Mark this floor as completed
+            self.game_manager.floor_manager.current_room = self.FLOOR_STRUCTURE["rooms_per_floor"]
+            
+            # Check if this is the last floor
+            if self.game_manager.floor_manager.current_floor_index >= len(self.game_manager.floor_manager.floors) - 1:
+                # Last floor completed - victory!
+                # Add any purchased cards to the player's permanent collection
+                self._add_purchased_cards_to_library()
+                
+                self.game_manager.game_data["victory"] = True
+                self.game_manager.game_data["run_complete"] = True
+                self.game_manager.change_state("game_over")
+            else:
+                # Not the last floor, show a brief message and advance to next floor
+                # Add any purchased cards to the player's permanent collection
+                self._add_purchased_cards_to_library()
+                
+                floor_type = self.game_manager.floor_manager.get_current_floor()
+                next_floor_index = self.game_manager.floor_manager.current_floor_index + 1
+                next_floor_type = self.game_manager.floor_manager.floors[next_floor_index]
+                self.game_state_controller.show_message(f"Floor {floor_type.capitalize()} completed! Moving to {next_floor_type.capitalize()}...")
+                
+                # Schedule transition to next floor after a short delay
+                self.animation_controller.schedule_delayed_animation(
+                    3.0,  # 3 second delay to show the message
+                    lambda: self.room_manager.transition_to_next_floor()
+                )
 
     def draw(self, surface):
         """Draw game elements to the screen."""
-        # Draw background
+        # Draw background and floor
+        self._draw_background(surface)
+        
+        # Draw game components
+        self._draw_cards_and_piles(surface)
+        
+        # Draw inventory panel and cards
+        self._draw_inventory(surface)
+        
+        # Draw UI elements
+        self._draw_ui_elements(surface)
+    
+    def _draw_background(self, surface):
+        """Draw background and floor."""
         surface.blit(self.background, (0, 0))
         surface.blit(self.floor, ((SCREEN_WIDTH - self.floor.get_width())/2, (SCREEN_HEIGHT - self.floor.get_height())/2))
-        
+    
+    def _draw_cards_and_piles(self, surface):
+        """Draw deck, discard pile, equipped weapon, and defeated monsters."""
         # Draw deck first
         self.deck.draw(surface)
         
@@ -632,8 +744,9 @@ class PlayingState(GameState):
             for monster in hovered_monsters:
                 # Draw the monster card
                 monster.draw(surface)
-        
-        # Draw inventory background panel
+    
+    def _draw_inventory(self, surface):
+        """Draw inventory panel and cards."""
         vertical_center = SCREEN_HEIGHT // 2
         
         # Create an inventory panel - taller and wider to accommodate full-size vertical card stack
@@ -703,7 +816,9 @@ class PlayingState(GameState):
                         type_text = f"{weapon_type} ({damage_type})"
                 elif card.type == "potion":
                     type_text = "HEALING"
-            
+    
+    def _draw_ui_elements(self, surface):
+        """Draw room cards, UI elements, and status displays."""
         # Draw room cards LAST always
         self.room.draw(surface)
         
@@ -754,6 +869,13 @@ class PlayingState(GameState):
             surface.blit(button_text, button_text_rect)
             
         # Draw any active message with fade effect
+        self._draw_message(surface)
+        
+        # Draw status UI
+        self.status_ui.draw(surface)
+    
+    def _draw_message(self, surface):
+        """Draw any active message with fade effect."""
         if hasattr(self, 'message') and self.message:
             # Handle new fade-in/fade-out message style
             if "alpha" in self.message:
@@ -778,10 +900,7 @@ class PlayingState(GameState):
                 # Fallback for old message format (just in case)
                 pygame.draw.rect(surface, BLACK, self.message["bg_rect"], border_radius=8)
                 pygame.draw.rect(surface, WHITE, self.message["bg_rect"], 2, border_radius=8)
-                surface.blit(self.message["text"], self.message["rect"])        
-        
-        # Draw status UI
-        self.status_ui.draw(surface)
+                surface.blit(self.message["text"], self.message["rect"])
     
     # Forward key methods to our modular components
     def change_health(self, amount):

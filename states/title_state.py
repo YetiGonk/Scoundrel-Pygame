@@ -83,7 +83,7 @@ class TitleState(GameState):
         self.floor = pygame.transform.scale(self.floor, (FLOOR_WIDTH, FLOOR_HEIGHT))
         
         # Create title panel
-        panel_width = 800
+        panel_width = 730
         panel_height = 500
         panel_x = (SCREEN_WIDTH - panel_width) // 2
         panel_y = (SCREEN_HEIGHT - panel_height) // 2
@@ -103,7 +103,7 @@ class TitleState(GameState):
         button_width = 300
         button_height = 60
         button_spacing = 10
-        buttons_y = panel_y + panel_height - button_height*4 - button_spacing*3 - 25
+        buttons_y = panel_y + panel_height - button_height*3 - button_spacing*2 - 25
         
         # Start button (top)
         start_button_rect = pygame.Rect(
@@ -168,27 +168,25 @@ class TitleState(GameState):
         """Create torch light effects around the title screen"""
         self.torch_lights = []
         
-        # Add torches along the sides
-        for y_pos in [0.3, 0.7]:
-            # Left torch
-            self.torch_lights.append({
-                'x': SCREEN_WIDTH * 0.15,
-                'y': SCREEN_HEIGHT * y_pos,
-                'radius': 100,
-                'flicker': 0,
-                'flicker_speed': random.uniform(0.1, 0.2),
-                'colour': (255, 150, 50)  # Orange-ish
-            })
-            
-            # Right torch
-            self.torch_lights.append({
-                'x': SCREEN_WIDTH * 0.85,
-                'y': SCREEN_HEIGHT * y_pos,
-                'radius': 100,
-                'flicker': random.uniform(0, 2 * math.pi),
-                'flicker_speed': random.uniform(0.1, 0.2),
-                'colour': (255, 150, 50)
-            })
+        # Left torch
+        self.torch_lights.append({
+            'x': SCREEN_WIDTH * 0.1,
+            'y': SCREEN_HEIGHT // 2,
+            'radius': 80,
+            'flicker': 0,
+            'flicker_speed': random.uniform(0.1, 0.2),
+            'colour': (255, 150, 50)  # Orange-ish
+        })
+        
+        # Right torch
+        self.torch_lights.append({
+            'x': SCREEN_WIDTH * 0.9,
+            'y': SCREEN_HEIGHT // 2,
+            'radius': 80,
+            'flicker': random.uniform(0, 2 * math.pi),
+            'flicker_speed': random.uniform(0.1, 0.2),
+            'colour': (255, 150, 50)
+        })
     
     def _load_card_images(self):
         """Load a selection of card images for visual effect"""
@@ -675,7 +673,7 @@ class TitleState(GameState):
             "52 card pickup!",
             "Another day, another dungeon...",
             "Shuffle up and deal with it!",
-            "Card games are a gamble, but this is a dungeon!",
+            "Gambling is illegal, but this is a dungeon!",
             "Flipping you off is a card game term!",
             "Original concept by Kurt Bieg and Zach Gage!",
             "You are not allowed a calculator on this exam",
@@ -690,7 +688,7 @@ class TitleState(GameState):
             "You can't cheat death, but you can shuffle the deck",
             "A wise scoundrel knows when to hold 'em and when to fold 'em",
             "I believe in you... sort of",
-            "I feel like we are connecting on a deeper level through these title screen taglines...",
+            "I feel like we are connecting on a deeper level through this title screen...",
             "PyGame is a cruel mistress",
             "Scoundrel, shmoundrel!",
             "Roguelike or roguelite? You decide!",
@@ -738,7 +736,7 @@ class TitleState(GameState):
             tagline = taglines[self.last_tagline_index]
         
         # Determine if the tagline needs to be split into multiple lines
-        max_width = 550  # Maximum width for a tagline before wrapping
+        max_width = 600  # Maximum width for a tagline before wrapping
         
         # Render the tagline to check its width
         test_text = self.body_font.render(tagline, True, (200, 200, 200))
@@ -764,7 +762,7 @@ class TitleState(GameState):
             line2_text = self.body_font.render(line2, True, (200, 200, 200))
             
             # Position and draw both lines
-            line1_rect = line1_text.get_rect(centerx=SCREEN_WIDTH//2, top=subtitle_rect.bottom + 40)
+            line1_rect = line1_text.get_rect(centerx=SCREEN_WIDTH//2, top=subtitle_rect.bottom + 15)
             line2_rect = line2_text.get_rect(centerx=SCREEN_WIDTH//2, top=line1_rect.bottom + 5)
             
             surface.blit(line1_text, line1_rect)
