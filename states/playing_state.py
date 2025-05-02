@@ -40,30 +40,30 @@ class PlayingState(GameState):
         """Initialise the playing state."""
         super().__init__(game_manager)
         
-        # Initialize managers and controllers
-        self._initialize_managers()
+        # Initialise managers and controllers
+        self._initialise_managers()
         
-        # Initialize game state variables
-        self._initialize_state_variables()
+        # Initialise game state variables
+        self._initialise_state_variables()
         
-        # Initialize player state
-        self._initialize_player_state()
+        # Initialise player state
+        self._initialise_player_state()
         
-        # Initialize game components
-        self._initialize_game_components()
+        # Initialise game components
+        self._initialise_game_components()
         
-        # Initialize UI elements
-        self._initialize_ui_elements()
+        # Initialise UI elements
+        self._initialise_ui_elements()
     
-    def _initialize_managers(self):
-        """Initialize all manager and controller classes."""
-        # Initialize animation manager
+    def _initialise_managers(self):
+        """Initialise all manager and controller classes."""
+        # Initialise animation manager
         self.animation_manager = AnimationManager()
         
-        # Initialize resource loader
+        # Initialise resource loader
         self.resource_loader = ResourceLoader
         
-        # Initialize our modular managers
+        # Initialise our modular managers
         self.card_action_manager = CardActionManager(self)
         self.room_manager = RoomManager(self)
         self.animation_controller = AnimationController(self)
@@ -73,8 +73,8 @@ class PlayingState(GameState):
         self.game_state_controller = GameStateController(self)
         self.ui_factory = UIFactory(self)
     
-    def _initialize_state_variables(self):
-        """Initialize general state variables."""
+    def _initialise_state_variables(self):
+        """Initialise general state variables."""
         # Make constants accessible to the class
         self.SCREEN_WIDTH = SCREEN_WIDTH
         self.SCREEN_HEIGHT = SCREEN_HEIGHT
@@ -105,8 +105,8 @@ class PlayingState(GameState):
         # Message display
         self.message = None
     
-    def _initialize_player_state(self):
-        """Initialize player stats and inventory."""
+    def _initialise_player_state(self):
+        """Initialise player stats and inventory."""
         # Player stats
         self.life_points = 20
         self.max_life = 20
@@ -118,17 +118,18 @@ class PlayingState(GameState):
         self.inventory = []
         self.MAX_INVENTORY_SIZE = 2
     
-    def _initialize_game_components(self):
-        """Initialize game components like deck, discard pile, room."""
+    def _initialise_game_components(self):
+        """Initialise game components like deck, discard pile, room."""
         self.deck = None
         self.discard_pile = None
         self.room = None
         self.current_floor = None
     
-    def _initialize_ui_elements(self):
-        """Initialize UI elements and resources."""
+    def _initialise_ui_elements(self):
+        """Initialise UI elements and resources."""
         self.header_font = None
         self.body_font = None
+        self.caption_font = None
         self.normal_font = None
         self.run_button = None
         self.background = None
@@ -145,7 +146,7 @@ class PlayingState(GameState):
         # Load resources
         self._load_resources()
         
-        # Initialize game components 
+        # Initialise game components 
         self._setup_game_components()
         
         # Handle player state setup
@@ -166,6 +167,7 @@ class PlayingState(GameState):
         self.title_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 60)
         self.header_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 36)
         self.body_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 28)
+        self.caption_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 24)
         self.normal_font = pygame.font.SysFont(None, 20)
 
         # Load background
@@ -198,8 +200,8 @@ class PlayingState(GameState):
         self.floor = pygame.transform.scale(self.floor, (FLOOR_WIDTH, FLOOR_HEIGHT))
     
     def _setup_game_components(self):
-        """Initialize deck, discard pile, and room."""
-        # Initialize floor information
+        """Initialise deck, discard pile, and room."""
+        # Initialise floor information
         floor_manager = self.game_manager.floor_manager
         self.current_floor = floor_manager.get_current_floor()
         
@@ -213,7 +215,7 @@ class PlayingState(GameState):
         self.discard_pile = DiscardPile()
         self.room = Room(self.animation_manager)
         
-        # Initialize the visual representation for deck and discard pile
+        # Initialise the visual representation for deck and discard pile
         if hasattr(self.deck, "initialise_visuals"):
             self.deck.initialise_visuals()
             
@@ -313,12 +315,12 @@ class PlayingState(GameState):
         # Check if we're coming from treasure room
         coming_from_treasure = hasattr(self.game_manager, 'coming_from_treasure') and self.game_manager.coming_from_treasure
         
-        # Initialize the deck if needed
+        # Initialise the deck if needed
         if not coming_from_treasure:
             # Get player's delving deck if it exists
             player_deck = self.game_manager.delving_deck if hasattr(self.game_manager, 'delving_deck') else None
             
-            # Initialize deck with player cards shuffled in
+            # Initialise deck with player cards shuffled in
             self.deck.initialise_deck(player_deck)
             
             # Also clear the discard pile when starting a new floor (not from merchant)
@@ -327,7 +329,7 @@ class PlayingState(GameState):
                 if hasattr(self.discard_pile, 'card_stack'):
                     self.discard_pile.card_stack = []
         
-        # Initialize last_card variable
+        # Initialise last_card variable
         last_card_from_merchant = None
         
         # If we have preserved card data, prepare it for the next room
@@ -848,7 +850,10 @@ class PlayingState(GameState):
         
         # Draw gold display
         self.ui_renderer.draw_gold_display(surface)
-        
+
+        # Draw deck count display
+        self.ui_renderer.draw_deck_count(surface)
+
         # Draw UI animations (health changes, etc.)
         self.animation_manager.draw_ui_effects(surface)
             

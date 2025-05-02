@@ -3,7 +3,7 @@ Deck component for the Scoundrel game.
 """
 import random
 import pygame
-from constants import CARD_WIDTH, CARD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, FLOOR_WIDTH, FLOOR_HEIGHT, GRAY, SUITS, DECK_POSITION
+from constants import CARD_WIDTH, CARD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, FLOOR_WIDTH, FLOOR_HEIGHT, GRAY, SUITS, DECK_POSITION, DECK_DIAMONDS_VALUE_RANGE, DECK_HEARTS_VALUE_RANGE, DECK_MONSTER_COUNT, DECK_BLACK_VALUE_RANGE, DECK_TOTAL_COUNT
 from utils.resource_loader import ResourceLoader
 
 class Deck:
@@ -21,7 +21,7 @@ class Deck:
         self.rect = pygame.Rect(self.position[0], self.position[1], CARD_WIDTH, CARD_HEIGHT)
 
     def initialise_deck(self, player_deck=None):
-        """Initialize the deck for a floor.
+        """Initialise the deck for a floor.
         
         This method creates a random deck for each floor, making every run more varied.
         Each floor deck follows these rules:
@@ -54,11 +54,11 @@ class Deck:
         - No more than 4 duplicates of the same card (suit/value)
         - Equal number of weapon and potion cards
         """
-        # Step 1: Decide how many monster cards we'll have (16-24)
-        monster_count = random.randint(16, 24)
+        # Step 1: Decide how many monster cards we'll have
+        monster_count = random.randint(DECK_MONSTER_COUNT[0], DECK_MONSTER_COUNT[1])
         
         # Step 2: Calculate how many weapon/potion cards
-        weapon_potion_count = 44 - monster_count
+        weapon_potion_count = DECK_TOTAL_COUNT - monster_count
         # Ensure it's an even number since weapons and potions must be equal
         if weapon_potion_count % 2 != 0:
             weapon_potion_count -= 1
@@ -70,14 +70,14 @@ class Deck:
         card_counts = {}  # (suit, value) -> count
         
         # Add monsters (clubs and spades)
-        self._add_cards_to_deck(["clubs", "spades"], range(2, 15), monster_count, card_counts)
+        self._add_cards_to_deck(["clubs", "spades"], range(DECK_BLACK_VALUE_RANGE[0], DECK_BLACK_VALUE_RANGE[1] + 1), monster_count, card_counts)
         
         # Add weapons (diamonds)
-        self._add_cards_to_deck(["diamonds"], range(2, 11), weapon_count, card_counts)
+        self._add_cards_to_deck(["diamonds"], range(DECK_DIAMONDS_VALUE_RANGE[0], DECK_DIAMONDS_VALUE_RANGE[1] + 1), weapon_count, card_counts)
         
         # Add potions (hearts)
-        self._add_cards_to_deck(["hearts"], range(2, 11), potion_count, card_counts)
-    
+        self._add_cards_to_deck(["hearts"], range(DECK_HEARTS_VALUE_RANGE[0], DECK_HEARTS_VALUE_RANGE[1] + 1), potion_count, card_counts)
+
     def _add_cards_to_deck(self, suits, value_range, count, card_counts):
         """Add cards to the deck while respecting the duplicate limit."""
         cards_added = 0

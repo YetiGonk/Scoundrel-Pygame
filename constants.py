@@ -132,6 +132,13 @@ EFFECT_EXPIRE_THRESHOLD = 2000  # ms
 STARTING_HEALTH = 20
 MAX_HEALTH = 20
 
+# Deck creation constants
+DECK_TOTAL_COUNT = 44
+DECK_MONSTER_COUNT = (18, 25) # (min, max)
+DECK_BLACK_VALUE_RANGE = (2, 14) # (min, max)
+DECK_HEARTS_VALUE_RANGE = (2, 10) # (min, max)
+DECK_DIAMONDS_VALUE_RANGE = (2, 10) # (min, max)
+
 # File paths
 ASSETS_PATH = "assets"
 CARDS_PATH = f"{ASSETS_PATH}/cards"

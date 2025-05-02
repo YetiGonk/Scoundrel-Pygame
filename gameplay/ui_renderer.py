@@ -1,10 +1,8 @@
 """UI Renderer for drawing game elements in the Scoundrel game."""
 import pygame
 import random
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT
-from constants import WHITE, BLACK, GRAY, DARK_GRAY, LIGHT_GRAY, GOLD_COLOR, FONTS_PATH
+from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT, WHITE, BLACK, GRAY, DARK_GRAY, LIGHT_GRAY, GOLD_COLOR, FONTS_PATH, DECK_TOTAL_COUNT
 from utils.resource_loader import ResourceLoader
-
 
 class UIRenderer:
     """Handles rendering of UI elements and game objects."""
@@ -18,7 +16,7 @@ class UIRenderer:
         # Health display parameters
         health_display_x = 40
         health_display_y = SCREEN_HEIGHT - self.playing_state.deck.rect.y
-        health_bar_width = 160
+        health_bar_width = 140
         health_bar_height = 40
         
         # Create or update health panel with dungeon style
@@ -258,6 +256,45 @@ class UIRenderer:
         
         # Draw the gold text on top
         surface.blit(gold_text, gold_text_rect)
+
+    def draw_deck_count(self, surface):
+        """Draw deck card counter display with current and total cards."""
+        # Counter display parameters
+        count_panel_width = 80
+        count_panel_height = 40
+        count_panel_x = 87 + CARD_WIDTH//2 - count_panel_width//2
+        count_panel_y = 35 + (len(self.playing_state.deck.cards)-1)*3 + CARD_HEIGHT//2 - count_panel_height//2
+        
+        # Create or update health panel with dungeon style
+        if not hasattr(self, 'count_panel'):
+            panel_rect = pygame.Rect(
+                count_panel_x, 
+                count_panel_y,
+                count_panel_width,
+                count_panel_height
+            )
+            
+            # Create the panel with a dark wooden appearance for the deck count
+            from ui.panel import Panel
+            self.count_panel = Panel(
+                (panel_rect.width, panel_rect.height),
+                (panel_rect.left, panel_rect.top),
+                colour=(45, 35, 30),  # Very dark brown
+                alpha=220,
+                border_radius=8,
+                dungeon_style=True,
+                border_width=3,
+                border_colour=(90, 60, 35)  # Medium brown border
+            )
+        else:
+            # Update the position of the existing panel
+            self.count_panel.rect.topleft = (count_panel_x, count_panel_y)
+
+        self.count_panel.draw(surface)
+
+        count_text = self.playing_state.caption_font.render(f"{len(self.playing_state.deck.cards)}/{DECK_TOTAL_COUNT}", True, WHITE)
+        count_text_rect = count_text.get_rect(center=self.count_panel.rect.center)
+        surface.blit(count_text, count_text_rect)
     
     def _draw_card_shadow(self, surface, card):
         """Draw shadow effect for a card"""

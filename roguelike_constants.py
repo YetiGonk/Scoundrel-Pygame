@@ -2,7 +2,7 @@
 import random
 
 # Floor definitions
-FLOOR_TYPES = ["dungeon", "forest", "library", "crypt", "MOLTEN"]
+FLOOR_TYPES = ["dungeon", "forest", "library", "crypt", "molten"]
 
 # Floor structure
 FLOOR_STRUCTURE = {
