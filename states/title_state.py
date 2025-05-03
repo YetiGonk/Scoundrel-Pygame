@@ -35,6 +35,9 @@ class TitleState(GameState):
         
         # Animation elements
         self.particles = []
+        self.torches = []
+        self.torch_anim = None
+        self.torch_anim_indexes = (0, 0)
         self.torch_lights = []
         self.title_glow = 0
         self.title_glow_dir = 1
@@ -63,11 +66,17 @@ class TitleState(GameState):
         self.background = ResourceLoader.load_image("bg.png")
         if self.background.get_width() != SCREEN_WIDTH or self.background.get_height() != SCREEN_HEIGHT:
             self.background = pygame.transform.scale(self.background, (SCREEN_WIDTH, SCREEN_HEIGHT))
+
+        # Load two torches
+        self.torch_anim = [pygame.transform.scale(ResourceLoader.load_image(f"torch_anim/torch_{i}.png"),(128,128)) for i in range(5)]
+        # Select two random torches for the title screen (cannot be the same)
+        import random
+        self.torch_anim_indexes = random.sample(range(5), 2)
+        self.torches = [self.torch_anim[i] for i in self.torch_anim_indexes]
         
         # Load a random floor image for visual variety
         from constants import FLOOR_WIDTH, FLOOR_HEIGHT
         from roguelike_constants import FLOOR_TYPES
-        import random
         
         # Select a random floor type for the title screen
         random_floor_type = random.choice(FLOOR_TYPES)
@@ -81,7 +90,7 @@ class TitleState(GameState):
             self.floor = ResourceLoader.load_image("floor.png")
             
         self.floor = pygame.transform.scale(self.floor, (FLOOR_WIDTH, FLOOR_HEIGHT))
-        
+
         # Create title panel
         panel_width = 730
         panel_height = 500
@@ -171,7 +180,7 @@ class TitleState(GameState):
         # Left torch
         self.torch_lights.append({
             'x': SCREEN_WIDTH * 0.1,
-            'y': SCREEN_HEIGHT // 2,
+            'y': SCREEN_HEIGHT // 2 - 40,
             'radius': 80,
             'flicker': 0,
             'flicker_speed': random.uniform(0.1, 0.2),
@@ -181,7 +190,7 @@ class TitleState(GameState):
         # Right torch
         self.torch_lights.append({
             'x': SCREEN_WIDTH * 0.9,
-            'y': SCREEN_HEIGHT // 2,
+            'y': SCREEN_HEIGHT // 2 - 40,
             'radius': 80,
             'flicker': random.uniform(0, 2 * math.pi),
             'flicker_speed': random.uniform(0.1, 0.2),
@@ -413,7 +422,13 @@ class TitleState(GameState):
             # Remove dead particles
             if particle['life'] <= 0:
                 self.particles.remove(particle)
-    
+
+    def _update_torches(self, delta_time):
+        """Update the torch animation by cycling through frame indexes at a steady speed"""
+        for i, torch in enumerate(self.torches):
+            self.torch_anim_indexes[i] += delta_time * 4
+            self.torches[i] = self.torch_anim[int(self.torch_anim_indexes[i]) % len(self.torch_anim)]
+            
     def _update_torch_lights(self, delta_time):
         """Update the torch light effects"""
         for torch in self.torch_lights:
@@ -516,6 +531,9 @@ class TitleState(GameState):
         # Update particles
         self._update_particles(delta_time)
         
+        # Update torches
+        self._update_torches(delta_time)
+        
         # Update torch lights
         self._update_torch_lights(delta_time)
         
@@ -531,6 +549,10 @@ class TitleState(GameState):
     def draw(self, surface):
         # Draw background
         surface.blit(self.background, (0, 0))
+        
+        for i, torch in enumerate(self.torches):
+            torch_rect = torch.get_rect(center=(SCREEN_WIDTH * (0.1 + 0.8*i), SCREEN_HEIGHT // 2))
+            surface.blit(torch, torch_rect)
         
         # Draw torch light effects (glow behind everything)
         for torch in self.torch_lights:
@@ -678,6 +700,7 @@ class TitleState(GameState):
             "Original concept by Kurt Bieg and Zach Gage!",
             "You are not allowed a calculator on this exam",
             "Scoundrel this, scoundrel that",
+            "You can drag the title cards around!",
             "Trust in the heart of the cards...",
             "When in doubt, run away!",
             "If only I were a scoundrel...",
