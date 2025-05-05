@@ -211,7 +211,7 @@ class PlayingState(GameState):
             self.current_floor = "dungeon"  # Fallback to dungeon if floor is None
         
         # Create a new deck and discard pile
-        self.deck = Deck(self.current_floor)
+        self.deck = Deck(self.current_floor, self.game_manager.floor_manager)
         self.discard_pile = DiscardPile()
         self.room = Room(self.animation_manager)
         
@@ -311,33 +311,30 @@ class PlayingState(GameState):
             self.defeated_monsters = []
     
     def _start_initial_room(self):
-        """Start the initial room either with a card from merchant or fresh."""
+        """Start the initial room either with a preserved card or fresh."""
         # Check if we're coming from treasure room
         coming_from_treasure = hasattr(self.game_manager, 'coming_from_treasure') and self.game_manager.coming_from_treasure
         
         # Initialise the deck if needed
         if not coming_from_treasure:
-            # Get player's delving deck if it exists
-            player_deck = self.game_manager.delving_deck if hasattr(self.game_manager, 'delving_deck') else None
+            # Initialize deck with no player cards
+            self.deck.initialise_deck(None)
             
-            # Initialise deck with player cards shuffled in
-            self.deck.initialise_deck(player_deck)
-            
-            # Also clear the discard pile when starting a new floor (not from merchant)
+            # Clear the discard pile when starting a new floor
             if self.discard_pile:
                 self.discard_pile.cards = []
                 if hasattr(self.discard_pile, 'card_stack'):
                     self.discard_pile.card_stack = []
         
-        # Initialise last_card variable
-        last_card_from_merchant = None
+        # Initialize preserved card variable
+        preserved_card = None
         
         # If we have preserved card data, prepare it for the next room
         if coming_from_treasure and hasattr(self.game_manager, 'last_card_data') and self.game_manager.last_card_data:
             # Create a card object from the stored data
             card_data = self.game_manager.last_card_data
-            last_card_from_merchant = Card(card_data["suit"], card_data["value"], card_data.get("floor_type", self.current_floor))
-            last_card_from_merchant.face_up = True
+            preserved_card = Card(card_data["suit"], card_data["value"], card_data.get("floor_type", self.current_floor))
+            preserved_card.face_up = True
             
             # Set initial position for the card (will be positioned properly by start_new_room)
             # This ensures it doesn't appear in the top-left corner before being properly positioned
@@ -346,18 +343,18 @@ class PlayingState(GameState):
             total_width = (CARD_WIDTH * num_cards)
             start_x = (SCREEN_WIDTH - total_width) // 2
             start_y = (SCREEN_HEIGHT - CARD_HEIGHT) // 2 - 40
-            last_card_from_merchant.update_position((start_x, start_y))
+            preserved_card.update_position((start_x, start_y))
             
             # Now clear the stored card data
             self.game_manager.last_card_data = None
             
             # Start a new room with the preserved card
             print(f"Starting room with preserved card in enter() - room: {self.game_manager.floor_manager.current_room}")
-            self.room_manager.start_new_room(last_card_from_merchant)
+            self.room_manager.start_new_room(preserved_card)
             # Set flag that we've started a room in enter
             self.room_started_in_enter = True
         else:
-            # No card was preserved or not coming from merchant, start a normal room
+            # No card was preserved, start a normal room
             print(f"Starting normal room in enter() - room: {self.game_manager.floor_manager.current_room}")
             self.room_manager.start_new_room()
             # Set flag that we've started a room in enter
@@ -365,6 +362,9 @@ class PlayingState(GameState):
         
         # Reset coming_from_treasure flag after handling the transition
         self.game_manager.coming_from_treasure = False
+        # Reset merchant flag if it exists
+        if hasattr(self.game_manager, 'coming_from_merchant'):
+            self.game_manager.coming_from_merchant = False
         
         # Update status UI fonts
         self.status_ui.update_fonts(self.header_font, self.normal_font)
@@ -630,7 +630,7 @@ class PlayingState(GameState):
             # More cards in deck - advance to next room
             self.game_manager.advance_to_next_room()
             
-            # Check if we're still in the playing state (not moved to merchant or other state)
+            # Check if we're still in the playing state (not moved to another state)
             if self.game_manager.current_state == self:
                 # Start a new room
                 self.room_manager.start_new_room()

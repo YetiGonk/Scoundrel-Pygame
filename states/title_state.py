@@ -132,27 +132,10 @@ class TitleState(GameState):
         )
         
         
-        # Delving deck button (below start)
-        delving_deck_rect = pygame.Rect(
-            (SCREEN_WIDTH - button_width) // 2,
-            buttons_y + (button_height + button_spacing),
-            button_width, 
-            button_height
-        )
-        self.delving_deck_button = Button(
-            delving_deck_rect,
-            "DELVING DECK",
-            self.body_font,
-            text_colour=WHITE,
-            dungeon_style=True,
-            panel_colour=(60, 80, 40),  # Dark green
-            border_colour=(120, 160, 80)  # Brighter green border
-        )
-        
-        # Rules button (below delving deck)
+        # Rules button (below start)
         rules_button_rect = pygame.Rect(
             (SCREEN_WIDTH - button_width) // 2,
-            buttons_y + (button_height + button_spacing) * 2,
+            buttons_y + (button_height + button_spacing),
             button_width, 
             button_height
         )
@@ -165,6 +148,8 @@ class TitleState(GameState):
             panel_colour=(40, 60, 80),  # Dark blue
             border_colour=(80, 120, 160)  # Brighter blue border
         )
+        
+        # Spacer - removed the third button
         
         # Initialise torch lights
         self._create_torch_lights()
@@ -341,8 +326,7 @@ class TitleState(GameState):
                     # Set the rules as seen for any future logic that might need it
                     if not hasattr(self.game_manager, 'has_shown_rules'):
                         self.game_manager.has_shown_rules = True
-                elif self.delving_deck_button.is_clicked(mouse_pos):
-                    self.game_manager.change_state("delving_deck")
+                # Removed delving_deck_button click handler
                 elif self.rules_button.is_clicked(mouse_pos):
                     self.game_manager.change_state("rules")
                     
@@ -403,12 +387,11 @@ class TitleState(GameState):
         card_under_cursor = any(card['hover'] for card in self.cards)
         if not card_under_cursor:
             self.start_button.check_hover(mouse_pos)
-            self.delving_deck_button.check_hover(mouse_pos)
+            # Only check hover for the two remaining buttons
             self.rules_button.check_hover(mouse_pos)
         else:
             # Force non-hover state for buttons when a card is under cursor
             self.start_button.hovered = False
-            self.delving_deck_button.hovered = False
             self.rules_button.hovered = False
     
     def _update_particles(self, delta_time):
@@ -697,13 +680,14 @@ class TitleState(GameState):
             "Shuffle up and deal with it!",
             "Gambling is illegal, but this is a dungeon!",
             "Flipping you off is a card game term!",
-            "Original concept by Kurt Bieg and Zach Gage!",
+            "Original concept card game by Kurt Bieg and Zach Gage!",
             "You are not allowed a calculator on this exam",
             "Scoundrel this, scoundrel that",
             "You can drag the title cards around!",
             "Trust in the heart of the cards...",
-            "When in doubt, run away!",
+            "I'm gonna scoundrel!",
             "If only I were a scoundrel...",
+            "Scoundrel: The Gathering",
             "This dungeon is definitely not up to code",
             "Terms and conditions apply to all card effects",
             "Don't bring a card to a sword fight!",
@@ -716,15 +700,16 @@ class TitleState(GameState):
             "Scoundrel, shmoundrel!",
             "Roguelike or roguelite? You decide!",
             "Scoundrel 2: Electric Boogaloo",
-            "Sconedrel: Argue about how to pronounce it.",
+            "Sconedrel: Argue about how to pronounce it",
             "SCOUNDRELLLLL!",
-            "The sequel will be a dating sim."
+            "The sequel will be a dating sim",
+            "All your dungeon are belong to us..."
         ]
         
         # Choose random tagline with weighted selection favoring unseen taglines
         if not hasattr(self, 'last_tagline_index'):
             self.last_tagline_index = -1
-            
+        
         # If tagline was just clicked, choose a new random one
         if self.title_clicks > 0 and hasattr(self, 'last_click_count') and self.title_clicks > self.last_click_count:
             # Get indices of all taglines that are not the last one shown
@@ -798,7 +783,6 @@ class TitleState(GameState):
         
         # Draw buttons
         self.start_button.draw(surface)
-        self.delving_deck_button.draw(surface)
         self.rules_button.draw(surface)
         
         # Draw particle effects (on top of everything)

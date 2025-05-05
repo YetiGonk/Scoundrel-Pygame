@@ -5,7 +5,7 @@ from states.rules_state import RulesState
 from states.playing_state import PlayingState
 from states.game_over_state import GameOverState
 from states.treasure_state import TreasureState
-from states.delving_deck_state import DelvingDeckState  # Import the new delving deck state
+# Removed merchant_state and delving_deck_state imports
 
 # Import roguelike components
 from floor_manager import FloorManager
@@ -30,11 +30,10 @@ class GameManager:
             "playing": PlayingState(self),
             "game_over": GameOverState(self),
             "treasure": TreasureState(self),
-            "delving_deck": DelvingDeckState(self)  # Add delving deck state
+            # Removed merchant_state and delving_deck_state
         }
         
-        # Initialise player deck system
-        self.delving_deck = []  # The cards player brings into dungeons
+        # Initialise player card collection
         self.card_library = []  # All cards player has collected
         
         self.current_state = None
@@ -52,6 +51,8 @@ class GameManager:
         # Flags to track treasure room transitions
         self.coming_from_treasure = False
         self.is_bonus_treasure = False  # False = natural treasure room, True = bonus treasure room
+        # Remove merchant room flag
+        # self.coming_from_merchant = False
         
         # Start with the new title state
         self.change_state("title")

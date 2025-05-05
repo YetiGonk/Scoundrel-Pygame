@@ -1,8 +1,34 @@
 """ Constants for the roguelike elements of Scoundrel. """
 import random
 
-# Floor definitions
-FLOOR_TYPES = ["dungeon", "forest", "library", "crypt", "molten"]
+# Floor names
+# The first part of the name is a descriptor (e.g. "Forgotten"), and the second part is a location (e.g. "Catacombs").
+FLOOR_NAMES = {
+    "first": [
+        "Forgotten", "Ancient", "Haunted", "Cursed", "Twisted",
+        "Shattered", "Bloody", "Forsaken", "Decaying", "Mournful",
+        "Serpent's", "Witch's", "Dragon's", "Necromancer's", "Whispering",
+        "Smouldering", "Frozen", "Sunken", "Pestilent", "Glittering",
+        "Rotting", "Screaming", "Demon's", "Tainted", "Molten",
+        "Corrupted", "Grim", "Spectral", "Shifting", "Shadowy",
+        "Fractured", "Giant's", "Sorcerer's", "Abyssal", "Verdant",
+        "Raven's", "Burning", "Drowned", "Wretched", "Crystalline",
+        "Forbidden", "Baron's", "Endless", "Thorned", "Wailing",
+        "Primal", "Queen's", "Arcane", "Infested", "Ruined"
+    ],
+    "second": [
+        "Catacombs", "Forest", "Library", "Crypt", "Labyrinth",
+        "Caverns", "Throne", "Sanctum", "Chambers", "Dungeon",
+        "Keep", "Grotto", "Spire", "Pits", "Halls",
+        "Temple", "Gardens", "Mines", "Abyss", "Wasteland",
+        "Tower", "Fortress", "Vault", "Tombs", "Warren",
+        "Marsh", "Basin", "Observatory", "Citadel", "Foundry",
+        "Prison", "Arsenal", "Workshop", "Nexus", "Chasm",
+        "Passage", "Hollows", "Rookery", "Barrows", "Laboratory",
+        "Oubliette", "Colosseum", "Forge", "Sepulcher", "Haven",
+        "Menagerie", "Cathedral", "Cistern", "Repository", "Docks"
+    ]
+}
 
 # Floor structure
 FLOOR_STRUCTURE = {
@@ -15,6 +41,11 @@ FLOOR_STRUCTURE = {
 TREASURE_INVENTORY = {
     "cards": 2,  # Special cards that can be found
 }
+
+# Merchant rooms removed
+
+# Floor types (dungeon, forest, library, crypt)
+FLOOR_TYPES = ["dungeon", "forest", "library", "crypt", "molten"]
 
 # Starting player attributes
 STARTING_ATTRIBUTES = {
@@ -160,7 +191,6 @@ WEAPON_RANK_MAP = {
         "shield",
         "axe",
         "mace",
-        "wand",
         "spear",
     ],
     "intermediate": [
@@ -201,49 +231,9 @@ WEAPON_DAMAGE_TYPES = {
     "longbow": "piercing",
     "spear": "piercing",
     "dagger": "piercing",
-    "wand": "magic",
     "halberd": "slashing",
     "battleaxe": "slashing",
     "mace": "bludgeoning",
     "rapier": "piercing",
     "pickaxe": "piercing"
-}
-
-TREASURE_FILE_PATHS = [
-    "ui/treasure_sprites/gilded obsidian.png",
-    "ui/treasure_sprites/gilded wooden.png",
-    "ui/treasure_sprites/golden skull.png",
-    "ui/treasure_sprites/golden.png",
-    "ui/treasure_sprites/iron.png",
-    "ui/treasure_sprites/obsidian skull.png",
-    "ui/treasure_sprites/obsidian.png",
-    "ui/treasure_sprites/platinum.png",
-    "ui/treasure_sprites/royal.png",
-    "ui/treasure_sprites/wooden.png"
-]
-
-TREASURE_CHEST_RARITY = {
-    "wooden": 0.5,
-    "iron": 0.2,
-    "golden": 0.125,
-    "platinum": 0.075,
-    "obsidian": 0.05,
-    "gilded wooden": 0.01,
-    "golden skull": 0.01,
-    "gilded obsidian": 0.01,
-    "obsidian skull": 0.01,
-    "royal": 0.01   
-}
-
-TREASURE_CHEST_COLOURS = {
-    "wooden": (139, 69, 19), # Brown
-    "gilded wooden": (139, 69, 19),
-    "golden": (255, 215, 0), # Gold
-    "golden skull": (255, 215, 0),
-    "gilded obsidian": (255, 215, 0),
-    "obsidian skull": (0, 0, 205), # Blue
-    "royal": (0, 0, 205),
-    "obsidian": (0, 0, 205),
-    "iron": (192, 192, 192), # Silver
-    "platinum": (192, 192, 192)
 }

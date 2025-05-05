@@ -9,9 +9,10 @@ from utils.resource_loader import ResourceLoader
 class Deck:
     """ Represents a deck of cards in the game. """
     
-    def __init__(self, floor):
+    def __init__(self, floor, floor_manager):
         # Default to dungeon if floor is None or not in DECK_DICT
         self.floor = None
+        self.current_floor_index = max(1, floor_manager.current_floor_index + 1)
         self.position = DECK_POSITION
         self.cards = []
         self.card_stack = []
@@ -32,8 +33,12 @@ class Deck:
         """
         self.cards = []
         
-        # Generate a random deck for this floor
-        self._generate_random_deck()
+        if self.current_floor_index == 1:
+            # For the first floor, use a predefined deck
+            self._generate_predefined_deck()
+        else:
+            # Generate a random deck for this floor
+            self._generate_random_deck()
         
         # Add player's delving deck cards if provided
         if player_deck:
@@ -43,7 +48,28 @@ class Deck:
         # Shuffle the combined deck
         random.shuffle(self.cards)
         self.initialise_visuals()
-    
+
+    def _generate_predefined_deck(self):
+        """Generate a predefined deck for the first floor.
+        - 44 cards total
+        - 26 monster cards (clubs/spades value 2-14)
+        - 9 weapon cards (diamonds value 2-10)
+        - 9 potion cards (hearts value 2-10)
+        - No duplicates
+        """
+        # Add monster cards (clubs and spades)
+        for suit in ["clubs", "spades"]:
+            for value in range(DECK_BLACK_VALUE_RANGE[0], DECK_BLACK_VALUE_RANGE[1] + 1):
+                self.cards.append({"suit": suit, "value": value, "floor_type": self.floor})
+        
+        # Add weapon cards (diamonds)
+        for value in range(DECK_DIAMONDS_VALUE_RANGE[0], DECK_DIAMONDS_VALUE_RANGE[1] + 1):
+            self.cards.append({"suit": "diamonds", "value": value, "floor_type": self.floor})
+        
+        # Add potion cards (hearts)
+        for value in range(DECK_HEARTS_VALUE_RANGE[0], DECK_HEARTS_VALUE_RANGE[1] + 1):
+            self.cards.append({"suit": "hearts", "value": value, "floor_type": self.floor})
+
     def _generate_random_deck(self):
         """Generate a random deck following specific requirements:
         - 44 cards total
