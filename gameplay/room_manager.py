@@ -29,7 +29,19 @@ class RoomManager:
             print("  Room already started in enter(), not starting again")
             return
         
-        # Treasure room functionality removed
+        # Check if we should transition to a treasure room instead of starting a new room
+        if not self.playing_state.treasure_transition_started:
+            is_treasure_next = self.playing_state.completed_rooms in self.playing_state.FLOOR_STRUCTURE["treasure_rooms"]
+            if is_treasure_next:
+                # Set flag to prevent multiple treasure transitions
+                self.playing_state.treasure_transition_started = True
+                # DO NOT change the floor manager's current_room as it's now our source of truth
+                # This line was causing the room number to jump incorrectly
+                # Flag that we're coming from treasure room so we preserve state
+                self.playing_state.game_manager.coming_from_treasure = True
+                # Advance to treasure room
+                self.playing_state.game_manager.advance_to_next_room()
+                return
         
         # Reset the room state tracking flags when starting a new room
         self.playing_state.gold_reward_given = False

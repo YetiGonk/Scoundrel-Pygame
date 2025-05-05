@@ -181,9 +181,13 @@ class PlayingState(GameState):
         # Get current floor info
         floor_manager = self.game_manager.floor_manager
         current_floor_type = floor_manager.get_current_floor()
+        is_treasure = floor_manager.is_treasure_room()
         
         # Choose the appropriate floor image
-        floor_image = f"floors/{current_floor_type}_floor.png"
+        if is_treasure:
+            floor_image = "floors/treasure_floor.png"
+        else:
+            floor_image = f"floors/{current_floor_type}_floor.png"
             
         # Try to load the specific floor image, fall back to original if not found
         try:
@@ -233,11 +237,10 @@ class PlayingState(GameState):
         self.gold = self.game_manager.game_data.get("gold", 0)  # Get gold from game data
     
     def _handle_treasure_transition(self):
-        """Initialize weapons and monsters (treasure room functionality removed)."""
-        # Initialize equipped weapon and defeated monsters
-        self.equipped_weapon = {}
-        self.defeated_monsters = []
-        return  # Early return - treasure rooms removed
+        """Handle treasure room transition and weapon/monster restoration."""
+        # Check if coming back from treasure room - restore equipped weapon and defeated monsters
+        if hasattr(self.game_manager, 'equipped_weapon') and self.game_manager.equipped_weapon:
+            # This is from treasure room
             self.equipped_weapon = self.game_manager.equipped_weapon
             
             # Ensure weapon has all required properties
@@ -309,26 +312,59 @@ class PlayingState(GameState):
     
     def _start_initial_room(self):
         """Start the initial room either with a preserved card or fresh."""
-        # Treasure room transitions removed
+        # Check if we're coming from treasure room
+        coming_from_treasure = hasattr(self.game_manager, 'coming_from_treasure') and self.game_manager.coming_from_treasure
         
-        # Initialize deck with no player cards
-        self.deck.initialise_deck(None)
+        # Initialise the deck if needed
+        if not coming_from_treasure:
+            # Initialize deck with no player cards
+            self.deck.initialise_deck(None)
+            
+            # Clear the discard pile when starting a new floor
+            if self.discard_pile:
+                self.discard_pile.cards = []
+                if hasattr(self.discard_pile, 'card_stack'):
+                    self.discard_pile.card_stack = []
         
-        # Clear the discard pile when starting a new floor
-        if self.discard_pile:
-            self.discard_pile.cards = []
-            if hasattr(self.discard_pile, 'card_stack'):
-                self.discard_pile.card_stack = []
+        # Initialize preserved card variable
+        preserved_card = None
         
-        # Card preservation removed - no treasure rooms
+        # If we have preserved card data, prepare it for the next room
+        if coming_from_treasure and hasattr(self.game_manager, 'last_card_data') and self.game_manager.last_card_data:
+            # Create a card object from the stored data
+            card_data = self.game_manager.last_card_data
+            preserved_card = Card(card_data["suit"], card_data["value"], card_data.get("floor_type", self.current_floor))
+            preserved_card.face_up = True
+            
+            # Set initial position for the card (will be positioned properly by start_new_room)
+            # This ensures it doesn't appear in the top-left corner before being properly positioned
+            # Use a position that would be reasonable for a room card
+            num_cards = 1  # Just this card initially
+            total_width = (CARD_WIDTH * num_cards)
+            start_x = (SCREEN_WIDTH - total_width) // 2
+            start_y = (SCREEN_HEIGHT - CARD_HEIGHT) // 2 - 40
+            preserved_card.update_position((start_x, start_y))
+            
+            # Now clear the stored card data
+            self.game_manager.last_card_data = None
+            
+            # Start a new room with the preserved card
+            print(f"Starting room with preserved card in enter() - room: {self.game_manager.floor_manager.current_room}")
+            self.room_manager.start_new_room(preserved_card)
+            # Set flag that we've started a room in enter
+            self.room_started_in_enter = True
+        else:
+            # No card was preserved, start a normal room
+            print(f"Starting normal room in enter() - room: {self.game_manager.floor_manager.current_room}")
+            self.room_manager.start_new_room()
+            # Set flag that we've started a room in enter
+            self.room_started_in_enter = True
         
-        # Start a normal room
-        print(f"Starting room in enter() - room: {self.game_manager.floor_manager.current_room}")
-        self.room_manager.start_new_room()
-        # Set flag that we've started a room in enter
-        self.room_started_in_enter = True
-        
-        # Treasure and merchant functionality removed
+        # Reset coming_from_treasure flag after handling the transition
+        self.game_manager.coming_from_treasure = False
+        # Reset merchant flag if it exists
+        if hasattr(self.game_manager, 'coming_from_merchant'):
+            self.game_manager.coming_from_merchant = False
         
         # Update status UI fonts
         self.status_ui.update_fonts(self.header_font, self.normal_font)
@@ -632,11 +668,17 @@ class PlayingState(GameState):
             # Check if this is the last floor
             if self.game_manager.floor_manager.current_floor_index >= len(self.game_manager.floor_manager.floors) - 1:
                 # Last floor completed - victory!
+                # Add any purchased cards to the player's permanent collection
+                self._add_purchased_cards_to_library()
+                
                 self.game_manager.game_data["victory"] = True
                 self.game_manager.game_data["run_complete"] = True
                 self.game_manager.change_state("game_over")
             else:
                 # Not the last floor, show a brief message and advance to next floor
+                # Add any purchased cards to the player's permanent collection
+                self._add_purchased_cards_to_library()
+                
                 floor_type = self.game_manager.floor_manager.get_current_floor()
                 next_floor_index = self.game_manager.floor_manager.current_floor_index + 1
                 next_floor_type = self.game_manager.floor_manager.floors[next_floor_index]
@@ -906,4 +948,24 @@ class PlayingState(GameState):
         """Forward message display to game state controller."""
         self.game_state_controller.show_message(message, duration)
         
-    # Treasure functionality removed
+    def _add_purchased_cards_to_library(self):
+        """Add any cards acquired from treasure chests to the player's card library."""
+        # Check if there are any purchased cards to add
+        if hasattr(self.game_manager, 'purchased_cards') and self.game_manager.purchased_cards:
+            # Make sure card_library exists
+            if not hasattr(self.game_manager, 'card_library'):
+                self.game_manager.card_library = []
+                
+            # Add each purchased card to the library
+            for card in self.game_manager.purchased_cards:
+                self.game_manager.card_library.append(card)
+                
+            # Show a message about the cards being added
+            card_count = len(self.game_manager.purchased_cards)
+            self.game_state_controller.show_message(
+                f"Added {card_count} treasure cards to your collection!",
+                duration=3.0
+            )
+            
+            # Clear the purchased cards list
+            self.game_manager.purchased_cards = []

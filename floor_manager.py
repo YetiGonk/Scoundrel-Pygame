@@ -45,9 +45,13 @@ class FloorManager:
         if self.current_room > FLOOR_STRUCTURE["rooms_per_floor"]:
             return self.advance_floor()
         
+        # Check if this is a treasure room
+        is_treasure = self.current_room in FLOOR_STRUCTURE["treasure_rooms"]
+        
         return {
             "floor": self.get_current_floor(),
             "room": self.current_room,
+            "is_treasure": is_treasure
         }
     
     def advance_floor(self):
@@ -71,3 +75,9 @@ class FloorManager:
             "room": self.current_room,
             "is_floor_start": True
         }
+    
+    def is_treasure_room(self):
+        """Check if the current room is a treasure room."""
+        return self.current_room in FLOOR_STRUCTURE["treasure_rooms"]
+    
+    # Boss room functionality removed
