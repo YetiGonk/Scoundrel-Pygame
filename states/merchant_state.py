@@ -5,7 +5,7 @@ import math
 from pygame.locals import *
 
 from constants import SCREEN_WIDTH, SCREEN_HEIGHT, WHITE, BLACK, GRAY, LIGHT_GRAY, DARK_GRAY
-# Merchant functionality removed
+from roguelike_constants import MERCHANT_INVENTORY
 from states.game_state import GameState
 from ui.button import Button
 from ui.panel import Panel
