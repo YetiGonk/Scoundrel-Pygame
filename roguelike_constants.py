@@ -33,16 +33,10 @@ FLOOR_NAMES = {
 # Floor structure
 FLOOR_STRUCTURE = {
     "rooms_per_floor": 12,  # Maximum potential rooms (flexible)
-    "treasure_rooms": [6, 11],  # Room numbers where treasures appear
-    # Boss room functionality removed
+    # Treasure rooms and boss rooms removed
 }
 
-# Treasure inventory sizes
-TREASURE_INVENTORY = {
-    "cards": 2,  # Special cards that can be found
-}
-
-# Merchant rooms removed
+# Merchant and treasure room functionality removed
 
 # Floor types (dungeon, forest, library, crypt)
 FLOOR_TYPES = ["dungeon", "forest", "library", "crypt", "molten"]
