@@ -4,7 +4,6 @@ from states.menu_state import MenuState
 from states.rules_state import RulesState
 from states.playing_state import PlayingState
 from states.game_over_state import GameOverState
-from states.delving_deck_state import DelvingDeckState  # Import the new delving deck state
 
 # Import roguelike components
 from floor_manager import FloorManager
@@ -17,10 +16,7 @@ class GameManager:
     def __init__(self):
         # Initialise roguelike managers
         self.floor_manager = FloorManager(self)
-        
-        # Initialise player attributes
-        self.player_gold = STARTING_ATTRIBUTES["gold"]
-        
+                
         # Initialise game states
         self.states = {
             "title": TitleState(self),  # New title state
@@ -28,13 +24,8 @@ class GameManager:
             "rules": RulesState(self),
             "playing": PlayingState(self),
             "game_over": GameOverState(self),
-            "delving_deck": DelvingDeckState(self)  # Add delving deck state
         }
-        
-        # Initialise player deck system
-        self.delving_deck = []  # The cards player brings into dungeons
-        self.card_library = []  # All cards player has collected
-        
+                
         self.current_state = None
         self.game_data = {
             "life_points": STARTING_ATTRIBUTES["life_points"],
@@ -90,14 +81,10 @@ class GameManager:
     def start_new_run(self):
         """Initialise a new roguelike run."""
         # Reset player attributes
-        self.player_gold = STARTING_ATTRIBUTES["gold"]
         self.game_data["life_points"] = STARTING_ATTRIBUTES["life_points"]
         self.game_data["max_life"] = STARTING_ATTRIBUTES["max_life"]
         self.game_data["victory"] = False
         self.game_data["run_complete"] = False
-        
-        # Reset purchased cards for this run
-        self.purchased_cards = []
         
         # Initialise the floor sequence
         self.floor_manager.initialise_run()
@@ -148,7 +135,3 @@ class GameManager:
         """Increase the player's maximum health."""
         self.game_data["max_life"] += amount
         self.game_data["life_points"] += amount
-    
-    def add_gold(self, amount=10):
-        """Add gold to the player."""
-        self.player_gold += amount

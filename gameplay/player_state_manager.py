@@ -1,9 +1,9 @@
-"""Player State Manager for handling player health, gold, and effects in the Scoundrel game."""
+"""Player State Manager for handling player health and effects in the Scoundrel game."""
 import pygame
 
 
 class PlayerStateManager:
-    """Manages player state such as health and gold."""
+    """Manages player state."""
     
     def __init__(self, playing_state):
         """Initialise with a reference to the playing state."""
@@ -28,22 +28,3 @@ class PlayerStateManager:
             # Only animate if there was an actual change
             if actual_change > 0:
                 self.playing_state.animation_controller.animate_health_change(True, actual_change)  # True = damage
-    
-    def change_gold(self, amount):
-        """Change player gold amount with animation."""
-        old_gold = self.playing_state.game_manager.player_gold
-        
-        # Update the gold amount in the game manager
-        self.playing_state.game_manager.player_gold += amount
-        
-        # Ensure gold doesn't go negative
-        if self.playing_state.game_manager.player_gold < 0:
-            self.playing_state.game_manager.player_gold = 0
-            
-        # Calculate actual change for animation
-        actual_change = abs(amount)
-        
-        # Only animate if there was an actual change
-        if actual_change > 0:
-            self.playing_state.animation_controller.animate_gold_change(amount < 0, actual_change)  # True = gold loss, False = gold gain
-

@@ -30,6 +30,14 @@ class StatusUI:
         # Get current game state info
         floor_manager = self.game_manager.floor_manager
         current_floor = floor_manager.get_current_floor()  # Now safely returns "unknown" if needed
+        # Rename current floor with title case with apostrophe handling
+        if "'" in current_floor:
+            b = []
+            for temp in current_floor.split():
+                b.append(temp.capitalize())
+            current_floor = " ".join(b)
+        else:
+            current_floor.title()
         current_floor_index = max(1, floor_manager.current_floor_index + 1)  # Ensure index is at least 1
         
         # Use the floor manager's current_room which is now 1-based
@@ -37,7 +45,7 @@ class StatusUI:
             
         total_rooms = FLOOR_TOTAL
         
-        floor_text = self.header_font.render(f"Floor {current_floor_index}: {current_floor.title()}", True, WHITE)
+        floor_text = self.header_font.render(f"Floor {current_floor_index}: {" ".join(x.capitalize() for x in current_floor.title().split()) if "'" in current_floor else current_floor.title()}", True, WHITE)
         
         panel_padding = 60
         self.panel_rect = pygame.Rect(

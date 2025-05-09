@@ -174,11 +174,6 @@ class GameOverState(GameState):
                 from states.playing_state import PlayingState
                 self.game_manager.states["playing"] = PlayingState(self.game_manager)
                 
-                # Make sure we preserve the player's card library between runs
-                # The card_library contains all cards the player has collected
-                if not hasattr(self.game_manager, 'card_library'):
-                    self.game_manager.card_library = []
-                
                 # Start a new game
                 self.game_manager.start_new_run()
             
@@ -192,11 +187,6 @@ class GameOverState(GameState):
                 # Completely reset the playing state
                 from states.playing_state import PlayingState
                 self.game_manager.states["playing"] = PlayingState(self.game_manager)
-                
-                # Make sure we preserve the player's card library between runs
-                # The card_library contains all cards the player has collected
-                if not hasattr(self.game_manager, 'card_library'):
-                    self.game_manager.card_library = []
                 
                 # Go to title screen
                 self.game_manager.change_state("title")
@@ -314,13 +304,6 @@ class GameOverState(GameState):
         )
         floors_rect = floors_text.get_rect(centerx=SCREEN_WIDTH//2, top=stats_y)
         surface.blit(floors_text, floors_rect)
-        
-        gold_text = self.body_font.render(
-            f"Gold Acquired: {self.game_manager.player_gold}",
-            True, (255, 230, 150)  # Gold colour
-        )
-        gold_rect = gold_text.get_rect(centerx=SCREEN_WIDTH//2, top=floors_rect.bottom + 15)
-        surface.blit(gold_text, gold_rect)
         
         # Draw buttons
         if self.restart_button:

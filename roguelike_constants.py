@@ -32,7 +32,6 @@ FLOOR_TOTAL = 20
 
 # Starting player attributes
 STARTING_ATTRIBUTES = {
-    "gold": 0,
     "life_points": 20,
     "max_life": 20,
 }

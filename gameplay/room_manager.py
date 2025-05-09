@@ -30,7 +30,6 @@ class RoomManager:
             return
         
         # Reset the room state tracking flags when starting a new room
-        self.playing_state.gold_reward_given = False
         self.playing_state.room_completion_in_progress = False
         
         # Clear the room
@@ -221,20 +220,19 @@ class RoomManager:
         next_floor = self.playing_state.game_manager.floor_manager.get_current_floor()
         print(f"Advanced to next floor: {next_floor} (index {next_floor_index})")
         
+        # Reset this for playing state checks
+        self.playing_state.floor_completed = False
+        
         # Important: Update local player state data to be preserved during transition
         self.playing_state.game_manager.game_data["life_points"] = self.playing_state.life_points
         self.playing_state.game_manager.game_data["max_life"] = self.playing_state.max_life
-        self.playing_state.game_manager.game_data["gold"] = self.playing_state.gold
-        self.playing_state.game_manager.player_gold = self.playing_state.gold
-        print(f"Preserved player stats: HP={self.playing_state.life_points}/{self.playing_state.max_life}, Gold={self.playing_state.gold}")
+        print(f"Preserved player stats: HP={self.playing_state.life_points}/{self.playing_state.max_life}")
         
         # Reset room count tracking
         self.playing_state.completed_rooms = 0
         print("Reset room completion tracking")
-        
-        # Change back to playing state (this will recreate deck and handle floor change)
-        print("Changing back to playing state to initialize new floor...")
-        self.playing_state.game_manager.change_state("playing")
+
+        self.playing_state._start_initial_room()
         print("==== FLOOR TRANSITION COMPLETE ====")
     
     def remove_and_discard(self, card):

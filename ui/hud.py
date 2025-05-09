@@ -1,5 +1,5 @@
 """
-HUD component for displaying active effects, health, and gold indicators.
+HUD component for displaying active effects and health indicators.
 """
 import pygame
 import random
@@ -47,17 +47,10 @@ class HUD:
         self.effect_start_pos = EFFECT_START_POSITION
         
         # Resource tracking for animations
-        self.last_gold_amount = game_manager.player_gold
-        self.gold_change_time = 0
-        self.gold_change_amount = 0
-        
-        # Gold particles for visual effect
-        self.gold_particles = []
         self.last_particle_time = 0
         
-        # Panel instances for health and gold indicators
+        # Panel instances for health indicators
         self.health_panel = None
-        self.gold_panel = None
     
     def update_fonts(self, normal_font, small_font=None):
         """Update fonts if they are loaded after initialization."""
@@ -83,24 +76,11 @@ class HUD:
             effect['duration'] is None) or  # Permanent effects
             ((current_time - effect['start_time']) < effect['duration'])  # Temporary effects
         ]
-        
-        # Check for gold changes
-        current_gold = self.game_manager.player_gold
-        if current_gold != self.last_gold_amount:
-            self.gold_change_amount = current_gold - self.last_gold_amount
-            self.gold_change_time = current_time
-            # Add a gold effect if player gained gold
-            if self.gold_change_amount > 0:
-                self.add_effect('gold', 2000, self.gold_change_amount)
-            self.last_gold_amount = current_gold
     
     def draw(self, surface):
         """Draw the HUD elements."""
         # Draw active effects
         self.draw_active_effects(surface)
-        
-        # Draw gold indicator
-        self.draw_gold_indicator(surface)
         
         # Draw health indicator
         self.draw_health_indicator(surface)
@@ -133,11 +113,6 @@ class HUD:
                 panel_colour = EFFECT_DAMAGE_PANEL
                 border_colour = EFFECT_DAMAGE_BORDER
                 icon_symbol = "⚔"  # Sword symbol
-            elif effect['type'] == 'gold':
-                effect_colour = EFFECT_GOLD_COLOR
-                panel_colour = EFFECT_GOLD_PANEL
-                border_colour = EFFECT_GOLD_BORDER
-                icon_symbol = "⚜"  # Gold symbol
             else:
                 effect_colour = EFFECT_DEFAULT_COLOR
                 panel_colour = EFFECT_DEFAULT_PANEL
@@ -239,192 +214,6 @@ class HUD:
                         surface.blit(remaining_text, remaining_rect)
                 else:
                     surface.blit(remaining_text, remaining_rect)
-    
-    def draw_gold_indicator(self, surface):
-        """Draw gold indicator above the health bar with dungeon styling."""
-        # Use constants for positioning and sizing
-        bar_width = HEALTH_BAR_WIDTH
-        bar_height = HEALTH_BAR_HEIGHT
-        health_x, health_y = HEALTH_BAR_POSITION
-        
-        # Gold indicator parameters
-        gold_bar_width = GOLD_BAR_WIDTH
-        gold_bar_height = GOLD_BAR_HEIGHT
-        x, y = GOLD_BAR_POSITION
-        
-        # Create panel if it doesn't exist
-        if not self.gold_panel:
-            try:
-                from ui.panel import Panel
-                
-                # Use a treasure chest colour scheme
-                self.gold_panel = Panel(
-                    (gold_bar_width, gold_bar_height),
-                    (x, y),
-                    colour=PANEL_WOODEN,
-                    alpha=PANEL_ALPHA + 10,  # Slightly more opaque
-                    border_radius=PANEL_BORDER_RADIUS,
-                    dungeon_style=True,
-                    border_width=PANEL_BORDER_WIDTH,
-                    border_colour=PANEL_WOODEN_BORDER
-                )
-                
-                # Store gold icon position for particle effects
-                self.gold_icon_pos = (x + 15, y + gold_bar_height // 2)
-                self.gold_icon_size = (16, 16)
-            except ImportError:
-                # Fallback if Panel isn't available
-                self.gold_panel = None
-        
-        # Draw the panel
-        if self.gold_panel:
-            self.gold_panel.draw(surface)
-            
-            # Draw gold coin icon with golden glow
-            coin_radius = 8
-            coin_x, coin_y = self.gold_icon_pos
-            
-            # Draw subtle glow behind coin
-            glow_radius = coin_radius + 4
-            glow_surface = pygame.Surface((glow_radius*2, glow_radius*2), pygame.SRCALPHA)
-            for r in range(glow_radius, 0, -1):
-                alpha = max(0, 60 - (glow_radius - r) * 15)
-                pygame.draw.circle(glow_surface, (255, 230, 100, alpha), (glow_radius, glow_radius), r)
-            surface.blit(glow_surface, (coin_x - glow_radius, coin_y - glow_radius))
-            
-            # Draw coin with metallic effect
-            pygame.draw.circle(surface, GOLD_COLOR, (coin_x, coin_y), coin_radius)  # Gold fill
-            pygame.draw.circle(surface, GOLD_HIGHLIGHT, (coin_x - 3, coin_y - 3), coin_radius//2)  # Highlight
-            pygame.draw.circle(surface, GOLD_BORDER, (coin_x, coin_y), coin_radius, 1)  # Gold border
-            
-            # Update and draw gold particles
-            self._update_gold_particles()
-            self._draw_gold_particles(surface)
-            
-            # Draw gold value with golden text
-            gold_text = self.normal_font.render(f"{self.game_manager.player_gold}", True, GOLD_TEXT)
-            gold_text_rect = gold_text.get_rect(centery=coin_y, x=coin_x + coin_radius + 10)
-            surface.blit(gold_text, gold_text_rect)
-        else:
-            # Fallback to basic rendering if panel isn't available
-            bg_rect = pygame.Rect(x, y, gold_bar_width, gold_bar_height)
-            pygame.draw.rect(surface, GRAY, bg_rect, border_radius=5)
-            
-            # Draw gold bar
-            gold_rect = pygame.Rect(x, y, gold_bar_width, gold_bar_height)
-            pygame.draw.rect(surface, GOLD_COLOR, gold_rect, border_radius=5)
-            pygame.draw.rect(surface, BLACK, bg_rect, 2, border_radius=5)
-            
-            # Draw coin and text
-            coin_radius = 8
-            coin_x = x + 15
-            coin_y = y + gold_bar_height // 2
-            pygame.draw.circle(surface, GOLD_COLOR, (coin_x, coin_y), coin_radius)
-            pygame.draw.circle(surface, GOLD_BORDER, (coin_x, coin_y), coin_radius, 2)
-            gold_text = self.normal_font.render(f"{self.game_manager.player_gold}", True, BLACK)
-            gold_text_rect = gold_text.get_rect(center=bg_rect.center, x=coin_x + coin_radius + 10)
-            surface.blit(gold_text, gold_text_rect)
-        
-        # Show gold change animation if recent
-        current_time = pygame.time.get_ticks()
-        if current_time - self.gold_change_time < GOLD_CHANGE_DURATION and self.gold_change_amount != 0:
-            # Determine animation properties
-            alpha = 255 - int(255 * (current_time - self.gold_change_time) / GOLD_CHANGE_DURATION)  # Fade out
-            y_offset = int(15 * (current_time - self.gold_change_time) / GOLD_CHANGE_DURATION)  # Float up
-            
-            # Create change text with appropriate colour
-            change_prefix = "+" if self.gold_change_amount > 0 else ""
-            change_colour = (50, 205, 50) if self.gold_change_amount > 0 else (220, 20, 60)
-            
-            # Create a text surface
-            change_text = self.normal_font.render(f"{change_prefix}{self.gold_change_amount}", True, change_colour)
-            
-            # Create a surface with per-pixel alpha
-            text_surface = pygame.Surface(change_text.get_size(), pygame.SRCALPHA)
-            
-            # Blit the text onto the surface
-            text_surface.blit(change_text, (0, 0))
-            
-            # Set the alpha for the entire surface
-            text_surface.set_alpha(alpha)
-            
-            # Position and draw the text - account for panel position
-            text_x = x + gold_bar_width - 30
-            text_y = y - y_offset - 15
-            change_rect = text_surface.get_rect(center=(text_x, text_y))
-            surface.blit(text_surface, change_rect)
-            
-            # Spawn gold particles on gain
-            if self.gold_change_amount > 0 and current_time - self.gold_change_time < 200:
-                # Adjust particle count based on amount of gold gained
-                particle_count = min(5, self.gold_change_amount // 2 + 1)
-                self._add_gold_particles(particle_count)
-    
-    def _update_gold_particles(self):
-        """Update gold particle positions and properties"""
-        # Remove dead particles
-        self.gold_particles = [p for p in self.gold_particles if p['alpha'] > 0]
-        
-        # Update remaining particles
-        for particle in self.gold_particles:
-            # Move particles upward
-            particle['y'] -= particle['speed']
-            # Fade out gradually
-            min_fade, max_fade = GOLD_PARTICLE_FADE_SPEED
-            particle['alpha'] -= random.uniform(min_fade, max_fade)
-            # Slightly randomise x position for shimmering effect
-            particle['x'] += random.uniform(-0.2, 0.2)
-    
-    def _draw_gold_particles(self, surface):
-        """Draw gold particles for a treasure effect"""
-        if not self.gold_particles:
-            return
-            
-        for particle in self.gold_particles:
-            if particle['alpha'] <= 0:
-                continue
-                
-            # Calculate particle colour with alpha
-            gold_colour = (255, 223, 0, min(255, int(particle['alpha'])))
-            
-            # Draw the particle
-            pygame.draw.circle(
-                surface, 
-                gold_colour, 
-                (int(particle['x']), int(particle['y'])), 
-                particle['size']
-            )
-            
-            # Add highlight to some particles for sparkle effect
-            if random.random() < 0.3:  # 30% chance
-                highlight_colour = (255, 255, 230, min(200, int(particle['alpha'])))
-                pygame.draw.circle(
-                    surface, 
-                    highlight_colour, 
-                    (int(particle['x'] - 1), int(particle['y'] - 1)), 
-                    max(1, particle['size'] // 2)
-                )
-    
-    def _add_gold_particles(self, count):
-        """Add new gold particles near the coin icon"""
-        if not hasattr(self, 'gold_icon_pos'):
-            return
-            
-        coin_x, coin_y = self.gold_icon_pos
-        coin_width, coin_height = self.gold_icon_size
-        spread = GOLD_PARTICLE_SPREAD
-        min_size, max_size = GOLD_PARTICLE_SIZE
-        min_speed, max_speed = GOLD_PARTICLE_SPEED
-        
-        for _ in range(count):
-            # Create particles within/around the coin area
-            self.gold_particles.append({
-                'x': coin_x + random.uniform(-spread, spread),
-                'y': coin_y + random.uniform(-spread, spread),
-                'size': random.uniform(min_size, max_size),
-                'speed': random.uniform(min_speed, max_speed),
-                'alpha': random.uniform(180, 255)
-            })
     
     def draw_health_indicator(self, surface):
         """Draw a health bar indicator with dungeon styling."""

@@ -704,7 +704,7 @@ class Card:
                         surface.blit(full_overlay, (pos_x, pos_y))
 
     def draw_hover_text(self, surface):
-        """Draw hover action text to the right of the card using the delving deck style"""
+        """Draw hover action text to the right of the card"""
         # Check if the card is hovered while in inventory
         card_in_inventory = hasattr(self, 'in_inventory') and self.in_inventory
         # Check if this is a defeated monster
@@ -732,7 +732,7 @@ class Card:
         from ui.panel import Panel
         from constants import GOLD_COLOR
         
-        # Load fonts matching the delving deck state
+        # Load fonts
         header_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 32)  # Larger font for card name
         body_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 24)    # Medium font for details
         
@@ -972,9 +972,9 @@ class Card:
             total_text_height += line["font"].get_height() + line_spacing
         
         # Calculate info panel height
-        info_height = 10 + total_text_height + 5  # 10px padding top, 5px padding bottom (matching delving deck)
+        info_height = 10 + total_text_height + 5  # 10px padding top, 5px padding bottom
         
-        # Smart positioning logic - match the delving deck state approach
+        # Smart positioning logic
         # If it would go off-screen to the right, position left of card
         # Try to check against main_panel boundaries if available, otherwise use screen bounds
         main_panel_right = pygame.display.get_surface().get_width() - 10  # Default screen right edge
@@ -1014,7 +1014,7 @@ class Card:
         info_y = max(main_panel_top, min(info_y, main_panel_bottom - info_height))
             
         # Create and draw the info panel
-        panel_color = (60, 50, 40)  # Default brown color matching delving deck
+        panel_color = (60, 50, 40)  # Default brown color
         
         # For defeated monsters, use neutral color
         if hasattr(self, 'is_defeated') and self.is_defeated:

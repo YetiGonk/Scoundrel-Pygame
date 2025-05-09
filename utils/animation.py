@@ -584,110 +584,6 @@ class HealthChangeAnimation(Animation):
             surface.blit(particle_surface, (particle_x - particle_size, particle_y - particle_size))
 
 
-class GoldChangeAnimation(Animation):
-    """Animation for displaying gold changes with effects."""
-    
-    def __init__(self, is_loss, amount, position, font, duration=0.8, on_complete=None):
-        super().__init__(duration, on_complete)
-        self.is_loss = is_loss  # True for loss, False for gain
-        self.amount = amount
-        self.position = position
-        self.font = font
-        self.particles = []
-        
-        # Create particles - coin-like particles
-        num_particles = min(20, max(5, abs(amount) // 2))
-        for _ in range(num_particles):
-            self.particles.append({
-                'x': random.randint(-10, 10),
-                'y': random.randint(-5, 5),
-                'speed_x': (random.random() - 0.5) * 5,
-                'speed_y': -random.random() * 8 - 2,  # Upward bias
-                'size': random.randint(3, 7),
-                'fade_speed': random.random() * 0.3 + 0.7
-            })
-    
-    def draw(self, surface):
-        progress = self.get_progress()
-        
-        # Early animation: text grows and brightens
-        if progress < 0.4:
-            scale = 1.0 + progress * 0.5  # Text grows a bit
-            alpha = int(255 * min(1.0, progress * 3))
-        # Middle animation: text stays steady
-        elif progress < 0.7:
-            scale = 1.2
-            alpha = 255
-        # End animation: text fades out
-        else:
-            fade_progress = (progress - 0.7) / 0.3
-            scale = 1.2 - fade_progress * 0.2
-            alpha = int(255 * (1 - fade_progress))
-        
-        # Choose colour based on loss/gain
-        if self.is_loss:
-            colour = (255, 80, 80)  # Red for loss
-            text_prefix = "-"
-        else:
-            colour = (255, 215, 0)  # Gold colour for gain
-            text_prefix = "+"
-            
-        # Render text with proper prefix
-        text = self.font.render(f"{text_prefix}{abs(self.amount)}", True, colour)
-        
-        # Scale text
-        if scale != 1.0:
-            orig_size = text.get_size()
-            text = pygame.transform.scale(
-                text, 
-                (int(orig_size[0] * scale), int(orig_size[1] * scale))
-            )
-        
-        # Set alpha if needed
-        if alpha < 255:
-            text.set_alpha(alpha)
-        
-        # Draw text
-        text_rect = text.get_rect(center=(
-            self.position[0],
-            self.position[1] - 40 * progress  # Text rises upward
-        ))
-        surface.blit(text, text_rect)
-        
-        # Draw particles
-        for particle in self.particles:
-            # Update particle position based on progress
-            particle_x = self.position[0] + particle['x'] + particle['speed_x'] * progress * 60
-            particle_y = self.position[1] + particle['y'] + particle['speed_y'] * progress * 60
-            
-            # Calculate alpha (particles fade out)
-            particle_alpha = int(255 * (1 - progress * particle['fade_speed']))
-            
-            # Calculate size (particles slightly shrink)
-            particle_size = max(1, int(particle['size'] * (1 - progress * 0.5)))
-            
-            # Skip completely faded particles
-            if particle_alpha <= 10 or particle_size <= 0:
-                continue
-                
-            # Draw gold coin particle
-            if not self.is_loss:
-                # Draw gold coin
-                particle_colour = (255, 215, 0, particle_alpha)  # Gold with alpha
-                border_colour = (184, 134, 11, particle_alpha)  # Darker gold border with alpha
-                
-                particle_surface = pygame.Surface((particle_size*2, particle_size*2), pygame.SRCALPHA)
-                pygame.draw.circle(particle_surface, particle_colour, (particle_size, particle_size), particle_size)
-                pygame.draw.circle(particle_surface, border_colour, (particle_size, particle_size), particle_size, 1)
-            else:
-                # For loss, use simple red particles
-                particle_colour = colour + (particle_alpha,)  # Add alpha as 4th component
-                particle_surface = pygame.Surface((particle_size*2, particle_size*2), pygame.SRCALPHA)
-                pygame.draw.circle(particle_surface, particle_colour, (particle_size, particle_size), particle_size)
-                
-            surface.blit(particle_surface, (particle_x - particle_size, particle_y - particle_size))
-
-
 class AnimationManager:
     """Manager for handling multiple animations."""
     
@@ -702,7 +598,7 @@ class AnimationManager:
         # Check what type of animation this is
         if isinstance(animation, (DestructionAnimation, MaterialiseAnimation)):
             self.effect_animations.append(animation)
-        elif isinstance(animation, (HealthChangeAnimation, GoldChangeAnimation)):
+        elif isinstance(animation, (HealthChangeAnimation)):
             self.ui_animations.append(animation)
     
     def update(self, delta_time):

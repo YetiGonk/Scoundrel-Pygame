@@ -5,7 +5,7 @@ from constants import SCREEN_WIDTH, SCREEN_HEIGHT, CARD_WIDTH, CARD_HEIGHT, INVE
 
 from utils.animation import (
     Animation, MoveAnimation, DestructionAnimation, MaterialiseAnimation, 
-    HealthChangeAnimation, GoldChangeAnimation, EasingFunctions
+    HealthChangeAnimation, EasingFunctions
 )
 
 
@@ -141,30 +141,6 @@ class AnimationController:
         
         # Add to animation manager
         self.playing_state.animation_manager.add_animation(health_anim)
-    
-    def animate_gold_change(self, is_loss, amount):
-        """Create animation for gold change."""
-        # Load the gold icon to get dimensions
-        from utils.resource_loader import ResourceLoader
-        gold_icon = ResourceLoader.load_image("ui/gold.png")
-        icon_width = gold_icon.get_width()
-        icon_height = gold_icon.get_height()
-        
-        # Position for the animation - next to the gold display
-        health_display_x = 40
-        gold_display_x = health_display_x + icon_width + 30  # Center over gold amount text
-        gold_display_y = SCREEN_HEIGHT - self.playing_state.deck.rect.y - 100 + icon_height//2  # Match gold icon position
-        
-        # Create animation
-        gold_anim = GoldChangeAnimation(
-            is_loss,
-            amount,
-            (gold_display_x, gold_display_y),
-            self.playing_state.body_font
-        )
-        
-        # Add to animation manager
-        self.playing_state.animation_manager.add_animation(gold_anim)
     
     def animate_card_to_inventory(self, card):
         """Animate a card moving to its position in the inventory."""

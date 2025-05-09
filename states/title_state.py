@@ -102,7 +102,7 @@ class TitleState(GameState):
         button_width = 300
         button_height = 60
         button_spacing = 10
-        buttons_y = panel_y + panel_height - button_height*3 - button_spacing*2 - 25
+        buttons_y = panel_y + panel_height - button_height*2 - button_spacing*1 - 25
         
         # Start button (top)
         start_button_rect = pygame.Rect(
@@ -121,28 +121,10 @@ class TitleState(GameState):
             border_colour=(150, 70, 70)  # Brighter red border
         )
         
-        
-        # Delving deck button (below start)
-        delving_deck_rect = pygame.Rect(
-            (SCREEN_WIDTH - button_width) // 2,
-            buttons_y + (button_height + button_spacing),
-            button_width, 
-            button_height
-        )
-        self.delving_deck_button = Button(
-            delving_deck_rect,
-            "DELVING DECK",
-            self.body_font,
-            text_colour=WHITE,
-            dungeon_style=True,
-            panel_colour=(60, 80, 40),  # Dark green
-            border_colour=(120, 160, 80)  # Brighter green border
-        )
-        
-        # Rules button (below delving deck)
+        # Rules button
         rules_button_rect = pygame.Rect(
             (SCREEN_WIDTH - button_width) // 2,
-            buttons_y + (button_height + button_spacing) * 2,
+            buttons_y + button_height + button_spacing,
             button_width, 
             button_height
         )
@@ -331,8 +313,6 @@ class TitleState(GameState):
                     # Set the rules as seen for any future logic that might need it
                     if not hasattr(self.game_manager, 'has_shown_rules'):
                         self.game_manager.has_shown_rules = True
-                elif self.delving_deck_button.is_clicked(mouse_pos):
-                    self.game_manager.change_state("delving_deck")
                 elif self.rules_button.is_clicked(mouse_pos):
                     self.game_manager.change_state("rules")
                     
@@ -393,12 +373,10 @@ class TitleState(GameState):
         card_under_cursor = any(card['hover'] for card in self.cards)
         if not card_under_cursor:
             self.start_button.check_hover(mouse_pos)
-            self.delving_deck_button.check_hover(mouse_pos)
             self.rules_button.check_hover(mouse_pos)
         else:
             # Force non-hover state for buttons when a card is under cursor
             self.start_button.hovered = False
-            self.delving_deck_button.hovered = False
             self.rules_button.hovered = False
     
     def _update_particles(self, delta_time):
@@ -788,7 +766,6 @@ class TitleState(GameState):
         
         # Draw buttons
         self.start_button.draw(surface)
-        self.delving_deck_button.draw(surface)
         self.rules_button.draw(surface)
         
         # Draw particle effects (on top of everything)

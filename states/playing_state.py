@@ -94,7 +94,6 @@ class PlayingState(GameState):
         self.completed_rooms = 0
         self.total_rooms_on_floor = 0
         self.floor_completed = False
-        self.gold_reward_given = False
         self.room_completion_in_progress = False 
         self.room_started_in_enter = False  # Flag to track if a room was started in enter()
         
@@ -106,7 +105,6 @@ class PlayingState(GameState):
         # Player stats
         self.life_points = 20
         self.max_life = 20
-        self.gold = 0
         self.equipped_weapon = {}
         self.defeated_monsters = []
         
@@ -222,23 +220,11 @@ class PlayingState(GameState):
         # Reset player stats
         self.life_points = self.game_manager.game_data["life_points"]
         self.max_life = self.game_manager.game_data["max_life"]
-        
-        # Get gold from game data or game_manager.player_gold
-        if "gold" in self.game_manager.game_data:
-            self.gold = self.game_manager.game_data["gold"]
-        else:
-            self.gold = self.game_manager.player_gold
-            
-        # Make sure game_manager.player_gold is synced
-        self.game_manager.player_gold = self.gold
     
     def _start_initial_room(self):
-        """Start the initial room either with a card from fresh."""
-        # Get player's delving deck if it exists
-        player_deck = self.game_manager.delving_deck if hasattr(self.game_manager, 'delving_deck') else None
-        
+        """Start the initial room either with a card from fresh."""        
         # Initialise deck with player cards shuffled in
-        self.deck.initialise_deck(player_deck)
+        self.deck.initialise_deck()
         
         if self.discard_pile:
             self.discard_pile.cards = []
@@ -269,7 +255,6 @@ class PlayingState(GameState):
         # Save player stats to game_data
         self.game_manager.game_data["life_points"] = self.life_points
         self.game_manager.game_data["max_life"] = self.max_life
-        self.game_manager.game_data["gold"] = self.gold
 
     def handle_event(self, event):
         """Handle player input events."""
@@ -499,13 +484,7 @@ class PlayingState(GameState):
             
             # Increment room count when completing a room
             self.completed_rooms += 1
-            
-            # Award gold for completing the room (2-5 gold)
-            # More difficult floors could give more gold
-            floor_bonus = min(2, self.game_manager.floor_manager.current_floor_index)  # 0-2 bonus based on floor
-            gold_reward = random.randint(2, 5) + floor_bonus
-            self.player_state_manager.change_gold(gold_reward)
-
+        
         # Go directly to the next room if we have cards
         if len(self.deck.cards) > 0:
             print(f"Room completed with empty room, advancing to next room. Cards in deck: {len(self.deck.cards)}")
@@ -540,13 +519,7 @@ class PlayingState(GameState):
             # Update UI elements that show room number
             if hasattr(self, 'status_ui') and hasattr(self.status_ui, 'update_status'):
                 self.status_ui.update_status()
-            
-            # Award gold for completing the room (2-5 gold)
-            # More difficult floors could give more gold
-            floor_bonus = min(2, self.game_manager.floor_manager.current_floor_index)  # 0-2 bonus based on floor
-            gold_reward = random.randint(2, 5) + floor_bonus
-            self.player_state_manager.change_gold(gold_reward)
-        
+                    
         # Start a new room with the remaining card
         self.room_manager.start_new_room(self.room.cards[0])
     
@@ -557,18 +530,12 @@ class PlayingState(GameState):
             
             # Check if this is the last floor
             if self.game_manager.floor_manager.current_floor_index >= len(self.game_manager.floor_manager.floors) - 1:
-                # Last floor completed - victory!
-                # Add any purchased cards to the player's permanent collection
-                self._add_purchased_cards_to_library()
-                
+                # Last floor completed - victory!                
                 self.game_manager.game_data["victory"] = True
                 self.game_manager.game_data["run_complete"] = True
                 self.game_manager.change_state("game_over")
             else:
                 # Not the last floor, show a brief message and advance to next floor
-                # Add any purchased cards to the player's permanent collection
-                self._add_purchased_cards_to_library()
-                
                 floor_type = self.game_manager.floor_manager.get_current_floor()
                 next_floor_index = self.game_manager.floor_manager.current_floor_index + 1
                 next_floor_type = self.game_manager.floor_manager.floors[next_floor_index]
@@ -737,9 +704,6 @@ class PlayingState(GameState):
         
         # Draw health display
         self.ui_renderer.draw_health_display(surface)
-        
-        # Draw gold display
-        self.ui_renderer.draw_gold_display(surface)
 
         # Draw deck count display
         self.ui_renderer.draw_deck_count(surface)
@@ -801,11 +765,7 @@ class PlayingState(GameState):
     def change_health(self, amount):
         """Forward health change to player state manager."""
         self.player_state_manager.change_health(amount)
-    
-    def change_gold(self, amount):
-        """Forward gold change to player state manager."""
-        self.player_state_manager.change_gold(amount)
-    
+        
     def position_inventory_cards(self):
         """Forward inventory positioning to inventory manager."""
         self.inventory_manager.position_inventory_cards()
@@ -837,25 +797,3 @@ class PlayingState(GameState):
     def show_message(self, message, duration=2.0):
         """Forward message display to game state controller."""
         self.game_state_controller.show_message(message, duration)
-        
-    def _add_purchased_cards_to_library(self):
-        """Add any cards acquired from treasure chests to the player's card library."""
-        # Check if there are any purchased cards to add
-        if hasattr(self.game_manager, 'purchased_cards') and self.game_manager.purchased_cards:
-            # Make sure card_library exists
-            if not hasattr(self.game_manager, 'card_library'):
-                self.game_manager.card_library = []
-                
-            # Add each purchased card to the library
-            for card in self.game_manager.purchased_cards:
-                self.game_manager.card_library.append(card)
-                
-            # Show a message about the cards being added
-            card_count = len(self.game_manager.purchased_cards)
-            self.game_state_controller.show_message(
-                f"Added {card_count} treasure cards to your collection!",
-                duration=3.0
-            )
-            
-            # Clear the purchased cards list
-            self.game_manager.purchased_cards = []

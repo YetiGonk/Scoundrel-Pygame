@@ -20,7 +20,7 @@ class Deck:
         self.texture = pygame.transform.scale(self.texture, (CARD_WIDTH, CARD_HEIGHT))
         self.rect = pygame.Rect(self.position[0], self.position[1], CARD_WIDTH, CARD_HEIGHT)
 
-    def initialise_deck(self, player_deck=None):
+    def initialise_deck(self):
         """Initialise the deck for a floor.
         
         This method creates a random deck for each floor, making every run more varied.
@@ -34,12 +34,7 @@ class Deck:
         
         # Generate a random deck for this floor
         self._generate_random_deck()
-        
-        # Add player's delving deck cards if provided
-        if player_deck:
-            for card_data in player_deck:
-                self.cards.append(card_data)
-                
+
         # Shuffle the combined deck
         random.shuffle(self.cards)
         self.initialise_visuals()
