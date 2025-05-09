@@ -29,24 +29,9 @@ class RoomManager:
             print("  Room already started in enter(), not starting again")
             return
         
-        # Check if we should transition to a treasure room instead of starting a new room
-        if not self.playing_state.treasure_transition_started:
-            is_treasure_next = self.playing_state.completed_rooms in self.playing_state.FLOOR_STRUCTURE["treasure_rooms"]
-            if is_treasure_next:
-                # Set flag to prevent multiple treasure transitions
-                self.playing_state.treasure_transition_started = True
-                # DO NOT change the floor manager's current_room as it's now our source of truth
-                # This line was causing the room number to jump incorrectly
-                # Flag that we're coming from treasure room so we preserve state
-                self.playing_state.game_manager.coming_from_treasure = True
-                # Advance to treasure room
-                self.playing_state.game_manager.advance_to_next_room()
-                return
-        
         # Reset the room state tracking flags when starting a new room
         self.playing_state.gold_reward_given = False
         self.playing_state.room_completion_in_progress = False
-        self.playing_state.treasure_transition_started = False
         
         # Clear the room
         self.playing_state.room.clear()
@@ -185,14 +170,43 @@ class RoomManager:
         # Update the deck visuals again
         self.playing_state.deck.initialise_visuals()
         
-        # Start a new room
-        self.start_new_room()
-        
         # Set the ran_last_turn flag
         self.playing_state.ran_last_turn = True
+        
+        # Advance to the next room when running
+        self.playing_state.game_manager.advance_to_next_room()
+        
+        # Update UI elements that show room number
+        if hasattr(self.playing_state, 'status_ui') and hasattr(self.playing_state.status_ui, 'update_status'):
+            self.playing_state.status_ui.update_status()
+        
+        # Chance to encounter a hire after running
+        if hasattr(self.playing_state, 'hire_manager'):
+            # Use a lower chance for hire encounters after running
+            original_chance = self.playing_state.hire_manager.hire_encounter_chance
+            self.playing_state.hire_manager.hire_encounter_chance = original_chance / 2
+            
+            hire_encounter_started = self.playing_state.hire_manager.try_start_hire_encounter()
+            
+            # Restore original chance
+            self.playing_state.hire_manager.hire_encounter_chance = original_chance
+            
+            if hire_encounter_started:
+                # We'll start a new room after the hire encounter finishes
+                return
+        
+        # Start a new room if no hire encounter
+        self.start_new_room()
     
     def transition_to_next_floor(self):
         """Helper method to transition to the next floor."""
+        print("==== TRANSITIONING TO NEXT FLOOR ====")
+        
+        # Get current floor info for debugging
+        current_floor_index = self.playing_state.game_manager.floor_manager.current_floor_index
+        current_floor = self.playing_state.game_manager.floor_manager.get_current_floor()
+        print(f"Current floor: {current_floor} (index {current_floor_index})")
+        
         # Clear the discard pile as we're moving to a new floor
         if hasattr(self.playing_state, 'discard_pile') and self.playing_state.discard_pile:
             # Reset the discard pile's cards
@@ -203,9 +217,25 @@ class RoomManager:
 
         # Advance to the next floor
         self.playing_state.game_manager.floor_manager.advance_floor()
+        next_floor_index = self.playing_state.game_manager.floor_manager.current_floor_index
+        next_floor = self.playing_state.game_manager.floor_manager.get_current_floor()
+        print(f"Advanced to next floor: {next_floor} (index {next_floor_index})")
         
-        # Change back to playing state
+        # Important: Update local player state data to be preserved during transition
+        self.playing_state.game_manager.game_data["life_points"] = self.playing_state.life_points
+        self.playing_state.game_manager.game_data["max_life"] = self.playing_state.max_life
+        self.playing_state.game_manager.game_data["gold"] = self.playing_state.gold
+        self.playing_state.game_manager.player_gold = self.playing_state.gold
+        print(f"Preserved player stats: HP={self.playing_state.life_points}/{self.playing_state.max_life}, Gold={self.playing_state.gold}")
+        
+        # Reset room count tracking
+        self.playing_state.completed_rooms = 0
+        print("Reset room completion tracking")
+        
+        # Change back to playing state (this will recreate deck and handle floor change)
+        print("Changing back to playing state to initialize new floor...")
         self.playing_state.game_manager.change_state("playing")
+        print("==== FLOOR TRANSITION COMPLETE ====")
     
     def remove_and_discard(self, card):
         """Remove a card from the room and add it to the discard pile.

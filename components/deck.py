@@ -10,8 +10,8 @@ class Deck:
     """ Represents a deck of cards in the game. """
     
     def __init__(self, floor):
-        # Default to dungeon if floor is None or not in DECK_DICT
-        self.floor = None
+        # Store the floor type for card generation
+        self.floor = floor
         self.position = DECK_POSITION
         self.cards = []
         self.card_stack = []

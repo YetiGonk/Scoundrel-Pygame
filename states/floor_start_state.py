@@ -99,12 +99,12 @@ class FloorStartState(GameState):
         # Draw floor title
         floor_type = self.game_manager.floor_manager.get_current_floor()
         floor_index = max(1, self.game_manager.floor_manager.current_floor_index + 1)  # Make sure index is at least 1
-        title_text = self.header_font.render(f"Floor {floor_index}: {floor_type.capitalize()}", True, WHITE)
+        title_text = self.header_font.render(f"Floor {floor_index}: {floor_type.title()}", True, WHITE)
         title_rect = title_text.get_rect(centerx=self.panels["main"].rect.centerx, top=self.panels["main"].rect.top + 30)
         surface.blit(title_text, title_rect)
         
         # Add a welcome message
-        welcome_text = self.body_font.render(f"Welcome to the {floor_type.capitalize()}", True, WHITE)
+        welcome_text = self.body_font.render(f"Welcome to the {floor_type.title()}", True, WHITE)
         welcome_rect = welcome_text.get_rect(centerx=self.panels["main"].rect.centerx, top=title_rect.bottom + 30)
         surface.blit(welcome_text, welcome_rect)
         

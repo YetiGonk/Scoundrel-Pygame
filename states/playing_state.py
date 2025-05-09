@@ -9,7 +9,7 @@ from constants import (
     WHITE, BLACK, GRAY, DARK_GRAY, LIGHT_GRAY, FONTS_PATH, WEAPON_POSITION
 )
 
-from roguelike_constants import FLOOR_STRUCTURE, WEAPON_RANKS, WEAPON_RANK_MAP, WEAPON_DAMAGE_TYPES, MONSTER_RANKS, MONSTER_DIFFICULTY_MAP
+from roguelike_constants import WEAPON_RANKS, WEAPON_RANK_MAP, WEAPON_DAMAGE_TYPES, MONSTER_RANKS, MONSTER_DIFFICULTY_MAP
 from components.card import Card
 from components.deck import Deck
 from components.discard_pile import DiscardPile
@@ -90,16 +90,12 @@ class PlayingState(GameState):
         self.show_debug = False
         self.z_index_counter = 0
         
-        # Roguelike components
-        self.FLOOR_STRUCTURE = FLOOR_STRUCTURE
-        
         # Room state tracking
         self.completed_rooms = 0
         self.total_rooms_on_floor = 0
         self.floor_completed = False
         self.gold_reward_given = False
         self.room_completion_in_progress = False 
-        self.treasure_transition_started = False
         self.room_started_in_enter = False  # Flag to track if a room was started in enter()
         
         # Message display
@@ -152,9 +148,6 @@ class PlayingState(GameState):
         # Handle player state setup
         self._setup_player_state()
         
-        # Handle treasure room transition if needed
-        self._handle_treasure_transition()
-        
         # Start initial room
         self._start_initial_room()
         
@@ -181,13 +174,8 @@ class PlayingState(GameState):
         # Get current floor info
         floor_manager = self.game_manager.floor_manager
         current_floor_type = floor_manager.get_current_floor()
-        is_treasure = floor_manager.is_treasure_room()
         
-        # Choose the appropriate floor image
-        if is_treasure:
-            floor_image = "floors/treasure_floor.png"
-        else:
-            floor_image = f"floors/{current_floor_type}_floor.png"
+        floor_image = f"floors/{current_floor_type}_floor.png"
             
         # Try to load the specific floor image, fall back to original if not found
         try:
@@ -234,137 +222,32 @@ class PlayingState(GameState):
         # Reset player stats
         self.life_points = self.game_manager.game_data["life_points"]
         self.max_life = self.game_manager.game_data["max_life"]
-        self.gold = self.game_manager.game_data.get("gold", 0)  # Get gold from game data
-    
-    def _handle_treasure_transition(self):
-        """Handle treasure room transition and weapon/monster restoration."""
-        # Check if coming back from treasure room - restore equipped weapon and defeated monsters
-        if hasattr(self.game_manager, 'equipped_weapon') and self.game_manager.equipped_weapon:
-            # This is from treasure room
-            self.equipped_weapon = self.game_manager.equipped_weapon
-            
-            # Ensure weapon has all required properties
-            if "node" in self.equipped_weapon:
-                weapon_card = self.equipped_weapon["node"]
-                
-                # Make sure type is set
-                weapon_card.type = "weapon"
-                weapon_card.is_equipped = True
-                
-                # Make sure weapon_type is set
-                if not hasattr(weapon_card, 'weapon_type') or not weapon_card.weapon_type:
-                    import random
-                    rank = WEAPON_RANKS.get(weapon_card.value, "novice")
-                    weapon_options = WEAPON_RANK_MAP.get(rank, ["dagger"])
-                    weapon_card.weapon_type = random.choice(weapon_options)
-                
-                # Make sure weapon_difficulty is set
-                if not hasattr(weapon_card, 'weapon_difficulty') or not weapon_card.weapon_difficulty:
-                    weapon_card.weapon_difficulty = WEAPON_RANKS.get(weapon_card.value, "novice")
-                
-                # Make sure damage_type is set
-                if not hasattr(weapon_card, 'damage_type') or not weapon_card.damage_type:
-                    weapon_card.damage_type = WEAPON_DAMAGE_TYPES.get(weapon_card.weapon_type, "slashing")
-                
-                # Make sure name is set
-                if not hasattr(weapon_card, 'name') or not weapon_card.name:
-                    weapon_display_name = weapon_card.weapon_type.capitalize()
-                    weapon_card.name = f"{weapon_display_name} {weapon_card._to_roman(weapon_card.value)}"
-                    
-                # Set default position for the weapon
-                weapon_card.update_position(WEAPON_POSITION)
         
-            # Handle defeated monsters
-            if hasattr(self.game_manager, 'defeated_monsters') and self.game_manager.defeated_monsters:
-                # Get monsters from treasure room
-                self.defeated_monsters = self.game_manager.defeated_monsters
-                
-                # Ensure all defeated monsters have the required properties set
-                for monster in self.defeated_monsters:
-                    monster.is_defeated = True
-                    monster.type = "monster"
-                    
-                    # Set sprite file path if missing
-                    if not hasattr(monster, 'sprite_file_path') or not monster.sprite_file_path:
-                        import random
-                        difficulty = MONSTER_RANKS.get(monster.value, "easy")
-                        monster.sprite_file_path = random.choice(MONSTER_DIFFICULTY_MAP[difficulty])
-                    
-                    # Set monster type if missing
-                    if not hasattr(monster, 'monster_type') or not monster.monster_type:
-                        monster.monster_type = monster.sprite_file_path.split("/")[-2] if hasattr(monster, 'sprite_file_path') and monster.sprite_file_path else "Unknown"
-                    
-                    # Set name if missing
-                    if not hasattr(monster, 'name') or not monster.name:
-                        sprite_name = monster.sprite_file_path.split("/")[-1].split(".")[0].upper() if hasattr(monster, 'sprite_file_path') and monster.sprite_file_path else "Monster"
-                        monster.name = f"{sprite_name} {monster._to_roman(monster.value)}"
-                
-                # Position monster stack
-                if hasattr(self, "animation_controller") and hasattr(self.animation_controller, "position_monster_stack"):
-                    self.animation_controller.position_monster_stack()
-            
-            # Clear the stored data
-            self.game_manager.equipped_weapon = {}
-            self.game_manager.defeated_monsters = []
+        # Get gold from game data or game_manager.player_gold
+        if "gold" in self.game_manager.game_data:
+            self.gold = self.game_manager.game_data["gold"]
         else:
-            self.equipped_weapon = {}
-            self.defeated_monsters = []
+            self.gold = self.game_manager.player_gold
+            
+        # Make sure game_manager.player_gold is synced
+        self.game_manager.player_gold = self.gold
     
     def _start_initial_room(self):
-        """Start the initial room either with a card from merchant or fresh."""
-        # Check if we're coming from treasure room
-        coming_from_treasure = hasattr(self.game_manager, 'coming_from_treasure') and self.game_manager.coming_from_treasure
+        """Start the initial room either with a card from fresh."""
+        # Get player's delving deck if it exists
+        player_deck = self.game_manager.delving_deck if hasattr(self.game_manager, 'delving_deck') else None
         
-        # Initialise the deck if needed
-        if not coming_from_treasure:
-            # Get player's delving deck if it exists
-            player_deck = self.game_manager.delving_deck if hasattr(self.game_manager, 'delving_deck') else None
-            
-            # Initialise deck with player cards shuffled in
-            self.deck.initialise_deck(player_deck)
-            
-            # Also clear the discard pile when starting a new floor (not from merchant)
-            if self.discard_pile:
-                self.discard_pile.cards = []
-                if hasattr(self.discard_pile, 'card_stack'):
-                    self.discard_pile.card_stack = []
+        # Initialise deck with player cards shuffled in
+        self.deck.initialise_deck(player_deck)
         
-        # Initialise last_card variable
-        last_card_from_merchant = None
-        
-        # If we have preserved card data, prepare it for the next room
-        if coming_from_treasure and hasattr(self.game_manager, 'last_card_data') and self.game_manager.last_card_data:
-            # Create a card object from the stored data
-            card_data = self.game_manager.last_card_data
-            last_card_from_merchant = Card(card_data["suit"], card_data["value"], card_data.get("floor_type", self.current_floor))
-            last_card_from_merchant.face_up = True
+        if self.discard_pile:
+            self.discard_pile.cards = []
+            if hasattr(self.discard_pile, 'card_stack'):
+                self.discard_pile.card_stack = []
             
-            # Set initial position for the card (will be positioned properly by start_new_room)
-            # This ensures it doesn't appear in the top-left corner before being properly positioned
-            # Use a position that would be reasonable for a room card
-            num_cards = 1  # Just this card initially
-            total_width = (CARD_WIDTH * num_cards)
-            start_x = (SCREEN_WIDTH - total_width) // 2
-            start_y = (SCREEN_HEIGHT - CARD_HEIGHT) // 2 - 40
-            last_card_from_merchant.update_position((start_x, start_y))
-            
-            # Now clear the stored card data
-            self.game_manager.last_card_data = None
-            
-            # Start a new room with the preserved card
-            print(f"Starting room with preserved card in enter() - room: {self.game_manager.floor_manager.current_room}")
-            self.room_manager.start_new_room(last_card_from_merchant)
-            # Set flag that we've started a room in enter
-            self.room_started_in_enter = True
-        else:
-            # No card was preserved or not coming from merchant, start a normal room
-            print(f"Starting normal room in enter() - room: {self.game_manager.floor_manager.current_room}")
-            self.room_manager.start_new_room()
-            # Set flag that we've started a room in enter
-            self.room_started_in_enter = True
-        
-        # Reset coming_from_treasure flag after handling the transition
-        self.game_manager.coming_from_treasure = False
+        self.room_manager.start_new_room()
+        # Set flag that we've started a room in enter
+        self.room_started_in_enter = True
         
         # Update status UI fonts
         self.status_ui.update_fonts(self.header_font, self.normal_font)
@@ -376,7 +259,6 @@ class PlayingState(GameState):
         """Reset game state tracking variables."""
         # Reset floor completion tracking
         self.floor_completed = False
-        self.treasure_transition_started = False
 
         # Reset completed_rooms counter if starting a new floor
         if self.game_manager.floor_manager.current_room == 1:
@@ -630,7 +512,11 @@ class PlayingState(GameState):
             # More cards in deck - advance to next room
             self.game_manager.advance_to_next_room()
             
-            # Check if we're still in the playing state (not moved to merchant or other state)
+            # Update UI elements that show room number
+            if hasattr(self, 'status_ui') and hasattr(self.status_ui, 'update_status'):
+                self.status_ui.update_status()
+            
+            # Check if we're still in the playing state
             if self.game_manager.current_state == self:
                 # Start a new room
                 self.room_manager.start_new_room()
@@ -648,22 +534,26 @@ class PlayingState(GameState):
             # Increment completed rooms because we're moving to the next room with a card
             self.completed_rooms += 1
             
+            # Advance to next room in the floor manager
+            self.game_manager.advance_to_next_room()
+            
+            # Update UI elements that show room number
+            if hasattr(self, 'status_ui') and hasattr(self.status_ui, 'update_status'):
+                self.status_ui.update_status()
+            
             # Award gold for completing the room (2-5 gold)
             # More difficult floors could give more gold
             floor_bonus = min(2, self.game_manager.floor_manager.current_floor_index)  # 0-2 bonus based on floor
             gold_reward = random.randint(2, 5) + floor_bonus
             self.player_state_manager.change_gold(gold_reward)
         
-        # Start a new room with the remaining card - merchant check happens inside start_new_room
+        # Start a new room with the remaining card
         self.room_manager.start_new_room(self.room.cards[0])
     
     def _handle_floor_completion(self):
         """Handle logic for when the floor is completed."""
         if not self.floor_completed:
             self.floor_completed = True
-            
-            # Mark this floor as completed
-            self.game_manager.floor_manager.current_room = self.FLOOR_STRUCTURE["rooms_per_floor"]
             
             # Check if this is the last floor
             if self.game_manager.floor_manager.current_floor_index >= len(self.game_manager.floor_manager.floors) - 1:
@@ -682,7 +572,7 @@ class PlayingState(GameState):
                 floor_type = self.game_manager.floor_manager.get_current_floor()
                 next_floor_index = self.game_manager.floor_manager.current_floor_index + 1
                 next_floor_type = self.game_manager.floor_manager.floors[next_floor_index]
-                self.game_state_controller.show_message(f"Floor {floor_type.capitalize()} completed! Moving to {next_floor_type.capitalize()}...")
+                self.game_state_controller.show_message(f"Floor {floor_type.title()} completed! Moving to {next_floor_type.title()}...")
                 
                 # Schedule transition to next floor after a short delay
                 self.animation_controller.schedule_delayed_animation(

@@ -194,7 +194,7 @@ class Card:
     
     def add_monster_to_card(self, card_surface):
         """Add monster image to card surface based on suit, value and floor type"""    
-        self.name = f"{self.sprite_file_path.split("/")[-1].split(".")[0].upper()} {self._to_roman(self.value)}"
+        self.name = f"{self.sprite_file_path.split("/")[-1].split(".")[0].title()} {self._to_roman(self.value)}"
         monster_name = self.name.lower()
         self.monster_type = self.sprite_file_path.split("/")[-2]
         

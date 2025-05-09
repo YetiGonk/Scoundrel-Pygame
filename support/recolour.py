@@ -21,8 +21,8 @@ def replace_colour(image_path, old_colour, new_colour):
         print(f"Error processing {image_path}: {e}")
 
 if __name__ == "__main__":
-    replace_colour("assets/weapons/dagger.png", (239, 172, 40, 255), (155, 26, 10, 255))
-    replace_colour("assets/weapons/dagger.png", (236, 196, 105, 255), (206, 45, 11, 255))
-    replace_colour("assets/weapons/dagger.png", (239, 216, 161, 255), (239, 58, 12, 255))
+    replace_colour("assets/weapons/scythe.png", (239, 172, 40, 255), (155, 26, 10, 255))
+    replace_colour("assets/weapons/scythe.png", (236, 196, 105, 255), (206, 45, 11, 255))
+    replace_colour("assets/weapons/scythe.png", (239, 216, 161, 255), (239, 58, 12, 255))
 
 

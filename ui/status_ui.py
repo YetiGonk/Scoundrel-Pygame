@@ -2,8 +2,8 @@
 Status UI component for displaying game progression information
 """
 import pygame
-from constants import WHITE, BLACK, GRAY, SCREEN_WIDTH, SCREEN_HEIGHT, \
-    FLOOR_ROOM_TITLE_POSITION, FLOOR_ROOM_TITLE_WIDTH, FLOOR_ROOM_TITLE_HEIGHT
+from constants import WHITE, BLACK, GRAY, SCREEN_WIDTH, SCREEN_HEIGHT
+from roguelike_constants import FLOOR_TOTAL, FLOOR_NAMES
 
 class StatusUI:
     """Displays current floor, room, and player stats during gameplay."""
@@ -12,16 +12,18 @@ class StatusUI:
         self.game_manager = game_manager
         self.header_font = pygame.font.SysFont(None, 28)
         self.normal_font = pygame.font.SysFont(None, 20)
-        
-        self.panel_rect = pygame.Rect(
-            FLOOR_ROOM_TITLE_POSITION,
-            (FLOOR_ROOM_TITLE_WIDTH, FLOOR_ROOM_TITLE_HEIGHT)
-        )
+        self.panel_rect = None
     
     def update_fonts(self, header_font, normal_font):
         """Update fonts if they are loaded after initialization."""
         self.header_font = header_font
         self.normal_font = normal_font
+        
+    def update_status(self):
+        """Update the status UI with current room/floor information."""
+        # The panel will be redrawn with the latest information on the next draw call
+        # This method can be called when room or floor numbers change
+        pass
     
     def draw(self, surface):
         """Draw the status UI with a dungeon-themed panel."""
@@ -33,8 +35,16 @@ class StatusUI:
         # Use the floor manager's current_room which is now 1-based
         current_room = floor_manager.current_room
             
-        total_rooms = floor_manager.FLOOR_STRUCTURE["rooms_per_floor"]
+        total_rooms = FLOOR_TOTAL
         
+        floor_text = self.header_font.render(f"Floor {current_floor_index}: {current_floor.title()}", True, WHITE)
+        
+        panel_padding = 60
+        self.panel_rect = pygame.Rect(
+            (SCREEN_WIDTH//2 - (floor_text.width + panel_padding)//2, 50),
+            ((floor_text.width + panel_padding), 80)
+        ) 
+
         # Create dungeon-themed status panel if it doesn't exist yet
         if not hasattr(self, 'styled_panel'):
             from ui.panel import Panel
@@ -55,8 +65,7 @@ class StatusUI:
         self.styled_panel.draw(surface)
         
         # Draw floor info with a slight glow effect for emphasis
-        floor_text = self.header_font.render(f"Floor {current_floor_index}: {current_floor.capitalize()}", True, WHITE)
-        floor_rect = floor_text.get_rect(centerx=self.panel_rect.centerx, top=self.panel_rect.top + 10)
+        floor_rect = floor_text.get_rect(centerx=self.panel_rect.centerx, top=self.panel_rect.top + 15)
         
         # Create a subtle glow behind the text (for magical floors)
         glow_surface = pygame.Surface((floor_text.get_width() + 10, floor_text.get_height() + 10), pygame.SRCALPHA)
@@ -70,5 +79,5 @@ class StatusUI:
     
         # Draw room info with a more subtle appearance
         room_text = self.normal_font.render(f"Room {current_room}", True, (220, 220, 200))  # Slightly off-white
-        room_rect = room_text.get_rect(centerx=self.panel_rect.centerx, top=self.panel_rect.top + floor_rect.height + 10)
+        room_rect = room_text.get_rect(centerx=self.panel_rect.centerx, top=floor_rect.bottom + 5)
         surface.blit(room_text, room_rect)

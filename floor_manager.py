@@ -1,22 +1,19 @@
 """ Floor manager for handling multiple floors in the Scoundrel game. """
 import random
-from roguelike_constants import FLOOR_TYPES, FLOOR_STRUCTURE
+from roguelike_constants import FLOOR_NAMES, FLOOR_TOTAL
 
 class FloorManager:
     """Manages the different floors in a run."""
     
     def __init__(self, game_manager):
         self.game_manager = game_manager
-        self.FLOOR_STRUCTURE = FLOOR_STRUCTURE
-        self.floors = []
+        self.floors = [f"{random.choice(FLOOR_NAMES['first'])} {random.choice(FLOOR_NAMES['second'])}" for _ in range(FLOOR_TOTAL)]
         self.current_floor_index = 0
-        # Room numbers now start at 1 - makes displaying in UI easier
         self.current_room = 1
-        self.total_floors = len(FLOOR_TYPES)
+        self.total_floors = FLOOR_TOTAL
         
     def initialise_run(self):
         """Initialise a new run with randomised floor order."""
-        self.floors = random.sample(FLOOR_TYPES, self.total_floors)
         self.current_floor_index = 0
         # Start at room 1
         self.current_room = 1
@@ -42,16 +39,12 @@ class FloorManager:
         print(f"FloorManager.advance_room: incremented room number from {old_room} to {self.current_room}")
         
         # Check if we've reached the end of the floor
-        if self.current_room > FLOOR_STRUCTURE["rooms_per_floor"]:
+        if self.current_room > FLOOR_TOTAL:
             return self.advance_floor()
-        
-        # Check if this is a treasure room
-        is_treasure = self.current_room in FLOOR_STRUCTURE["treasure_rooms"]
-        
+                
         return {
             "floor": self.get_current_floor(),
-            "room": self.current_room,
-            "is_treasure": is_treasure
+            "room": self.current_room
         }
     
     def advance_floor(self):
@@ -75,9 +68,3 @@ class FloorManager:
             "room": self.current_room,
             "is_floor_start": True
         }
-    
-    def is_treasure_room(self):
-        """Check if the current room is a treasure room."""
-        return self.current_room in FLOOR_STRUCTURE["treasure_rooms"]
-    
-    # Boss room functionality removed

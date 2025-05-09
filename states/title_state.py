@@ -76,19 +76,9 @@ class TitleState(GameState):
         
         # Load a random floor image for visual variety
         from constants import FLOOR_WIDTH, FLOOR_HEIGHT
-        from roguelike_constants import FLOOR_TYPES
         
-        # Select a random floor type for the title screen
-        random_floor_type = random.choice(FLOOR_TYPES)
-        floor_image = f"floors/{random_floor_type}_floor.png"
-        
-        # Try to load the specific floor image, fall back to original if not found
-        try:
-            self.floor = ResourceLoader.load_image(floor_image)
-        except:
-            # Fallback to the original floor image
-            self.floor = ResourceLoader.load_image("floor.png")
-            
+        floor_image = "floor.png"        
+        self.floor = ResourceLoader.load_image(floor_image)    
         self.floor = pygame.transform.scale(self.floor, (FLOOR_WIDTH, FLOOR_HEIGHT))
 
         # Create title panel
