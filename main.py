@@ -2977,11 +2977,47 @@ class GameManager:
         self.defeated_monsters = []
         self.last_card_data = None
 
+        self.fade_alpha = 0
+        self.fade_direction = 0
+        self.fade_speed = 255 / 0.5
+        self.pending_state = None
+        self.fade_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.fade_surface.fill(BLACK)
+        
+        self.fade_surface = self.fade_surface.convert_alpha()
+
         self.change_state("title")
 
-    def change_state(self, state_name):
-        current_state_name = "None" if not self.current_state else self.current_state.__class__.__name__
+    def change_state(self, state_name, fade_duration=0.5):
+        if self.current_state is None:
+            self.current_state = self.states[state_name]
+            self.current_state.enter()
+            return
 
+        if self.fade_direction != 0:
+            return
+            
+        if self.current_state == self.states[state_name]:
+            return
+        
+        self.fade_speed = 255 / fade_duration
+        
+        self.pending_state = state_name
+        self.fade_direction = 1
+        self.fade_alpha = 0
+
+    def _execute_state_transition(self):
+        if self.current_state:
+            self.current_state.exit()
+
+        if self.pending_state == "title" and not self.floor_manager.floors:
+            self.floor_manager.initialise_run()
+
+        self.current_state = self.states[self.pending_state]
+        self.current_state.enter()
+        self.pending_state = None
+
+    def change_state_instant(self, state_name):
         if self.current_state and self.current_state == self.states[state_name]:
             return
 
@@ -2992,20 +3028,40 @@ class GameManager:
             self.floor_manager.initialise_run()
 
         self.current_state = self.states[state_name]
-
         self.current_state.enter()
 
     def handle_event(self, event):
+        if self.fade_direction != 0 and event.type == MOUSEBUTTONDOWN:
+            return
+            
         if self.current_state:
             self.current_state.handle_event(event)
 
     def update(self, delta_time):
-        if self.current_state:
+        # Update fade transition
+        if self.fade_direction != 0:
+            self.fade_alpha += self.fade_direction * self.fade_speed * delta_time
+            
+            if self.fade_direction == 1:
+                if self.fade_alpha >= 255:
+                    self.fade_alpha = 255
+                    self._execute_state_transition()
+                    self.fade_direction = -1
+            else:
+                if self.fade_alpha <= 0:
+                    self.fade_alpha = 0
+                    self.fade_direction = 0
+        
+        if self.current_state and not (self.fade_direction == 1):
             self.current_state.update(delta_time)
 
     def draw(self, surface):
         if self.current_state:
             self.current_state.draw(surface)
+        
+        if self.fade_alpha > 0:
+            self.fade_surface.set_alpha(int(self.fade_alpha))
+            surface.blit(self.fade_surface, (0, 0))
 
     def start_new_run(self):
         """Initialise a new roguelike run."""
@@ -5324,8 +5380,10 @@ class TitleState(GameState):
 
     def handle_event(self, event):
         mouse_pos = pygame.mouse.get_pos()
-
+        
         if event.type == MOUSEBUTTONDOWN and event.button == 1:
+            self.start_button.check_hover(mouse_pos)
+            self.rules_button.check_hover(mouse_pos)
 
             card_clicked = False
 
@@ -5515,6 +5573,10 @@ class TitleState(GameState):
             self._create_animated_cards()
 
     def update(self, delta_time):
+
+        mouse_pos = pygame.mouse.get_pos()
+        self.start_button.check_hover(mouse_pos)
+        self.rules_button.check_hover(mouse_pos)
 
         glow_speed = 0.5
         self.title_glow += glow_speed * self.title_glow_dir * delta_time
