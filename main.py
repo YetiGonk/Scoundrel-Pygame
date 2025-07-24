@@ -2963,6 +2963,7 @@ class GameManager:
             "rules": RulesState(self),
             "playing": PlayingState(self),
             "game_over": GameOverState(self),
+            "tutorial": TutorialState(self),
         }
 
         self.current_state = None
@@ -5417,10 +5418,8 @@ class TitleState(GameState):
                     break
 
             if not card_clicked:
-
                 if self.start_button.is_clicked(mouse_pos):
-                    self.game_manager.start_new_run()
-                    self.game_manager.change_state("playing")
+                    self.game_manager.change_state("tutorial")
                 elif self.rules_button.is_clicked(mouse_pos):
                     self.game_manager.change_state("rules")
 
@@ -5825,6 +5824,101 @@ class TitleState(GameState):
                 (int(particle['x']), int(particle['y'])),
                 int(particle['size'] * (0.5 + 0.5 * particle['life']))
             )
+
+class TutorialState(GameState):
+    """The tutorial state of the game."""
+
+    def __init__(self, game_manager):
+        super().__init__(game_manager)
+        self.title_font = None
+        self.header_font = None
+        self.body_font = None
+        self.background = None
+        self.floor = None
+        self.merchant_image = None
+        self.skip_button = None
+        self.tutorial_button = None
+
+    def enter(self):
+        self.title_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 64)
+        self.header_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 36)
+        self.body_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 28)
+
+        self.background = ResourceLoader.load_image("bg.png")
+        if self.background.get_width() != SCREEN_WIDTH or self.background.get_height() != SCREEN_HEIGHT:
+            self.background = pygame.transform.scale(self.background, (SCREEN_WIDTH, SCREEN_HEIGHT))
+
+        self.floor = ResourceLoader.load_image("floor.png")
+        self.floor = pygame.transform.scale(self.floor, (FLOOR_WIDTH, FLOOR_HEIGHT))
+
+        self.merchant_image = ResourceLoader.load_image("hires/Merchant.png")
+        self.merchant_image = pygame.transform.scale(self.merchant_image, (256, 256))
+
+        button_width = 300
+        button_height = 60
+        button_spacing = 20
+        buttons_y = SCREEN_HEIGHT // 2 + 100
+
+        tutorial_button_rect = pygame.Rect(
+            (SCREEN_WIDTH - button_width) // 2,
+            buttons_y,
+            button_width,
+            button_height
+        )
+        self.tutorial_button = Button(
+            tutorial_button_rect,
+            "No, I'm new",
+            self.body_font,
+            text_colour=WHITE,
+            dungeon_style=True,
+            panel_colour=(80, 40, 40),
+            border_colour=(150, 70, 70)
+        )
+
+        skip_button_rect = pygame.Rect(
+            (SCREEN_WIDTH - button_width) // 2,
+            buttons_y + button_height + button_spacing,
+            button_width,
+            button_height
+        )
+        self.skip_button = Button(
+            skip_button_rect,
+            "Yes, I'm a veteran",
+            self.body_font,
+            text_colour=WHITE,
+            dungeon_style=True,
+            panel_colour=(40, 80, 40),
+            border_colour=(80, 150, 80)
+        )
+
+    def handle_event(self, event):
+        mouse_pos = pygame.mouse.get_pos()
+        if event.type == MOUSEBUTTONDOWN and event.button == 1:
+            if self.tutorial_button.is_clicked(mouse_pos):
+                # Placeholder for the tutorial
+                self.game_manager.change_state("playing")
+            elif self.skip_button.is_clicked(mouse_pos):
+                self.game_manager.change_state("playing")
+
+        self.tutorial_button.check_hover(mouse_pos)
+        self.skip_button.check_hover(mouse_pos)
+
+    def update(self, delta_time):
+        pass
+
+    def draw(self, surface):
+        surface.blit(self.background, (0, 0))
+        surface.blit(self.floor, ((SCREEN_WIDTH - self.floor.get_width()) / 2, (SCREEN_HEIGHT - self.floor.get_height()) / 2))
+
+        merchant_rect = self.merchant_image.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 100))
+        surface.blit(self.merchant_image, merchant_rect)
+
+        dialogue_text = self.header_font.render("You, adventurer! Ever braved this dungeon before?", True, WHITE)
+        dialogue_rect = dialogue_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 50))
+        surface.blit(dialogue_text, dialogue_rect)
+
+        self.tutorial_button.draw(surface)
+        self.skip_button.draw(surface)
 
 class UIFactory:
     """Creates and manages UI elements."""
