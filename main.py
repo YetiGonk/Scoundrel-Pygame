@@ -5,6 +5,7 @@
 """
 
 import math
+import asyncio
 import os
 import sys
 import random
@@ -6643,7 +6644,7 @@ def process_all_cards(input_folder):
             output_path = os.path.join(input_folder, filename)
             isolate_card_corners(input_path, output_path)
 
-def main():
+async def main():
     """ Main entry point for the game. """
     pygame.init()
 
@@ -6664,9 +6665,11 @@ def main():
         game_manager.update(delta_time)
         game_manager.draw(screen)
         pygame.display.flip()
+        
+        await asyncio.sleep(0)
 
     pygame.quit()
     sys.exit()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
