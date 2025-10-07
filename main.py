@@ -2960,11 +2960,11 @@ class GameManager:
 
         self.states = {
             "title": TitleState(self),
-            "menu": MenuState(self),
             "rules": RulesState(self),
             "playing": PlayingState(self),
             "game_over": GameOverState(self),
             "tutorial": TutorialState(self),
+            "tutorial_watch": TutorialState(self, watch=True),
         }
 
         self.current_state = None
@@ -3010,6 +3010,8 @@ class GameManager:
 
     def _execute_state_transition(self):
         if self.current_state:
+            if type(self.current_state) == TutorialState:
+                self.has_shown_tutorial = True
             self.current_state.exit()
 
         if self.pending_state == "title" and not self.floor_manager.floors:
@@ -3040,7 +3042,6 @@ class GameManager:
             self.current_state.handle_event(event)
 
     def update(self, delta_time):
-        # Update fade transition
         if self.fade_direction != 0:
             self.fade_alpha += self.fade_direction * self.fade_speed * delta_time
             
@@ -3718,72 +3719,6 @@ class InventoryManager:
             if card.rect.collidepoint(position):
                 return card
         return None
-
-class MenuState(GameState):
-    """The main menu state of the game."""
-
-    def __init__(self, game_manager):
-        super().__init__(game_manager)
-        self.title_font = None
-        self.header_font = None
-        self.body_font = None
-        self.background = None
-        self.floor = None
-        self.start_button_rect = None
-
-    def enter(self):
-
-        self.title_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 64)
-        self.header_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 36)
-        self.body_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 28)
-
-        self.background = ResourceLoader.load_image("bg.png")
-        if self.background.get_width() != SCREEN_WIDTH or self.background.get_height() != SCREEN_HEIGHT:
-            self.background = pygame.transform.scale(self.background, (SCREEN_WIDTH, SCREEN_HEIGHT))
-
-        self.floor = ResourceLoader.load_image("floor.png")
-        self.floor = pygame.transform.scale(self.floor, (FLOOR_WIDTH, FLOOR_HEIGHT))
-
-    def handle_event(self, event):
-        if event.type == MOUSEBUTTONDOWN and event.button == 1:
-            if self.start_button_rect and self.start_button_rect.collidepoint(event.pos):
-
-                self.game_manager.start_new_run()
-
-                if not hasattr(self.game_manager, 'has_shown_rules') or not self.game_manager.has_shown_rules:
-                    self.game_manager.has_shown_rules = True
-                    self.game_manager.change_state("rules")
-                else:
-
-                    self.game_manager.change_state("floor_start")
-
-    def update(self, delta_time):
-        pass
-
-    def draw(self, surface):
-
-        surface.blit(self.background, (0, 0))
-        surface.blit(self.floor, ((SCREEN_WIDTH - self.floor.get_width())/2, (SCREEN_HEIGHT - self.floor.get_height())/2))
-
-        panel = Panel((MENU_WIDTH, MENU_HEIGHT), MENU_POSITION, colour=DARK_GRAY)
-        panel.draw(surface)
-
-        title_text = self.title_font.render("SCOUNDREL", True, WHITE)
-        title_rect = title_text.get_rect(center=(SCREEN_WIDTH//2, panel.rect.top + 50))
-        surface.blit(title_text, title_rect)
-
-        subtitle_text = self.header_font.render("The 52-Card Dungeon Crawler", True, WHITE)
-        subtitle_rect = subtitle_text.get_rect(center=(SCREEN_WIDTH//2, title_rect.bottom + 30))
-        surface.blit(subtitle_text, subtitle_rect)
-
-        self.start_button_rect = pygame.Rect(0, 0, 225, 50)
-        self.start_button_rect.center = (SCREEN_WIDTH//2, panel.rect.bottom + 150)
-        pygame.draw.rect(surface, LIGHT_GRAY, self.start_button_rect)
-        pygame.draw.rect(surface, BLACK, self.start_button_rect, 2)
-
-        button_text = self.body_font.render("START GAME", True, BLACK)
-        button_text_rect = button_text.get_rect(center=self.start_button_rect.center)
-        surface.blit(button_text, button_text_rect)
 
 class Panel:
     def __init__(self, width_height, top_left, colour=DARK_GRAY, alpha=None, border_radius=None,
@@ -5119,6 +5054,7 @@ class TitleState(GameState):
         self.floor = None
         self.title_panel = None
         self.start_button = None
+        self.tutorial_button = None
         self.rules_button = None
 
         self.particles = []
@@ -5181,7 +5117,7 @@ class TitleState(GameState):
         button_width = 300
         button_height = 60
         button_spacing = 10
-        buttons_y = panel_y + panel_height - button_height*2 - button_spacing*1 - 25
+        buttons_y = panel_y + panel_height - button_height*3 - button_spacing*2 - 25
 
         start_button_rect = pygame.Rect(
             (SCREEN_WIDTH - button_width) // 2,
@@ -5195,13 +5131,29 @@ class TitleState(GameState):
             self.body_font,
             text_colour=WHITE,
             dungeon_style=True,
-            panel_colour=(80, 40, 40),
+            panel_colour=(60, 30, 30),
             border_colour=(150, 70, 70)
+        )
+
+        tutorial_button_rect = pygame.Rect(
+            (SCREEN_WIDTH - button_width) // 2,
+            buttons_y + (button_height + button_spacing),
+            button_width,
+            button_height
+        )
+        self.tutorial_button = Button(
+            tutorial_button_rect,
+            "WATCH TUTORIAL",
+            self.body_font,
+            text_colour=WHITE,
+            dungeon_style=True,
+            panel_colour=(30, 60, 30),
+            border_colour=(70, 150, 70)
         )
 
         rules_button_rect = pygame.Rect(
             (SCREEN_WIDTH - button_width) // 2,
-            buttons_y + button_height + button_spacing,
+            buttons_y + (button_height + button_spacing)*2,
             button_width,
             button_height
         )
@@ -5211,8 +5163,8 @@ class TitleState(GameState):
             self.body_font,
             text_colour=WHITE,
             dungeon_style=True,
-            panel_colour=(40, 60, 80),
-            border_colour=(80, 120, 160)
+            panel_colour=(30, 30, 60),
+            border_colour=(70, 70, 150)
         )
 
         self._create_torch_lights()
@@ -5420,7 +5372,13 @@ class TitleState(GameState):
 
             if not card_clicked:
                 if self.start_button.is_clicked(mouse_pos):
-                    self.game_manager.change_state("tutorial")
+                    if not hasattr(self.game_manager, 'has_shown_tutorial') or not self.game_manager.has_shown_tutorial:
+                        self.game_manager.has_shown_tutorial = True
+                        self.game_manager.change_state("tutorial")
+                    else:
+                        self.game_manager.change_state("playing")
+                elif self.tutorial_button.is_clicked(mouse_pos):
+                    self.game_manager.change_state("tutorial_watch")
                 elif self.rules_button.is_clicked(mouse_pos):
                     self.game_manager.change_state("rules")
 
@@ -5473,10 +5431,11 @@ class TitleState(GameState):
         card_under_cursor = any(card['hover'] for card in self.cards)
         if not card_under_cursor:
             self.start_button.check_hover(mouse_pos)
+            self.tutorial_button.check_hover(mouse_pos)
             self.rules_button.check_hover(mouse_pos)
         else:
-
             self.start_button.hovered = False
+            self.tutorial_button.hovered = False
             self.rules_button.hovered = False
 
     def _update_particles(self, delta_time):
@@ -5576,6 +5535,7 @@ class TitleState(GameState):
 
         mouse_pos = pygame.mouse.get_pos()
         self.start_button.check_hover(mouse_pos)
+        self.tutorial_button.check_hover(mouse_pos)
         self.rules_button.check_hover(mouse_pos)
 
         glow_speed = 0.5
@@ -5717,7 +5677,7 @@ class TitleState(GameState):
             "Kill it with a fire card!",
             "Crossbows are useless without bolts!",
             "Better lucky than good, better prepared than lucky",
-            "Don't give up! You can always draw another card!",
+            "Don't give up! Gambate! Fighto!",
             "[Insert sponsor here]",
             "The dungeon is a cruel mistress",
             "Insanity is expecting a different result from the same card",
@@ -5731,7 +5691,7 @@ class TitleState(GameState):
             "Shuffle up and deal with it!",
             "Gambling is illegal, but this is a dungeon!",
             "Flipping you off is a card game term!",
-            "Original concept by Kurt Bieg and Zach Gage!",
+            "Original rules by Kurt Bieg and Zach Gage!",
             "You are not allowed a calculator on this exam",
             "Scoundrel this, scoundrel that",
             "You can drag the title cards around!",
@@ -5748,11 +5708,12 @@ class TitleState(GameState):
             "I feel like we are connecting on a deeper level through this title screen...",
             "PyGame is a cruel mistress",
             "Scoundrel, shmoundrel!",
-            "Roguelike or roguelite? You decide!",
             "Scoundrel 2: Electric Boogaloo",
             "Sconedrel: Argue about how to pronounce it.",
             "SCOUNDRELLLLL!",
-            "The sequel will be a dating sim."
+            "The sequel will be a dating sim.",
+            "I slipped you a red 10 in there somewhere, thank me later <3",
+            "Adventurer hires, merchants and gold coming soon!"
         ]
 
         if not hasattr(self, 'last_tagline_index'):
@@ -5814,6 +5775,7 @@ class TitleState(GameState):
             surface.blit(tagline_text, tagline_rect)
 
         self.start_button.draw(surface)
+        self.tutorial_button.draw(surface)
         self.rules_button.draw(surface)
 
         for particle in self.particles:
@@ -5829,7 +5791,7 @@ class TitleState(GameState):
 class TutorialState(GameState):
     """Tutorial state with typing text, animated merchant, and demo UI."""
     
-    def __init__(self, game_manager):
+    def __init__(self, game_manager, watch=False):
         super().__init__(game_manager)
         self.header_font = None
         self.body_font = None
@@ -5837,30 +5799,27 @@ class TutorialState(GameState):
         self.background = None
         self.floor = None
         
-        # Tutorial dialogue system
+        self.watch = watch
+        
         self.current_dialogue_index = 0
         self.dialogue_complete = False
         self.typing_complete = False
         
-        # Typing effect variables
         self.current_text = ""
         self.target_text = ""
         self.char_index = 0
         self.typing_speed = 0.03  # seconds per character
         self.typing_timer = 0
         
-        # Merchant animation
         self.merchant_image = None
         self.merchant_shake_amount = 0
         self.merchant_base_pos = None
         
-        # UI elements
         self.dialogue_panel = None
         self.name_panel = None
         self.next_button = None
         self.skip_button = None
         
-        # Tutorial dialogues
         self.dialogues = [
             {
                 "speaker": "Mysterious Merchant",
@@ -5914,6 +5873,11 @@ class TutorialState(GameState):
             },
             {
                 "speaker": "Bartholomew The Merchant",
+                "graphic": None,
+                "text": "Each floor's deck is UNIQUE, with some having more high cards than others, so don't try to card-count!"
+            },
+            {
+                "speaker": "Bartholomew The Merchant",
                 "graphic": "show inventory panel",
                 "text": "Your inventory holds up to 2 red cards, either WEAPONS or POTIONS. Save them for when you need them most!"
             },
@@ -5929,7 +5893,10 @@ class TutorialState(GameState):
             }
         ]
         
-        # Demo cards for tutorial
+        self.text_line_num = 1
+        self.line_height = 30
+        self.final_line_str = ""
+        
         self.demo_cards = []
         self.demo_weapon = None
         self.demo_monsters = []
@@ -5937,80 +5904,49 @@ class TutorialState(GameState):
         self.demo_inventory_panel = None
         self.demo_position = None
         
-        # Highlighting
         self.highlight_indices = []
         
     def enter(self):
         """Initialize tutorial state."""
-        # Load fonts
         self.header_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 36)
         self.body_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 24)
         self.name_font = ResourceLoader.load_font("fonts/Pixel Times.ttf", 20)
         
-        # Load background
         self.background = ResourceLoader.load_image("bg.png")
         if self.background.get_width() != SCREEN_WIDTH or self.background.get_height() != SCREEN_HEIGHT:
             self.background = pygame.transform.scale(self.background, (SCREEN_WIDTH, SCREEN_HEIGHT))
         
-        # Load floor
         self.floor = ResourceLoader.load_image("floor.png")
         self.floor = pygame.transform.scale(self.floor, (FLOOR_WIDTH, FLOOR_HEIGHT))
         
         self.merchant_image = ResourceLoader.load_image("hires/Merchant.png")
-        # Scale merchant to be larger
         merchant_scale = 14
         self.merchant_image = pygame.transform.scale(self.merchant_image, (int(self.merchant_image.get_width()*merchant_scale), int(self.merchant_image.get_height()*merchant_scale)))
         
-        # Set merchant base position (right side of screen)
         self.merchant_base_pos = (SCREEN_WIDTH - self.merchant_image.get_width() - 50, SCREEN_HEIGHT - self.merchant_image.get_height() - 40)
         
-        # Create UI elements
         self._create_ui()
         
-        # Start first dialogue
         self._start_dialogue(0)
 
     def _create_demo_cards(self):
         """Create demonstration cards for the tutorial."""
-        # Clear existing demo cards
         self.demo_cards = []
         
-        # Create 4 demo cards: 2 monsters, 1 weapon, 1 potion
-        # Club monster (value 10)
-        club_card = Card("clubs", 10, "dungeon")
-        club_card.face_up = True
-        club_card.is_flipping = False
-        self.demo_cards.append(club_card)
-        
-        # Spade monster (value 7)
-        spade_card = Card("spades", 7, "dungeon")
-        spade_card.face_up = True
-        spade_card.is_flipping = False
-        self.demo_cards.append(spade_card)
-        
-        # Diamond weapon (value 8)
-        diamond_card = Card("diamonds", 8, "dungeon")
-        diamond_card.face_up = True
-        diamond_card.is_flipping = False
-        self.demo_cards.append(diamond_card)
-        
-        # Heart potion (value 5)
-        heart_card = Card("hearts", 5, "dungeon")
-        heart_card.face_up = True
-        heart_card.is_flipping = False
-        self.demo_cards.append(heart_card)
-        
-        # Position cards centered, slightly above center
+        for suit, value in [("clubs", 10), ("spades", 7), ("diamonds", 8), ("hearts", 5)]:
+            card = Card(suit, value, "dungoen")
+            card.face_up = True
+            card.is_flipping = False
+            self.demo_cards.append(card)
+
         self._position_demo_cards()
         
     def _create_weapon_durability_demo(self):
         """Create weapon and monster stack for durability demonstration."""
-        # Create weapon
         self.demo_weapon = Card("diamonds", 12, "dungeon")
         self.demo_weapon.face_up = True
         self.demo_weapon.is_flipping = False
         
-        # Create monster stack (Q=12, 10, 8, 5)
         self.demo_monsters = []
         monster_values = [12, 10, 8, 5]
         
@@ -6020,12 +5956,10 @@ class TutorialState(GameState):
             monster.is_flipping = False
             self.demo_monsters.append(monster)
             
-        # Position weapon and monsters
         weapon_x = self.demo_position[0] - 150
         weapon_y = self.demo_position[1]
         self.demo_weapon.update_position((weapon_x, weapon_y))
         
-        # Stack monsters to the right with offset
         start_x = weapon_x + 150
         for i, monster in enumerate(self.demo_monsters):
             monster_x = start_x + i * 30
@@ -6048,7 +5982,6 @@ class TutorialState(GameState):
 
     def _create_ui(self):
         """Create the UI panels and buttons."""
-        # Main dialogue panel
         panel_width = 700
         panel_height = 200
         panel_x = 50
@@ -6066,7 +5999,6 @@ class TutorialState(GameState):
         )
         self.demo_position = (self.dialogue_panel.rect.center[0], SCREEN_HEIGHT // 2 - 160)
         
-        # Name panel (positioned above dialogue panel)
         name_width = 300
         name_height = 40
         name_x = panel_x + 25
@@ -6083,13 +6015,11 @@ class TutorialState(GameState):
             border_colour=(90, 70, 50)
         )
         
-        # Buttons (side by side at bottom of dialogue panel)
         button_width = 140
         button_height = 50
         button_y = panel_y + panel_height - button_height - 15
         button_spacing = 20
         
-        # Calculate centered button positions
         total_button_width = button_width * 2 + button_spacing
         button_start_x = panel_x + (panel_width - total_button_width) // 2
         
@@ -6135,13 +6065,11 @@ class TutorialState(GameState):
             self.typing_timer = 0
             self.typing_complete = False
             
-            # Set up graphics for this dialogue
             graphic_type = self.dialogues[index]["graphic"]
             self._setup_graphic(graphic_type)
             
     def _setup_graphic(self, graphic_type):
         """Set up the demonstration graphic for the current dialogue."""
-        # Clear previous graphics
         self.demo_cards = []
         self.demo_weapon = None
         self.demo_monsters = []
@@ -6154,22 +6082,21 @@ class TutorialState(GameState):
             
         elif graphic_type == "highlight the 2 monster cards":
             self._create_demo_cards()
-            self.highlight_indices = [0, 1]  # First two cards are monsters
+            self.highlight_indices = [0, 1]  # first two cards are monsters
             
         elif graphic_type == "highlight the weapon card":
             self._create_demo_cards()
-            self.highlight_indices = [2]  # Third card is weapon
+            self.highlight_indices = [2]  # third card is weapon
             
         elif graphic_type == "highlight the potion card":
             self._create_demo_cards()
-            self.highlight_indices = [3]  # Fourth card is potion
+            self.highlight_indices = [3]  # fourth card is potion
             
         elif graphic_type == "show weapon durability":
             self._create_weapon_durability_demo()
             
         elif graphic_type == "show 4 cards and run button":
             self._create_demo_cards()
-            # Create run button
             run_rect = pygame.Rect(
                 self.demo_position[0] - 45,
                 self.demo_position[1] - 90,
@@ -6186,11 +6113,10 @@ class TutorialState(GameState):
             )
             
         elif graphic_type == "show inventory panel":
-            # Create inventory panel
             inv_width = INVENTORY_PANEL_WIDTH
-            inv_height = INVENTORY_PANEL_HEIGHT // 3  # Just show top portion
+            inv_height = INVENTORY_PANEL_HEIGHT // 2  # just show top portion
             inv_x = self.demo_position[0] - inv_width // 2
-            inv_y = self.demo_position[1]
+            inv_y = self.demo_position[1] - 40
             
             self.demo_inventory_panel = Panel(
                 (inv_width, inv_height),
@@ -6212,68 +6138,59 @@ class TutorialState(GameState):
     def handle_event(self, event):
         """Handle tutorial input events."""
         if event.type == MOUSEMOTION:
-            # Update button hover states
             self.next_button.check_hover(event.pos)
             self.skip_button.check_hover(event.pos)
             
         elif event.type == MOUSEBUTTONDOWN and event.button == 1:
-            # Check if clicking dialogue panel to skip typing
             if not self.typing_complete and self.dialogue_panel.rect.collidepoint(event.pos):
                 self._complete_typing()
                 return
                 
-            # Only process buttons if typing is complete
             if self.typing_complete:
                 if self.next_button.is_clicked(event.pos):
-                    # Go to next dialogue
                     if self.current_dialogue_index < len(self.dialogues) - 1:
                         self._start_dialogue(self.current_dialogue_index + 1)
                     else:
-                        # Tutorial complete, go to game
-                        self.game_manager.change_state("playing")
+                        if self.watch:
+                            self.game_manager.change_state("title")
+                        else:
+                            self.game_manager.change_state("playing")
                         
                 elif self.skip_button.is_clicked(event.pos):
-                    # Skip tutorial entirely
-                    self.game_manager.change_state("playing")
+                    if self.watch:
+                        self.game_manager.change_state("title")
+                    else:
+                        self.game_manager.change_state("playing")
                     
     def update(self, delta_time):
         """Update tutorial animations and typing effect."""
-        # Update typing effect
         if not self.typing_complete and self.char_index < len(self.target_text):
             self.typing_timer += delta_time
             
-            # Add characters based on typing speed
             while self.typing_timer >= self.typing_speed and self.char_index < len(self.target_text):
                 self.current_text += self.target_text[self.char_index]
                 self.char_index += 1
                 self.typing_timer -= self.typing_speed
                 
-                # Update merchant shake when adding characters
                 self.merchant_shake_amount = 2.0
                 
-            # Check if typing is complete
             if self.char_index >= len(self.target_text):
                 self.typing_complete = True
                 
-        # Decay merchant shake
         if self.merchant_shake_amount > 0:
             self.merchant_shake_amount = max(0, self.merchant_shake_amount - delta_time * 10)
             
     def draw(self, surface):
         """Draw the tutorial screen."""
-        # Draw background
         surface.blit(self.background, (0, 0))
         surface.blit(self.floor, ((SCREEN_WIDTH - FLOOR_WIDTH)//2, (SCREEN_HEIGHT - FLOOR_HEIGHT)//2))
         
-        # Add dark overlay
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 180))
         surface.blit(overlay, (0, 0))
         
-        # Draw demonstration graphics
         self._draw_demonstration_graphics(surface)
         
-        # Draw merchant with shake effect
         if self.merchant_image:
             shake_x = 0
             shake_y = 0
@@ -6287,46 +6204,35 @@ class TutorialState(GameState):
             )
             surface.blit(self.merchant_image, merchant_pos)
             
-        # Draw dialogue panel
         self.dialogue_panel.draw(surface)
         
-        # Draw name panel
         self.name_panel.draw(surface)
         
-        # Draw speaker name
         speaker_name = self.dialogues[self.current_dialogue_index]["speaker"]
         name_text = self.name_font.render(speaker_name, True, WHITE)
         name_rect = name_text.get_rect(center=self.name_panel.rect.center)
         surface.blit(name_text, name_rect)
         
-        # Draw dialogue text (with word wrapping)
         self._draw_wrapped_text(surface, self.current_text)
         
-        # Draw typing cursor if still typing
         if not self.typing_complete:
-            cursor_x = self._get_cursor_position()
-            cursor_y = self.dialogue_panel.rect.top + 30
+            cursor_x, cursor_y = self._get_cursor_position()
             if pygame.time.get_ticks() % 1000 < 500:  # Blinking cursor
                 cursor_rect = pygame.Rect(cursor_x, cursor_y, 2, 20)
                 pygame.draw.rect(surface, WHITE, cursor_rect)
                 
-        # Only draw buttons if typing is complete
         if self.typing_complete:
             self.next_button.draw(surface)
             self.skip_button.draw(surface)
             
-            # Update button text for last dialogue
             if self.current_dialogue_index == len(self.dialogues) - 1:
                 self.next_button.update_text("BEGIN")
                 
     def _draw_demonstration_graphics(self, surface):
         """Draw the demonstration graphics for the current dialogue."""
-        # Draw demo cards
         if self.demo_cards:
             for i, card in enumerate(self.demo_cards):
-                # Apply darkening effect if not highlighted
                 if self.highlight_indices and i not in self.highlight_indices:
-                    # Draw darkened card
                     dark_overlay = pygame.Surface((CARD_WIDTH, CARD_HEIGHT), pygame.SRCALPHA)
                     dark_overlay.fill((0, 0, 0, 150))
                     card.draw(surface)
@@ -6334,9 +6240,7 @@ class TutorialState(GameState):
                 else:
                     card.draw(surface)
                     
-            # Draw highlight box around highlighted cards
             if self.highlight_indices:
-                # Find bounds of highlighted cards
                 highlighted_cards = [self.demo_cards[i] for i in self.highlight_indices]
                 if highlighted_cards:
                     min_x = min(card.rect.left for card in highlighted_cards)
@@ -6344,7 +6248,6 @@ class TutorialState(GameState):
                     min_y = min(card.rect.top for card in highlighted_cards)
                     max_y = max(card.rect.bottom for card in highlighted_cards)
                     
-                    # Draw highlight box with padding
                     padding = 10
                     highlight_rect = pygame.Rect(
                         min_x - padding,
@@ -6354,33 +6257,27 @@ class TutorialState(GameState):
                     )
                     pygame.draw.rect(surface, (255, 215, 0), highlight_rect, 3, border_radius=5)
                     
-        # Draw weapon durability demo
         if self.demo_weapon:
             self.demo_weapon.draw(surface)
             
         if self.demo_monsters:
-            # Draw monsters in stack order (first is bottom)
             for monster in self.demo_monsters:
                 monster.draw(surface)
                 
-        # Draw run button
         if self.demo_run_button:
-            # Highlight the run button
             highlight_padding = 8
             highlight_rect = self.demo_run_button.rect.inflate(highlight_padding * 2, highlight_padding * 2)
             pygame.draw.rect(surface, (255, 215, 0), highlight_rect, 3, border_radius=8)
             
             self.demo_run_button.draw(surface)
             
-        # Draw inventory panel
         if self.demo_inventory_panel:
             self.demo_inventory_panel.draw(surface)
             
-            # Draw "Inventory" text
             inv_title = self.body_font.render("Inventory", True, WHITE)
             title_rect = inv_title.get_rect(
                 centerx=self.demo_inventory_panel.rect.centerx,
-                centery=self.demo_inventory_panel.rect.centery
+                centery=self.demo_inventory_panel.rect.centery - 70
             )
             surface.blit(inv_title, title_rect)
                 
@@ -6390,7 +6287,7 @@ class TutorialState(GameState):
         lines = []
         current_line = []
         
-        max_width = self.dialogue_panel.rect.width - 40  # Padding
+        max_width = self.dialogue_panel.rect.width - 40
         
         for word in words:
             test_line = ' '.join(current_line + [word])
@@ -6408,9 +6305,7 @@ class TutorialState(GameState):
         if current_line:
             lines.append(' '.join(current_line))
             
-        # Draw lines
         y_offset = self.dialogue_panel.rect.top + 30
-        line_height = 30
         
         for line in lines:
             text_surface = self.body_font.render(line, True, WHITE)
@@ -6419,16 +6314,22 @@ class TutorialState(GameState):
                 top=y_offset
             )
             surface.blit(text_surface, text_rect)
-            y_offset += line_height
-            
+            y_offset += self.line_height
+        
+        if self.text_line_num != len(lines):
+            self.text_line_num = len(lines)
+        
+        self.final_line_str = lines[-1]
+
     def _get_cursor_position(self):
         """Calculate cursor position for typing effect."""
-        # This is a simplified version - just returns end of panel for now
-        # Could be enhanced to track actual text position
-        if self.current_text:
-            text_surface = self.body_font.render(self.current_text[-20:], True, WHITE)
-            return self.dialogue_panel.rect.left + 20 + text_surface.get_width()
-        return self.dialogue_panel.rect.left + 20
+        text_start_x = self.dialogue_panel.rect.left + 20
+        text_start_y = self.dialogue_panel.rect.top + 30
+        
+        x = self.body_font.render(self.final_line_str, True, WHITE).get_width() + text_start_x if self.current_text else text_start_x
+        y = self.line_height * (self.text_line_num - 1) + text_start_y if self.current_text else text_start_y
+        
+        return (x, y)
 
 class UIFactory:
     """Creates and manages UI elements."""
