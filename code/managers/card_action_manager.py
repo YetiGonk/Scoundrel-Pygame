@@ -1,3 +1,5 @@
+from config import *
+
 class CardActionManager:
     """Manages card-related actions such as attacking monsters, using equipment, and potions."""
 

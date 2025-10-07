@@ -1,3 +1,11 @@
+import pygame
+from pygame.locals import *
+
+from config import *
+
+from ui.button import Button
+
+
 class UIFactory:
     """Creates and manages UI elements."""
 

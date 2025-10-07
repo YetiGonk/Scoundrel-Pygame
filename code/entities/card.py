@@ -1,3 +1,14 @@
+import math
+import pygame
+from pygame.locals import *
+import random
+
+from config import *
+
+from core.resource_loader import ResourceLoader
+
+from ui.panel import Panel
+
 class Card:
     """ Represents a card in the game with support for rotation and scaling. """
 

@@ -1,3 +1,5 @@
+from config import *
+
 class InventoryManager:
     """Manages the player's inventory of cards."""
 

@@ -1,3 +1,11 @@
+import pygame
+import random
+
+
+from config import *
+
+from core.resource_loader import ResourceLoader
+
 class Deck:
     """ Represents a deck of cards in the game. """
 

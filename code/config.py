@@ -143,7 +143,7 @@ DECK_HEARTS_VALUE_RANGE = (2, 10)
 DECK_DIAMONDS_VALUE_RANGE = (2, 10)
 
 # Asset paths
-OUTPUT_PATH = Path(__file__).parent
+OUTPUT_PATH = Path(__file__).parent.parent
 ASSETS_PATH = OUTPUT_PATH / Path(r"./assets")
 
 def relative_to_assets(path: str) -> Path:

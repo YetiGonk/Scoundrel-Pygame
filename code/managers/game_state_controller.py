@@ -1,3 +1,5 @@
+import pygame
+
 class GameStateController:
     """Manages game state transitions and end game conditions."""
 

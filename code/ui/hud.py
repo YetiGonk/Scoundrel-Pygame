@@ -1,3 +1,6 @@
+from config import *
+from core.resource_loader import ResourceLoader
+
 class HUD:
     """Heads-up display for showing active effects and status."""
 

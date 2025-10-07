@@ -1,3 +1,8 @@
+import pygame
+import random
+
+from config import *
+
 class Panel:
     def __init__(self, width_height, top_left, colour=DARK_GRAY, alpha=None, border_radius=None,
             dungeon_style=True, border_width=None, border_colour=None):

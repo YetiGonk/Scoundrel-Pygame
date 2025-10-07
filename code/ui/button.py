@@ -1,3 +1,9 @@
+import pygame
+
+from config import *
+
+from ui.panel import Panel
+
 class Button:
     def __init__(self, rect, text, font, text_colour=BLACK, bg_colour=LIGHT_GRAY, border_colour=BLACK,
                 dungeon_style=False, panel_colour=None, border_width=None, callback=None):

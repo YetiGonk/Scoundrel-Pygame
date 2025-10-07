@@ -1,3 +1,17 @@
+import pygame
+from pygame.locals import *
+import random
+
+from config import *
+
+from core.game_state import GameState
+from core.resource_loader import ResourceLoader
+
+from entities.card import Card
+
+from ui.panel import Panel
+from ui.button import Button
+
 class TutorialState(GameState):
     """Tutorial state with typing text, animated merchant, and demo UI."""
     
@@ -144,7 +158,7 @@ class TutorialState(GameState):
         self.demo_cards = []
         
         for suit, value in [("clubs", 10), ("spades", 7), ("diamonds", 8), ("hearts", 5)]:
-            card = Card(suit, value, "dungoen")
+            card = Card(suit, value, "dungeon")
             card.face_up = True
             card.is_flipping = False
             self.demo_cards.append(card)

@@ -1,3 +1,13 @@
+import pygame
+from pygame.locals import *
+
+from config import *
+
+from core.game_state import GameState
+from core.resource_loader import ResourceLoader
+
+from ui.panel import Panel
+
 class RulesState(GameState):
     """The rules screen state of the game."""
 

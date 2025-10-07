@@ -1,3 +1,9 @@
+from animations.specific_animations import (
+    DestructionAnimation,
+    MaterialiseAnimation,
+    HealthChangeAnimation
+)
+
 class AnimationManager:
     """Manager for handling multiple animations."""
 

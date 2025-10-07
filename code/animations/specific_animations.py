@@ -1,3 +1,9 @@
+import math
+import pygame
+import random
+
+from animations.animation_base import Animation, EasingFunctions
+
 class MoveAnimation(Animation):
     """Animation for moving an object from one position to another."""
 

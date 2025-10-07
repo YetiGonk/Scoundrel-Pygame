@@ -1,3 +1,10 @@
+import pygame
+
+from config import *
+from core.resource_loader import ResourceLoader
+
+from ui.panel import Panel
+
 class StatusUI:
     """Displays current floor, room, and player stats during gameplay."""
 

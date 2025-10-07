@@ -1,3 +1,6 @@
+from config import FLOOR_NAMES, FLOOR_TOTAL
+import random
+
 class FloorManager:
     """Manages the different floors in a run."""
 

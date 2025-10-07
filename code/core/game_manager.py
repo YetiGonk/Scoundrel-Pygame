@@ -1,10 +1,24 @@
-from ..managers.floor_manager import FloorManager
+import pygame
+from pygame.locals import *
 
+# Config imports
+from config import (
+    SCREEN_WIDTH, 
+    SCREEN_HEIGHT, 
+    BLACK,
+    STARTING_ATTRIBUTES
+)
+
+# Manager imports
+from managers.floor_manager import FloorManager
+
+# State imports
 from states.title_state import TitleState
 from states.rules_state import RulesState
 from states.playing_state import PlayingState
 from states.game_over_state import GameOverState
 from states.tutorial_state import TutorialState
+from states.floor_start_state import FloorStartState
 
 class GameManager:
     """Manager for game states with roguelike elements."""

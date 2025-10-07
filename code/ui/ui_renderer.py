@@ -1,3 +1,10 @@
+import pygame
+import random
+
+from config import *
+
+from ui.panel import Panel
+
 class UIRenderer:
     """Handles rendering of UI elements and game objects."""
 

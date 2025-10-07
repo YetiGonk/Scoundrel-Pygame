@@ -1,3 +1,8 @@
+from config import *
+from animations.animation_base import Animation, EasingFunctions
+from animations.specific_animations import *
+    
+
 class AnimationController:
     """Manages all animations in the game."""
 

@@ -1,3 +1,7 @@
+from config import *
+
+from entities.card import Card
+
 class RoomManager:
     """Manages room creation, transitions, and completion."""
 

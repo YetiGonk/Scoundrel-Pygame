@@ -1,3 +1,5 @@
+from core.game_state import GameState
+
 class FloorStartState(GameState):
     """The floor starting screen where players begin a new floor."""
 

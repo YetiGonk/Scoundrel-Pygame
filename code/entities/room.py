@@ -1,3 +1,8 @@
+from animations.animation_base import Animation, EasingFunctions
+from animations.specific_animations import *
+
+from config import *
+
 class Room:
     """Represents a room containing cards in the game."""
 
