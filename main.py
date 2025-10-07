@@ -6518,33 +6518,6 @@ class UIRenderer:
         pygame.draw.rect(shadow_surf, (0, 0, 0, shadow_alpha), shadow_surf.get_rect(), border_radius=3)
         surface.blit(shadow_surf, (shadow_rect.x, shadow_rect.y))
 
-def isolate_card_corners(image_path, output_path):
-    """Keeps only the suit and rank in the top-left and bottom-right corners of a playing card image."""
-    img = Image.open(image_path).convert("RGBA")
-    pixels = img.load()
-    width, height = img.size
-
-    corner_width = int(width / 4.6)
-    corner_height = int(height / 3)
-
-    for x in range(width):
-        for y in range(height):
-            r, g, b, a = pixels[x, y]
-
-            if not ((x < corner_width and y < corner_height) or (x > width - corner_width - (5 if "10" in image_path else 0) and y > height - corner_height)):
-                if a > 0:
-                    pixels[x, y] = (255, 255, 255, 255)
-
-    img.save(output_path, "PNG")
-
-def process_all_cards(input_folder):
-    """Processes all card images in the given folder that start with clubs, hearts, diamonds, or spades."""
-    for filename in os.listdir(input_folder):
-        if filename.startswith(("clubs", "hearts", "diamonds", "spades")) and filename.endswith(".png"):
-            input_path = os.path.join(input_folder, filename)
-            output_path = os.path.join(input_folder, filename)
-            isolate_card_corners(input_path, output_path)
-
 async def main():
     """ Main entry point for the game. """
     pygame.init()
