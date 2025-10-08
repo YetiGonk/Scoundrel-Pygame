@@ -1,5 +1,7 @@
 import pygame
 
+from config import *
+
 class GameStateController:
     """Manages game state transitions and end game conditions."""
 
@@ -24,10 +26,10 @@ class GameStateController:
     def show_message(self, message, duration=1.2):
         """Display a small, non-blocking notification above the room cards."""
 
-        message_text = self.playing_state.body_font.render(message, True, self.playing_state.WHITE)
+        message_text = self.playing_state.body_font.render(message, True, WHITE)
 
-        room_top = self.playing_state.SCREEN_HEIGHT//2 - 120
-        message_rect = message_text.get_rect(center=(self.playing_state.SCREEN_WIDTH//2, room_top - 25))
+        room_top = SCREEN_HEIGHT//2 - 120
+        message_rect = message_text.get_rect(center=(SCREEN_WIDTH//2, room_top - 25))
 
         padding_x, padding_y = 15, 8
         bg_rect = pygame.Rect(
