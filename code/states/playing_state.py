@@ -103,6 +103,13 @@ class PlayingState(GameState):
             FLOOR_WIDTH,
             FLOOR_HEIGHT
         )
+        
+        self.header_font = self.ui_components.header_font
+        self.body_font = self.ui_components.body_font
+        self.caption_font = self.ui_components.caption_font
+        self.normal_font = self.ui_components.normal_font
+        self.background = self.ui_components.background
+        self.floor = self.ui_components.floor
 
     def _setup_game_components(self):
         """Initialize deck, room, etc."""

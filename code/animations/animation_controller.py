@@ -10,6 +10,11 @@ class AnimationController:
         """Initialise with a reference to the playing state."""
         self.playing_state = playing_state
 
+    @property
+    def session(self):
+        """Quick access to game session."""
+        return self.playing_state.session
+
     def animate_card_to_discard(self, card):
         """Animate a card being destroyed and appearing in the discard pile."""
 
@@ -34,11 +39,11 @@ class AnimationController:
     def materialise_card_at_discard(self, card):
         """Materialise the card at the discard pile position."""
 
-        card.update_position(self.playing_state.discard_pile.position)
+        card.update_position(self.session.discard_pile.position)
 
         materialise_anim = MaterialiseAnimation(
             card,
-            self.playing_state.discard_pile.position,
+            self.session.discard_pile.position,
             effect_type="sparkle",
             duration=0.3,
             on_complete=lambda: self.playing_state.room_manager.remove_and_discard(card)
@@ -65,15 +70,15 @@ class AnimationController:
 
     def position_monster_stack(self, preserve_positions=False):
         """Position defeated monsters in a stack."""
-        if not self.playing_state.defeated_monsters or "node" not in self.playing_state.equipped_weapon:
+        if not self.session.defeated_monsters or not self.session.equipped_weapon:
             return
 
-        weapon_card = self.playing_state.equipped_weapon["node"]
+        weapon_card = self.session.equipped_weapon
         is_default_weapon_position = (weapon_card.rect.x == WEAPON_POSITION[0] and weapon_card.rect.y == WEAPON_POSITION[1])
 
         start_x = weapon_card.rect.x + MONSTER_START_OFFSET[0]
 
-        for i, monster in enumerate(self.playing_state.defeated_monsters):
+        for i, monster in enumerate(self.session.defeated_monsters):
 
             has_valid_position = hasattr(monster, 'rect') and monster.rect.x > 0 and monster.rect.y > 0
 
@@ -105,8 +110,8 @@ class AnimationController:
     def animate_health_change(self, is_damage, amount):
         """Create animation for health change."""
 
-        health_display_x = self.playing_state.deck.rect.x + 100
-        health_display_y = SCREEN_HEIGHT - self.playing_state.deck.rect.y - 30
+        health_display_x = self.session.deck.rect.x + 100
+        health_display_y = SCREEN_HEIGHT - self.session.deck.rect.y - 30
 
         health_anim = HealthChangeAnimation(
             is_damage,
@@ -136,14 +141,14 @@ class AnimationController:
 
         inventory_x = inv_x + (inv_width // 2) - (scaled_card_width // 2)
 
-        num_cards = len(self.playing_state.inventory)
+        num_cards = len(self.session.inventory)
 
         if num_cards == 1:
 
             inventory_y = inv_y + (inv_height // 2) - (scaled_card_height // 2)
         elif num_cards == 2:
 
-            existing_card = self.playing_state.inventory[0]
+            existing_card = self.session.inventory[0]
             top_y = inv_y + (inv_height // 4) - (scaled_card_height // 2)
 
             if existing_card.rect.y != top_y:
@@ -153,4 +158,5 @@ class AnimationController:
 
         inventory_pos = (inventory_x, inventory_y)
 
-        self.animate_card_movement(card, inventory_pos, on_complete=lambda: self.playing_state.position_inventory_cards())
+        self.animate_card_movement(card, inventory_pos, on_complete=lambda: self.playing_state.inventory_manager.position_inventory_cards())
+

@@ -247,7 +247,7 @@ class CardUpdateSystem:
 
     def _update_inventory_cards(self, delta_time):
         """Update all cards in player inventory."""
-        for card in self.session.player.inventory:
+        for card in self.session.inventory:
             card.update(delta_time)
             
             if hasattr(card, 'is_flipping') and card.is_flipping:
@@ -255,13 +255,13 @@ class CardUpdateSystem:
 
     def _update_equipped_weapon(self, delta_time):
         """Update equipped weapon card if present."""
-        if self.session.player.has_weapon():
-            weapon = self.session.player.equipped_weapon
+        if self.session.has_weapon():
+            weapon = self.session.equipped_weapon
             weapon.update(delta_time)
 
     def _update_defeated_monsters(self, delta_time):
         """Update all defeated monster cards."""
-        for monster in self.session.player.defeated_monsters:
+        for monster in self.session.defeated_monsters:
             monster.update(delta_time)
 
 

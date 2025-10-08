@@ -22,6 +22,7 @@ class InventoryManager:
         
         # Calculate positions
         spacing = 20
+        INVENTORY_CARD_SCALE = 1
         total_width = (len(inventory) * CARD_WIDTH * INVENTORY_CARD_SCALE) + \
                      ((len(inventory) - 1) * spacing)
         

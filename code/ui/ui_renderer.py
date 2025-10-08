@@ -12,11 +12,16 @@ class UIRenderer:
         """Initialise with a reference to the playing state."""
         self.playing_state = playing_state
 
+    @property
+    def session(self):
+        """Quick access to game session."""
+        return self.playing_state.session
+
     def draw_health_display(self, surface):
         """Draw health display with current and max life points."""
 
         health_display_x = 40
-        health_display_y = SCREEN_HEIGHT - self.playing_state.deck.rect.y
+        health_display_y = SCREEN_HEIGHT - self.session.deck.rect.y
         health_bar_width = 140
         health_bar_height = 40
 
@@ -60,7 +65,7 @@ class UIRenderer:
 
         surface.blit(stone_bg, bar_bg_rect.topleft)
 
-        health_percent = self.playing_state.life_points / self.playing_state.max_life
+        health_percent = self.session.life_points / self.session.max_life
         health_width = int(health_bar_width * health_percent)
 
         if health_percent > 0.7:
@@ -109,7 +114,7 @@ class UIRenderer:
             highlight_surface.fill((255, 255, 255, 60))
             surface.blit(highlight_surface, highlight_rect)
 
-        health_text = self.playing_state.body_font.render(f"{self.playing_state.life_points}/{self.playing_state.max_life}", True, WHITE)
+        health_text = self.playing_state.body_font.render(f"{self.session.life_points}/{self.session.max_life}", True, WHITE)
         health_text_rect = health_text.get_rect(center=bar_bg_rect.center)
 
         glow_surf = pygame.Surface((health_text.get_width() + 10, health_text.get_height() + 10), pygame.SRCALPHA)
@@ -125,7 +130,7 @@ class UIRenderer:
         count_panel_width = 80
         count_panel_height = 40
         count_panel_x = 87 + CARD_WIDTH//2 - count_panel_width//2
-        count_panel_y = 35 + (len(self.playing_state.deck.cards)-1)*3 + CARD_HEIGHT//2 - count_panel_height//2
+        count_panel_y = 35 + (len(self.session.deck.cards)-1)*3 + CARD_HEIGHT//2 - count_panel_height//2
 
         if not hasattr(self, 'count_panel'):
             panel_rect = pygame.Rect(
@@ -151,7 +156,7 @@ class UIRenderer:
 
         self.count_panel.draw(surface)
 
-        count_text = self.playing_state.caption_font.render(f"{len(self.playing_state.deck.cards)}/{DECK_TOTAL_COUNT}", True, WHITE)
+        count_text = self.playing_state.caption_font.render(f"{len(self.session.deck.cards)}/{DECK_TOTAL_COUNT}", True, WHITE)
         count_text_rect = count_text.get_rect(center=self.count_panel.rect.center)
         surface.blit(count_text, count_text_rect)
 

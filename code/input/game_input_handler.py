@@ -43,7 +43,7 @@ class GameInputHandler:
         mouse_pos = event.pos
 
         # Check if inventory is full for visual feedback
-        inventory_is_full = len(self.session.player.inventory) >= self.session.player.max_inventory_size
+        inventory_is_full = len(self.session.inventory) >= self.session.max_inventory_size
 
         # Collect all potentially hoverable cards
         all_hoverable_cards = []
@@ -56,20 +56,20 @@ class GameInputHandler:
                 all_hoverable_cards.append(card)
 
         # Process inventory cards
-        for card in self.session.player.inventory:
+        for card in self.session.inventory:
             card.is_hovered = False
             if card.rect.collidepoint(mouse_pos):
                 all_hoverable_cards.append(card)
 
         # Process equipped weapon
-        if self.session.player.has_weapon():
-            weapon_card = self.session.player.equipped_weapon
+        if self.session.has_weapon():
+            weapon_card = self.session.equipped_weapon
             weapon_card.is_hovered = False
             if weapon_card.rect.collidepoint(mouse_pos):
                 all_hoverable_cards.append(weapon_card)
 
         # Process defeated monsters
-        for monster in self.session.player.defeated_monsters:
+        for monster in self.session.defeated_monsters:
             monster.is_hovered = False
             if monster.rect.collidepoint(mouse_pos):
                 all_hoverable_cards.append(monster)
@@ -93,11 +93,11 @@ class GameInputHandler:
         """
         # Update weapon attack options
         if hasattr(card, 'can_show_attack_options') and card.can_show_attack_options:
-            card.weapon_available = self.session.player.has_weapon()
+            card.weapon_available = self.session.has_weapon()
 
             # Check if weapon attack is viable based on last defeated monster
-            if self.session.player.has_weapon() and self.session.player.defeated_monsters:
-                last_monster = self.session.player.defeated_monsters[-1]
+            if self.session.has_weapon() and self.session.defeated_monsters:
+                last_monster = self.session.defeated_monsters[-1]
                 card.weapon_attack_not_viable = card.value >= last_monster.value
             else:
                 card.weapon_attack_not_viable = False
@@ -155,7 +155,7 @@ class GameInputHandler:
         mouse_pos = event.pos
 
         # Prevent actions if player is dead
-        if self.session.player.life_points <= 0:
+        if self.session.life_points <= 0:
             return
 
         # Check run button
@@ -239,8 +239,8 @@ class GameInputHandler:
         Returns:
             True if weapon was clicked and discarded
         """
-        if self.session.player.has_weapon():
-            weapon = self.session.player.equipped_weapon
+        if self.session.has_weapon():
+            weapon = self.session.equipped_weapon
             if weapon.rect.collidepoint(mouse_pos):
                 self.card_action_manager.discard_equipped_weapon()
                 return True

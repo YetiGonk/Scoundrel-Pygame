@@ -75,20 +75,18 @@ class CardActionManager:
         return event_pos[1] < center_y
 
     def _can_defeat_with_weapon(self, monster):
-        """Check if weapon can defeat monster without taking damage."""
-        if not self.session.equipped_weapon:
+        """Check if weapon attack is available for this monster."""
+        if not self.session.has_weapon():
             return False
         
-        weapon_value = self.session.equipped_weapon.value
-        
-        # Check if can add to stack
+        # If there are defeated monsters, check stacking rule
         if self.session.defeated_monsters:
             last_monster = self.session.defeated_monsters[-1]
-            # Can only stack if this monster is weaker than last defeated
-            return last_monster.value > monster.value
+            # Can only use weapon if this monster is weaker (can be added to stack)
+            return monster.value < last_monster.value
         else:
-            # First monster - can defeat if weapon is strong enough
-            return monster.value <= weapon_value
+            # No defeated monsters yet - weapon attack is always available
+            return True
 
     # ========================================================================
     # Attack Actions

@@ -99,7 +99,7 @@ class GameRenderer:
         self.session.discard_pile.draw(surface)
 
         # Draw equipped weapon and defeated monsters with proper layering
-        if self.session.player.has_weapon():
+        if self.session.has_weapon():
             self._draw_weapon_and_monsters(surface)
 
     def _draw_weapon_and_monsters(self, surface):
@@ -110,7 +110,7 @@ class GameRenderer:
         Args:
             surface: pygame Surface to draw on
         """
-        weapon_card = self.session.player.equipped_weapon
+        weapon_card = self.session.equipped_weapon
 
         # Draw weapon
         weapon_card.draw(surface)
@@ -119,7 +119,7 @@ class GameRenderer:
         hovered_monsters = []
         non_hovered_monsters = []
 
-        for monster in self.session.player.defeated_monsters:
+        for monster in self.session.defeated_monsters:
             if monster.is_hovered and monster.face_up:
                 hovered_monsters.append(monster)
             else:
@@ -185,7 +185,7 @@ class GameRenderer:
         """
         # Sort so hovered cards are drawn last
         sorted_cards = sorted(
-            self.session.player.inventory,
+            self.session.inventory,
             key=lambda c: 1 if c.is_hovered else 0
         )
 
@@ -239,18 +239,18 @@ class GameRenderer:
             surface: pygame Surface to draw on
         """
         # Draw inventory card tooltips
-        for card in self.session.player.inventory:
+        for card in self.session.inventory:
             if card.is_hovered and card.face_up:
                 card.draw_hover_text(surface)
 
         # Draw weapon tooltip
-        if self.session.player.has_weapon():
-            weapon = self.session.player.equipped_weapon
+        if self.session.has_weapon():
+            weapon = self.session.equipped_weapon
             if weapon.is_hovered and weapon.face_up:
                 weapon.draw_hover_text(surface)
 
         # Draw defeated monster tooltips
-        for monster in self.session.player.defeated_monsters:
+        for monster in self.session.defeated_monsters:
             # Mark as defeated for proper display
             monster.is_defeated = True
 
