@@ -1,50 +1,50 @@
 import pygame
 
-from config import *
 
 class GameStateController:
-    """Manages game state transitions and end game conditions."""
+    """Manages game state transitions and UI messages."""
 
     def __init__(self, playing_state):
-        """Initialise with a reference to the playing state."""
+        """Initialize with reference to playing state."""
         self.playing_state = playing_state
 
+    @property
+    def session(self):
+        """Quick access to game session."""
+        return self.playing_state.session
+
     def check_game_over(self):
-        """Check if the game is over due to player death."""
-        if self.playing_state.life_points <= 0:
-            self.end_game(False)
-            return True
-        return False
+        """Check if player is dead and transition to game over."""
+        if self.session.is_player_dead():
+            self.playing_state.game_manager.game_data["victory"] = False
+            self.playing_state.game_manager.change_state("game_over")
 
-    def end_game(self, victory):
-        """End the game with either victory or defeat."""
-
-        self.playing_state.game_manager.game_data["victory"] = victory
-
-        self.playing_state.game_manager.change_state("game_over")
-
-    def show_message(self, message, duration=1.2):
-        """Display a small, non-blocking notification above the room cards."""
-
-        message_text = self.playing_state.body_font.render(message, True, WHITE)
-
-        room_top = SCREEN_HEIGHT//2 - 120
-        message_rect = message_text.get_rect(center=(SCREEN_WIDTH//2, room_top - 25))
-
-        padding_x, padding_y = 15, 8
-        bg_rect = pygame.Rect(
-            message_rect.left - padding_x,
-            message_rect.top - padding_y,
-            message_rect.width + padding_x * 2,
-            message_rect.height + padding_y * 2
-        )
-
+    def show_message(self, text, duration=2.0):
+        """Show a message to the player with fade effect."""
+        # Get font (use ui_components if available)
+        if hasattr(self.playing_state, 'ui_components'):
+            font = self.playing_state.ui_components.body_font
+        else:
+            font = pygame.font.Font(None, 36)
+        
+        # Create message surface
+        message_surface = font.render(text, True, (255, 255, 255))
+        message_rect = message_surface.get_rect()
+        
+        # Position in center
+        from config import SCREEN_WIDTH, SCREEN_HEIGHT
+        message_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 4)
+        
+        # Create background rect (slightly larger)
+        bg_rect = message_rect.inflate(40, 20)
+        
+        # Set message data
         self.playing_state.message = {
-            "text": message_text,
+            "text": message_surface,
             "rect": message_rect,
             "bg_rect": bg_rect,
             "alpha": 0,
             "fade_in": True,
+            "fade_speed": 255 / 0.3,  # Fade in over 0.3 seconds
             "time_remaining": duration,
-            "fade_speed": 510
         }

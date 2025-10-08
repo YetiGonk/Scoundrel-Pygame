@@ -1,52 +1,49 @@
 from config import *
 
+
 class InventoryManager:
-    """Manages the player's inventory of cards."""
+    """Manages inventory positioning and display."""
 
     def __init__(self, playing_state):
-        """Initialise with a reference to the playing state."""
+        """Initialize with reference to playing state."""
         self.playing_state = playing_state
 
+    @property
+    def session(self):
+        """Quick access to game session."""
+        return self.playing_state.session
+
     def position_inventory_cards(self):
-        """Position inventory cards centered vertically within the panel."""
-
-        inv_width = INVENTORY_PANEL_WIDTH
-        inv_height = INVENTORY_PANEL_HEIGHT
-        inv_x = INVENTORY_PANEL_X
-        inv_y = INVENTORY_PANEL_Y
-
-        card_scale = 1.0
-
-        scaled_card_width = int(CARD_WIDTH * card_scale)
-        scaled_card_height = int(CARD_HEIGHT * card_scale)
-
-        num_cards = len(self.playing_state.inventory)
-
-        for i, card in enumerate(self.playing_state.inventory):
-
-            card.update_scale(card_scale)
-
-            card.in_inventory = True
-
-            inventory_x = inv_x + (inv_width // 2) - (scaled_card_width // 2)
-
-            if num_cards == 1:
-
-                inventory_y = inv_y + (inv_height // 2) - (scaled_card_height // 2)
-            elif num_cards == 2:
-
-                if i == 0:
-
-                    inventory_y = inv_y + (inv_height // 4) - (scaled_card_height // 2)
-                else:
-
-                    inventory_y = inv_y + (3 * inv_height // 4) - (scaled_card_height // 2)
-
-            card.update_position((inventory_x, inventory_y))
+        """Position inventory cards in the inventory panel."""
+        inventory = self.session.inventory
+        
+        if not inventory:
+            return
+        
+        # Calculate positions
+        spacing = 20
+        total_width = (len(inventory) * CARD_WIDTH * INVENTORY_CARD_SCALE) + \
+                     ((len(inventory) - 1) * spacing)
+        
+        start_x = INVENTORY_PANEL_X + (INVENTORY_PANEL_WIDTH - total_width) // 2
+        start_y = INVENTORY_PANEL_Y + (INVENTORY_PANEL_HEIGHT - 
+                                       (CARD_HEIGHT * INVENTORY_CARD_SCALE)) // 2
+        
+        # Position each card
+        for i, card in enumerate(inventory):
+            x = start_x + i * (CARD_WIDTH * INVENTORY_CARD_SCALE + spacing)
+            y = start_y
+            
+            card.update_position((int(x), int(y)))
+            
+            if hasattr(card, 'update_scale'):
+                card.update_scale(INVENTORY_CARD_SCALE)
 
     def get_inventory_card_at_position(self, position):
-        """Check if the position overlaps with any inventory card."""
-        for card in self.playing_state.inventory:
+        """Get inventory card at mouse position."""
+        # Check in reverse order (top card first)
+        for card in reversed(self.session.inventory):
             if card.rect.collidepoint(position):
                 return card
+        
         return None
