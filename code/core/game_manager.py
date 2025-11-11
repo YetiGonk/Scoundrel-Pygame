@@ -20,6 +20,8 @@ from states.game_over_state import GameOverState
 from states.tutorial_state import TutorialState
 from states.floor_start_state import FloorStartState
 
+from effects.tv_filter import TVFilter
+
 class GameManager:
     """Manager for game states with roguelike elements."""
 
@@ -56,6 +58,8 @@ class GameManager:
         self.fade_surface.fill(BLACK)
         
         self.fade_surface = self.fade_surface.convert_alpha()
+
+        self.tv_filter = TVFilter(SCREEN_WIDTH, SCREEN_HEIGHT)
 
         self.change_state("title")
 
@@ -128,8 +132,12 @@ class GameManager:
             self.current_state.update(delta_time)
 
     def draw(self, surface):
+        """Draw current state."""
         if self.current_state:
             self.current_state.draw(surface)
+            
+            filtered_surface = self.tv_filter.apply_filter(surface)
+            surface.blit(filtered_surface, (0, 0))
         
         if self.fade_alpha > 0:
             self.fade_surface.set_alpha(int(self.fade_alpha))
