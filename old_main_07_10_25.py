@@ -140,8 +140,12 @@ DECK_BLACK_VALUE_RANGE = (2, 14)
 DECK_HEARTS_VALUE_RANGE = (2, 10)
 DECK_DIAMONDS_VALUE_RANGE = (2, 10)
 
-OUTPUT_PATH = Path(__file__).parent
-ASSETS_PATH = OUTPUT_PATH / Path(r"./assets")
+import os
+if os.path.exists("assets"):
+    ASSETS_PATH = Path("assets")
+else:
+    OUTPUT_PATH = Path(__file__).parent.parent
+    ASSETS_PATH = OUTPUT_PATH / Path("assets")
 
 def relative_to_assets(path: str) -> Path:
     return ASSETS_PATH / Path(path)
